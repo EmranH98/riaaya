@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>رعاية — النموذج التجريبي للعيادات</title>
+  <link rel="icon" type="image/png" href="assets/riaaya-favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="index.html" aria-label="العودة إلى الصفحة الرئيسية">
+        <img class="brand-logo-mark" src="assets/riaaya-logo-mark.png" alt="">
+        <span>
+          <strong>RIAAYA</strong>
+          <small>إدارة العيادات</small>
+        </span>
+      </a>
+
+      <nav class="side-nav" aria-label="أقسام لوحة التحكم">
+        <button class="nav-item active" data-view-button="dashboard" type="button">ملخص اليوم</button>
+        <button class="nav-item" data-view-button="entries" type="button">عمليات اليوم</button>
+        <button class="nav-item" data-view-button="staff" type="button">الموظفون والنسب</button>
+        <button class="nav-item" data-view-button="services" type="button">الخدمات والقواعد</button>
+        <button class="nav-item" data-view-button="inventory" type="button">المخزون والموردون</button>
+        <button class="nav-item" data-view-button="reconcile" type="button">المطابقة</button>
+        <button class="nav-item" data-view-button="salaries" type="button">الرواتب</button>
+        <button class="nav-item" data-view-button="accounts" type="button">الحسابات والصلاحيات</button>
+        <button class="nav-item" data-view-button="leads" type="button">طلبات التجربة</button>
+      </nav>
+
+      <div class="sidebar-card">
+        <span>الحالة</span>
+        <strong data-health-label>يتم التحديث</strong>
+        <small data-health-note>تتغير الحالة بعد كل عملية أو مطابقة.</small>
+      </div>
+    </aside>
+
+    <main class="workspace">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">نموذج تجريبي تفاعلي</p>
+          <h1 data-clinic-title>عيادة رعاية التجريبية</h1>
+        </div>
+        <div class="top-actions">
+          <label class="language-switcher">
+            اللغة
+            <select data-language-select>
+              <option value="ar">العربية</option>
+              <option value="en">English</option>
+            </select>
+          </label>
+          <label class="account-switcher">
+            الحساب
+            <select data-account-switcher></select>
+          </label>
+          <a href="index.html" class="ghost-button">الصفحة الرئيسية</a>
+          <button class="primary-button" type="button" data-print-report data-sensitive>طباعة كشف الرواتب</button>
+        </div>
+      </header>
+
+      <section class="clinic-strip" data-sensitive>
+        <form class="clinic-form" data-clinic-form>
+          <label>
+            اسم العيادة
+            <input name="clinicName" type="text" required>
+          </label>
+          <label>
+            تاريخ العمل
+            <input name="activeDate" type="date" required>
+          </label>
+          <label>
+            الفرع
+            <input name="branch" type="text" placeholder="الفرع الرئيسي">
+          </label>
+          <button class="dark-button" type="submit">حفظ الإعدادات</button>
+        </form>
+      </section>
+
+      <section class="view active" data-view="dashboard">
+        <section class="dashboard-hero">
+          <div class="hero-copy">
+            <p class="eyebrow">نظرة تشغيلية</p>
+            <h2>صورة العيادة في نهاية اليوم</h2>
+            <p data-dashboard-summary>يتم تجهيز الملخص من عمليات اليوم والمطابقة والرواتب.</p>
+            <div class="summary-chips">
+              <span class="metric-chip" data-chip="close">الإغلاق قيد المراجعة</span>
+              <span class="metric-chip" data-chip="discount">الخصومات 0 د.أ</span>
+              <span class="metric-chip" data-chip="average">متوسط العملية 0 د.أ</span>
+            </div>
+          </div>
+          <div class="hero-stat-card">
+            <span>إيرادات آخر 7 أيام</span>
+            <strong data-kpi="weekRevenue">0 د.أ</strong>
+            <small data-kpi-note="weekRevenue">بناءً على العمليات المسجلة</small>
+          </div>
+        </section>
+
+        <div class="kpi-grid">
+          <article class="kpi">
+            <span>إيرادات اليوم</span>
+            <strong data-kpi="revenue">0 د.أ</strong>
+            <small data-kpi-note="revenue">من 0 عملية</small>
+          </article>
+          <article class="kpi">
+            <span>الكاش المسجل</span>
+            <strong data-kpi="cash">0 د.أ</strong>
+            <small>حسب العمليات المدخلة</small>
+          </article>
+          <article class="kpi">
+            <span>الفيزا المسجلة</span>
+            <strong data-kpi="card">0 د.أ</strong>
+            <small>حسب العمليات المدخلة</small>
+          </article>
+          <article class="kpi warn">
+            <span>فرق الإغلاق</span>
+            <strong data-kpi="difference">0 د.أ</strong>
+            <small data-kpi-note="difference">لا توجد فروقات</small>
+          </article>
+        </div>
+
+        <div class="analytics-grid">
+          <article class="panel chart-panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">الأداء الأسبوعي</p>
+                <h2>الإيرادات حسب اليوم</h2>
+              </div>
+              <span class="status-pill good" data-week-count>0 عملية</span>
+            </div>
+            <div class="week-chart" data-week-chart></div>
+          </article>
+
+          <article class="panel" data-sensitive>
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">طرق الدفع</p>
+                <h2>توزيع المقبوضات</h2>
+              </div>
+            </div>
+            <div class="payment-summary" data-payment-summary>لا توجد مدفوعات بعد.</div>
+            <div class="payment-bars" data-payment-bars></div>
+          </article>
+        </div>
+
+        <div class="dashboard-grid enhanced">
+          <article class="panel" data-sensitive>
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">التزامات الفريق</p>
+                <h2>نسب ورواتب اليوم</h2>
+              </div>
+              <button class="text-button" type="button" data-jump="salaries">التفاصيل</button>
+            </div>
+            <div class="salary-breakdown" data-salary-breakdown></div>
+          </article>
+
+          <article class="panel" data-sensitive>
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">إغلاق اليوم</p>
+                <h2>حالة المطابقة</h2>
+              </div>
+              <button class="text-button" type="button" data-jump="reconcile">مطابقة</button>
+            </div>
+            <div class="close-summary" data-close-summary></div>
+            <div class="insight-list" data-insight-list></div>
+          </article>
+        </div>
+
+        <div class="dashboard-grid">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">آخر ما تم تسجيله</p>
+                <h2>عمليات اليوم</h2>
+              </div>
+              <button class="text-button" type="button" data-jump="entries">إضافة عملية</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>المريض</th>
+                    <th>الخدمة</th>
+                    <th>الدفع</th>
+                    <th data-sensitive>الصافي</th>
+                  </tr>
+                </thead>
+                <tbody data-recent-entries></tbody>
+              </table>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">ملاحظات اليوم</p>
+                <h2>ما يحتاج مراجعة</h2>
+              </div>
+            </div>
+            <div class="alerts" data-alerts></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="view" data-view="entries">
+        <div class="split-layout">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">إدخال جديد</p>
+                <h2>عملية جديدة</h2>
+              </div>
+            </div>
+            <form class="entry-form" data-entry-form>
+              <label>
+                اسم المريض
+                <input name="patient" type="text" placeholder="سارة أحمد" required>
+              </label>
+              <label>
+                الخدمة
+                <select name="serviceId" data-service-select required></select>
+              </label>
+              <label>
+                الطبيب
+                <select name="doctorId" data-doctor-select></select>
+              </label>
+              <label>
+                الأخصائي
+                <select name="specialistId" data-specialist-select></select>
+              </label>
+              <label>
+                الكمية
+                <input name="quantity" type="number" min="1" step="1" value="1" required>
+              </label>
+              <label>
+                السعر
+                <input name="amount" type="number" min="0" step="0.01" placeholder="80" required>
+              </label>
+              <label data-sensitive>
+                التكلفة المباشرة
+                <input name="cost" type="number" min="0" step="0.01" value="0">
+              </label>
+              <label>
+                الخصم
+                <input name="discount" type="number" min="0" step="0.01" value="0">
+              </label>
+              <label>
+                طريقة الدفع
+                <select name="paymentMethod" required>
+                  <option value="cash">كاش</option>
+                  <option value="card">فيزا</option>
+                  <option value="transfer">تحويل</option>
+                </select>
+              </label>
+              <label>
+                ملاحظات
+                <input name="notes" type="text" placeholder="اختياري">
+              </label>
+              <div class="formula-preview" data-entry-preview data-sensitive>اختر الخدمة والطبيب أو الأخصائي لعرض صيغة المستحقات.</div>
+              <button class="primary-button form-submit" type="submit">إضافة العملية</button>
+            </form>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">سجل اليوم</p>
+                <h2>كل العمليات</h2>
+              </div>
+              <div class="form-actions">
+                <button class="text-button" type="button" data-export-entries data-sensitive>تصدير CSV</button>
+                <button class="text-button danger" type="button" data-clear-entries data-sensitive>مسح سجل اليوم</button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>المريض</th>
+                    <th>الخدمة</th>
+                    <th>الفريق</th>
+                    <th data-sensitive>الصافي</th>
+                    <th data-sensitive>المستحقات</th>
+                    <th data-sensitive></th>
+                  </tr>
+                </thead>
+                <tbody data-entry-table></tbody>
+              </table>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="view" data-view="staff">
+        <div class="split-layout">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">إضافة عضو للفريق</p>
+                <h2>النسب والقواعد</h2>
+              </div>
+            </div>
+            <form class="staff-form" data-staff-form>
+              <label>
+                الاسم
+                <input name="name" type="text" placeholder="د. ليلى منصور" required>
+              </label>
+              <label>
+                الدور
+                <select name="role" required>
+                  <option value="doctor">طبيب</option>
+                  <option value="specialist">أخصائي</option>
+                </select>
+              </label>
+              <label data-sensitive>
+                النسبة
+                <input name="rate" type="number" min="0" max="100" step="0.01" placeholder="50" required>
+              </label>
+              <button class="primary-button form-submit" type="submit">إضافة الموظف</button>
+            </form>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">الفريق الحالي</p>
+                <h2>الفريق الحالي</h2>
+              </div>
+            </div>
+            <div class="staff-list" data-staff-list></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="view" data-view="services">
+        <div class="split-layout">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">كتالوج الخدمات</p>
+                <h2>إضافة خدمة وتسعيرها</h2>
+              </div>
+            </div>
+            <form class="entry-form" data-service-form>
+              <label>
+                اسم الخدمة
+                <input name="name" type="text" placeholder="جلسة ليزر" required>
+              </label>
+              <label>
+                السعر الافتراضي
+                <input name="defaultPrice" type="number" min="0" step="0.01" placeholder="80" required>
+              </label>
+              <label data-sensitive>
+                التكلفة المباشرة
+                <input name="defaultCost" type="number" min="0" step="0.01" value="0">
+              </label>
+              <label>
+                الحالة
+                <select name="active">
+                  <option value="true">فعالة</option>
+                  <option value="false">متوقفة</option>
+                </select>
+              </label>
+              <button class="primary-button form-submit" type="submit">حفظ الخدمة</button>
+            </form>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">الخدمات الحالية</p>
+                <h2>الخدمات المتاحة للعمليات</h2>
+              </div>
+            </div>
+            <div class="staff-list" data-service-list></div>
+          </article>
+        </div>
+
+        <div class="split-layout rules-layout" data-sensitive>
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">قواعد المستحقات</p>
+                <h2>قاعدة جديدة</h2>
+              </div>
+            </div>
+            <form class="entry-form" data-rule-form>
+              <label>
+                اسم القاعدة
+                <input name="name" type="text" placeholder="د. ليلى — 60% ليزر" required>
+              </label>
+              <label>
+                تطبق على
+                <select name="appliesTo" required>
+                  <option value="doctor">طبيب</option>
+                  <option value="specialist">أخصائي</option>
+                </select>
+              </label>
+              <label>
+                الشخص
+                <select name="personId" data-rule-person-select></select>
+              </label>
+              <label>
+                الخدمة
+                <select name="serviceId" data-rule-service-select></select>
+              </label>
+              <label>
+                طريقة الحساب
+                <select name="model" required>
+                  <option value="pct_net">نسبة من الربح بعد التكلفة</option>
+                  <option value="pct_gross">نسبة من المقبوض</option>
+                  <option value="fixed">مبلغ ثابت لكل عملية</option>
+                  <option value="member_rate">نسبة العضو الافتراضية</option>
+                </select>
+              </label>
+              <label>
+                القيمة
+                <input name="value" type="number" min="0" step="0.01" placeholder="50">
+              </label>
+              <button class="primary-button form-submit" type="submit">حفظ القاعدة</button>
+            </form>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">أولوية الحساب</p>
+                <h2>القواعد الحالية</h2>
+              </div>
+            </div>
+            <div class="rule-note">الأولوية: شخص + خدمة، ثم شخص فقط، ثم خدمة فقط، ثم قاعدة عامة.</div>
+            <div class="staff-list" data-rule-list></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="view" data-view="inventory">
+        <div class="kpi-grid inventory-kpis">
+          <article class="kpi">
+            <span>أصناف المخزون</span>
+            <strong data-inventory-kpi="items">0</strong>
+            <small>الأصناف الفعالة</small>
+          </article>
+          <article class="kpi warn">
+            <span>تنبيهات منخفضة</span>
+            <strong data-inventory-kpi="low">0</strong>
+            <small>حسب حد الطلب لكل صنف</small>
+          </article>
+          <article class="kpi">
+            <span>الموردون</span>
+            <strong data-inventory-kpi="suppliers">0</strong>
+            <small>جهات يمكن الطلب منها</small>
+          </article>
+          <article class="kpi" data-sensitive>
+            <span>قيمة المخزون</span>
+            <strong data-inventory-kpi="value">0 د.أ</strong>
+            <small>حسب آخر تكلفة للصنف</small>
+          </article>
+        </div>
+
+        <div class="split-layout">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">الموردون</p>
+                <h2>إضافة مورد للعيادة</h2>
+              </div>
+            </div>
+            <form class="entry-form" data-supplier-form>
+              <label>
+                اسم المورد
+                <input name="name" type="text" placeholder="MedCare Supplies" required>
+              </label>
+              <label>
+                التواصل
+                <input name="contact" type="text" placeholder="هاتف أو بريد">
+              </label>
+              <label>
+                المدينة
+                <input name="city" type="text" placeholder="عمّان">
+              </label>
+              <label>
+                التصنيف
+                <input name="category" type="text" placeholder="مواد طبية">
+              </label>
+              <label class="wide-field">
+                ملاحظات
+                <input name="notes" type="text" placeholder="شروط الطلب، أيام التوصيل، أو الأسعار">
+              </label>
+              <button class="primary-button form-submit" type="submit">حفظ المورد</button>
+            </form>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">دليل الطلب</p>
+                <h2>من أين يمكن الطلب؟</h2>
+              </div>
+            </div>
+            <div class="staff-list" data-supplier-list></div>
+          </article>
+        </div>
+
+        <div class="split-layout rules-layout">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">المخزون</p>
+                <h2>إضافة صنف وحد التنبيه</h2>
+              </div>
+            </div>
+            <form class="entry-form" data-inventory-form>
+              <label>
+                اسم الصنف
+                <input name="name" type="text" placeholder="قفازات نيتريل" required>
+              </label>
+              <label>
+                رمز الصنف
+                <input name="sku" type="text" placeholder="GLV-NIT-M">
+              </label>
+              <label>
+                الوحدة
+                <input name="unit" type="text" placeholder="علبة" required>
+              </label>
+              <label>
+                الكمية الحالية
+                <input name="quantity" type="number" min="0" step="0.01" placeholder="12" required>
+              </label>
+              <label>
+                حد الطلب المنخفض
+                <input name="lowThreshold" type="number" min="0" step="0.01" placeholder="10" required>
+              </label>
+              <label data-sensitive>
+                آخر تكلفة للوحدة
+                <input name="unitCost" type="number" min="0" step="0.01" placeholder="4.5">
+              </label>
+              <label>
+                المورد المفضل
+                <select name="supplierId" data-inventory-supplier-select></select>
+              </label>
+              <div class="formula-preview">اكتب 0 في حد الطلب إذا كان الصنف لا يحتاج تنبيهات، حتى لا تظهر إشعارات بلا سبب.</div>
+              <button class="primary-button form-submit" type="submit">حفظ الصنف</button>
+            </form>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">تنبيهات المخزون</p>
+                <h2>أصناف تحتاج طلب</h2>
+              </div>
+            </div>
+            <div class="rule-note">التنبيه يظهر فقط عندما يكون حد الطلب أكبر من 0 والكمية الحالية أقل أو تساوي ذلك الحد.</div>
+            <div class="staff-list" data-low-stock-list></div>
+          </article>
+        </div>
+
+        <div class="dashboard-grid enhanced">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">قائمة المخزون</p>
+                <h2>الأصناف الحالية</h2>
+              </div>
+            </div>
+            <div class="staff-list" data-inventory-list></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">الطلبات</p>
+                <h2>تسجيل طلب أو استلام</h2>
+              </div>
+            </div>
+            <form class="entry-form" data-order-form>
+              <label>
+                الصنف
+                <select name="itemId" data-order-item-select required></select>
+              </label>
+              <label>
+                المورد
+                <select name="supplierId" data-order-supplier-select required></select>
+              </label>
+              <label>
+                تاريخ الطلب
+                <input name="date" type="date" required>
+              </label>
+              <label>
+                الكمية
+                <input name="quantity" type="number" min="0.01" step="0.01" required>
+              </label>
+              <label data-sensitive>
+                تكلفة الوحدة
+                <input name="unitCost" type="number" min="0" step="0.01" required>
+              </label>
+              <label>
+                الحالة
+                <select name="status">
+                  <option value="ordered">تم الطلب</option>
+                  <option value="received">تم الاستلام</option>
+                  <option value="planned">مخطط</option>
+                  <option value="cancelled">ملغي</option>
+                </select>
+              </label>
+              <label class="wide-field">
+                ملاحظات
+                <input name="notes" type="text" placeholder="رقم الفاتورة أو شروط التوصيل">
+              </label>
+              <button class="primary-button form-submit" type="submit">حفظ الطلب</button>
+            </form>
+          </article>
+        </div>
+
+        <article class="panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">من أين طلبنا؟</p>
+              <h2>سجل الموردين والتكاليف</h2>
+            </div>
+            <button class="text-button" type="button" data-export-inventory data-sensitive>تصدير CSV</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>التاريخ</th>
+                  <th>الصنف</th>
+                  <th>المورد</th>
+                  <th>الفرع</th>
+                  <th>الكمية</th>
+                  <th data-sensitive>تكلفة الوحدة</th>
+                  <th data-sensitive>الإجمالي</th>
+                  <th>الحالة</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody data-purchase-order-list></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <section class="view" data-view="reconcile">
+        <div class="split-layout compact">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">إغلاق اليوم</p>
+                <h2>مطابقة الإغلاق</h2>
+              </div>
+            </div>
+            <form class="reconcile-form" data-reconcile-form>
+              <label>
+                الكاش الموجود فعلياً
+                <input name="countedCash" type="number" min="0" step="0.01" required>
+              </label>
+              <label>
+                مجموع الفيزا من الجهاز
+                <input name="countedCard" type="number" min="0" step="0.01" required>
+              </label>
+              <label>
+                التحويلات المؤكدة
+                <input name="countedTransfer" type="number" min="0" step="0.01" required>
+              </label>
+              <button class="primary-button form-submit" type="submit">حفظ الإغلاق</button>
+            </form>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">النتيجة</p>
+                <h2>هل الإغلاق متطابق؟</h2>
+              </div>
+            </div>
+            <div class="reconcile-result" data-reconcile-result></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="view" data-view="salaries">
+        <article class="panel report-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">كشف قابل للطباعة</p>
+              <h2>نسب ورواتب اليوم</h2>
+            </div>
+            <div class="form-actions">
+              <button class="text-button" type="button" data-export-salaries data-sensitive>تصدير CSV</button>
+              <button class="primary-button" type="button" data-print-report data-sensitive>طباعة التقرير</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>الموظف</th>
+                  <th>الدور</th>
+                  <th>الصيغة</th>
+                  <th>عدد العمليات</th>
+                  <th>المستحق</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody data-salary-table></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="panel salary-slip-panel" data-salary-slip-panel data-sensitive>
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">كشف فردي</p>
+              <h2>تفاصيل راتب الموظف</h2>
+            </div>
+            <div class="form-actions salary-slip-actions">
+              <select data-salary-slip-select aria-label="اختيار الموظف"></select>
+              <button class="primary-button" type="button" data-print-salary-slip>طباعة كشف فردي</button>
+            </div>
+          </div>
+          <div class="salary-slip" data-salary-slip></div>
+        </article>
+      </section>
+
+      <section class="view" data-view="accounts">
+        <div class="split-layout">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">إدارة الوصول</p>
+                <h2>حساب جديد</h2>
+              </div>
+            </div>
+            <form class="account-form" data-account-form>
+              <label>
+                اسم الحساب
+                <input name="name" type="text" placeholder="موظف استقبال" required>
+              </label>
+              <label>
+                نوع الحساب
+                <select name="role" required>
+                  <option value="data_entry">إدخال بيانات</option>
+                  <option value="doctor">طبيب</option>
+                  <option value="specialist">أخصائي</option>
+                  <option value="admin">مدير</option>
+                </select>
+              </label>
+              <label>
+                ربط بموظف
+                <select name="staffId" data-account-staff-select></select>
+              </label>
+              <label class="permission-check inline-check">
+                <input name="ownEntriesOnly" type="checkbox">
+                يرى عملياته فقط
+              </label>
+              <label class="permission-check inline-check">
+                <input name="canViewSensitive" type="checkbox">
+                يرى المبالغ والنسب
+              </label>
+              <button class="primary-button form-submit" type="submit">إضافة الحساب</button>
+            </form>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">الصلاحيات الحالية</p>
+                <h2>من يرى ماذا؟</h2>
+              </div>
+            </div>
+            <div class="rule-note">يمكن للمدير تحديد الأقسام الظاهرة لكل حساب. الحسابات بدون صلاحية مالية لا ترى النسب أو الرواتب أو التصدير المالي.</div>
+            <div class="permission-list" data-account-list></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="view" data-view="leads">
+        <article class="panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">من صفحة التعريف</p>
+              <h2>طلبات التجربة المحفوظة</h2>
+            </div>
+            <button class="text-button danger" type="button" data-clear-leads>مسح الطلبات</button>
+          </div>
+          <div class="lead-list" data-lead-list></div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

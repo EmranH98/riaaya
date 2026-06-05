@@ -1,0 +1,10 @@
+{
+  "name": "riaaya-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node server.mjs",
+    "check": "node --check api/leads.js && node --check server.mjs"
+  }
+}
