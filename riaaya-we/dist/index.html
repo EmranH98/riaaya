@@ -1,0 +1,2096 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>رعاية — إدارة العيادات بوضوح واطمئنان</title>
+<link rel="icon" type="image/png" href="assets/riaaya-favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --teal:       #0a7c5c;
+  --teal-light: #0f9e75;
+  --teal-pale:  #e8f7f2;
+  --teal-dark:  #065c43;
+  --gold:       #c8960a;
+  --gold-light: #f0b429;
+  --gold-pale:  #fef9ec;
+  --ink:        #0f1923;
+  --ink-mid:    #2d3f4f;
+  --ink-soft:   #5a6e7d;
+  --ink-muted:  #8fa3b1;
+  --surface:    #f6f9f8;
+  --white:      #ffffff;
+  --border:     #d4e4dd;
+  --radius:     14px;
+  --radius-lg:  22px;
+  --radius-xl:  32px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Tajawal', 'Cairo', sans-serif;
+  background: var(--white);
+  color: var(--ink);
+  line-height: 1.7;
+  overflow-x: hidden;
+}
+
+/* ── NAV ── */
+nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 5vw;
+  height: 68px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.nav-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+}
+
+.logo-mark {
+  width: 40px;
+  height: 40px;
+  background: var(--teal);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: white;
+  font-weight: 900;
+  font-family: 'Cairo', sans-serif;
+  letter-spacing: -1px;
+}
+
+.logo-text {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--ink);
+  font-family: 'Cairo', sans-serif;
+}
+
+.logo-text span { color: var(--teal); }
+
+.site-logo {
+  display: block;
+  width: clamp(138px, 14vw, 190px);
+  height: auto;
+  border-radius: 8px;
+  background: #fffdf8;
+  mix-blend-mode: multiply;
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  list-style: none;
+}
+
+.nav-links a {
+  font-size: 15px;
+  color: var(--ink-mid);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+.nav-links a:hover { color: var(--teal); }
+
+.nav-cta {
+  background: var(--teal) !important;
+  color: white !important;
+  padding: 9px 22px;
+  border-radius: 9px;
+  font-weight: 700 !important;
+  transition: background 0.2s !important;
+}
+.nav-cta:hover { background: var(--teal-dark) !important; }
+
+.language-toggle {
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: white;
+  color: var(--ink-mid);
+  padding: 8px 14px;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.language-toggle:hover {
+  border-color: var(--teal);
+  color: var(--teal);
+}
+
+/* ── HERO ── */
+.hero {
+  min-height: calc(100vh - 68px);
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  padding: 80px 5vw;
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-bg-pattern {
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle at 80% 20%, rgba(10,124,92,0.06) 0%, transparent 50%),
+    radial-gradient(circle at 10% 80%, rgba(200,150,10,0.04) 0%, transparent 40%);
+  pointer-events: none;
+}
+
+.hero-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 60px;
+  align-items: center;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--teal-pale);
+  border: 1px solid rgba(10,124,92,0.2);
+  color: var(--teal-dark);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: 50px;
+  margin-bottom: 24px;
+}
+
+.hero-badge::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  background: var(--teal);
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%,100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.4); }
+}
+
+.hero-title {
+  font-family: 'Cairo', sans-serif;
+  font-size: clamp(36px, 5vw, 58px);
+  font-weight: 900;
+  line-height: 1.15;
+  color: var(--ink);
+  margin-bottom: 20px;
+}
+
+.hero-title .accent { color: var(--teal); }
+.hero-title .gold { color: var(--gold); }
+
+.hero-sub {
+  font-size: 18px;
+  color: var(--ink-soft);
+  line-height: 1.7;
+  margin-bottom: 36px;
+  max-width: 480px;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--teal);
+  color: white;
+  font-size: 16px;
+  font-weight: 700;
+  padding: 14px 28px;
+  border-radius: 12px;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s;
+  font-family: 'Tajawal', sans-serif;
+}
+.btn-primary:hover { background: var(--teal-dark); transform: translateY(-1px); }
+.btn-primary:disabled { opacity: 0.62; cursor: wait; transform: none; }
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 600;
+  padding: 14px 24px;
+  border-radius: 12px;
+  text-decoration: none;
+  border: 1.5px solid var(--border);
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+  font-family: 'Tajawal', sans-serif;
+}
+.btn-secondary:hover { border-color: var(--teal); color: var(--teal); }
+
+.hero-stats {
+  display: flex;
+  gap: 32px;
+  margin-top: 40px;
+  padding-top: 32px;
+  border-top: 1px solid var(--border);
+}
+
+.stat-item { text-align: center; }
+.stat-num {
+  font-family: 'Cairo', sans-serif;
+  font-size: 26px;
+  font-weight: 900;
+  color: var(--teal);
+  display: block;
+}
+.stat-label { font-size: 12px; color: var(--ink-muted); font-weight: 500; }
+
+/* ── DASHBOARD MOCKUP ── */
+.hero-visual {
+  position: relative;
+}
+
+.dashboard-frame {
+  background: white;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  box-shadow: 0 8px 40px rgba(10,124,92,0.10), 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.dash-topbar {
+  background: var(--ink);
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dash-brand {
+  font-family: 'Cairo', sans-serif;
+  font-size: 15px;
+  font-weight: 800;
+  color: white;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dash-brand span { color: #0f9e75; }
+.dash-brand img {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  border-radius: 7px;
+  background: #fffdf8;
+}
+
+.dash-dots { display: flex; gap: 6px; }
+.dash-dots span {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: rgba(255,255,255,0.2);
+}
+
+.dash-body { display: grid; grid-template-columns: 160px 1fr; min-height: 340px; }
+
+.dash-sidebar {
+  background: #0f1923;
+  padding: 16px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dash-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  color: rgba(255,255,255,0.5);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.dash-nav-item.active {
+  background: rgba(10,124,92,0.25);
+  color: #0f9e75;
+}
+
+.dash-nav-item svg { flex-shrink: 0; }
+
+.dash-main { padding: 16px; background: #f6f9f8; }
+
+.dash-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4,1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.kpi-card {
+  background: white;
+  border-radius: 10px;
+  padding: 10px 12px;
+  border: 1px solid #e0ede8;
+}
+
+.kpi-label { font-size: 9px; color: #8fa3b1; font-weight: 600; margin-bottom: 3px; text-transform: uppercase; letter-spacing: .04em; }
+.kpi-value { font-size: 16px; font-weight: 800; color: #0f1923; font-family: 'Cairo', sans-serif; }
+.kpi-change { font-size: 9px; color: #0a7c5c; font-weight: 700; }
+
+.dash-chart-area {
+  background: white;
+  border-radius: 10px;
+  padding: 12px;
+  border: 1px solid #e0ede8;
+  margin-bottom: 10px;
+}
+
+.chart-title { font-size: 10px; font-weight: 700; color: #2d3f4f; margin-bottom: 8px; }
+
+.mini-bar-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+  height: 56px;
+}
+
+.bar {
+  flex: 1;
+  background: #e8f7f2;
+  border-radius: 4px 4px 0 0;
+  position: relative;
+  transition: background 0.2s;
+}
+.bar.active { background: #0a7c5c; }
+.bar:hover { background: #0f9e75; }
+
+.dash-table-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.mini-table {
+  background: white;
+  border-radius: 10px;
+  border: 1px solid #e0ede8;
+  overflow: hidden;
+}
+
+.mini-table-header {
+  padding: 8px 10px;
+  background: #0f1923;
+  font-size: 9px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.7);
+  letter-spacing: .04em;
+}
+
+.mini-table-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  border-bottom: 1px solid #f0f5f3;
+  font-size: 9px;
+}
+.mini-table-row:last-child { border-bottom: none; }
+.mini-table-row .name { color: #2d3f4f; font-weight: 600; }
+.mini-table-row .amount { color: #0a7c5c; font-weight: 700; font-family: 'Cairo', sans-serif; }
+.mini-table-row .badge {
+  font-size: 8px;
+  padding: 2px 6px;
+  border-radius: 20px;
+  font-weight: 700;
+}
+.badge-ok { background: #e8f7f2; color: #0a7c5c; }
+.badge-warn { background: #fef9ec; color: #c8960a; }
+
+/* ── FLOATING NOTIFICATION ── */
+.notif-bubble {
+  position: absolute;
+  top: -18px;
+  left: -22px;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+  min-width: 200px;
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%,100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+.notif-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: var(--teal-pale);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--teal);
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.notif-text { font-size: 11px; }
+.notif-text strong { display: block; color: var(--ink); font-weight: 700; font-size: 12px; }
+.notif-text span { color: var(--ink-muted); }
+
+.notif-bubble-2 {
+  position: absolute;
+  bottom: -14px;
+  right: -18px;
+  background: var(--teal);
+  color: white;
+  border-radius: 12px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 16px rgba(10,124,92,0.3);
+  animation: float 3s ease-in-out infinite 1.5s;
+}
+
+.notif-bubble-2 .nb2-icon { font-size: 18px; }
+.notif-bubble-2 .nb2-text { font-size: 11px; font-weight: 700; }
+
+/* ── SECTIONS ── */
+.section { padding: 90px 5vw; }
+.section-alt { background: var(--surface); }
+
+.section-header {
+  text-align: center;
+  max-width: 600px;
+  margin: 0 auto 56px;
+}
+
+.section-tag {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--teal);
+  background: var(--teal-pale);
+  padding: 5px 14px;
+  border-radius: 50px;
+  margin-bottom: 14px;
+}
+
+.section-title {
+  font-family: 'Cairo', sans-serif;
+  font-size: clamp(26px, 3.5vw, 40px);
+  font-weight: 900;
+  color: var(--ink);
+  line-height: 1.2;
+  margin-bottom: 14px;
+}
+
+.section-desc {
+  font-size: 17px;
+  color: var(--ink-soft);
+  line-height: 1.7;
+}
+
+/* ── FEATURES GRID ── */
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(3,1fr);
+  gap: 20px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.feature-card {
+  background: white;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  padding: 28px 24px;
+  transition: border-color 0.2s, transform 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+
+.feature-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--teal);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.feature-card:hover { border-color: rgba(10,124,92,0.3); transform: translateY(-3px); }
+.feature-card:hover::before { opacity: 1; }
+
+.feature-icon {
+  width: 48px;
+  height: 48px;
+  background: var(--teal-pale);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  margin-bottom: 16px;
+}
+
+.feature-title {
+  font-family: 'Cairo', sans-serif;
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--ink);
+  margin-bottom: 8px;
+}
+
+.feature-desc {
+  font-size: 14px;
+  color: var(--ink-soft);
+  line-height: 1.65;
+}
+
+.feature-card.highlight {
+  background: var(--ink);
+  border-color: transparent;
+  color: white;
+}
+.feature-card.highlight .feature-icon { background: rgba(10,124,92,0.25); }
+.feature-card.highlight .feature-title { color: white; }
+.feature-card.highlight .feature-desc { color: rgba(255,255,255,0.65); }
+
+/* ── HOW IT WORKS ── */
+.steps-row {
+  display: grid;
+  grid-template-columns: repeat(4,1fr);
+  gap: 16px;
+  max-width: 1000px;
+  margin: 0 auto;
+  position: relative;
+}
+
+.steps-row::before {
+  content: '';
+  position: absolute;
+  top: 28px;
+  right: 12.5%;
+  left: 12.5%;
+  height: 1px;
+  background: var(--border);
+  z-index: 0;
+}
+
+.step-card {
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+.step-num {
+  width: 56px;
+  height: 56px;
+  background: white;
+  border: 2px solid var(--border);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Cairo', sans-serif;
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--ink-mid);
+  margin: 0 auto 14px;
+  transition: all 0.2s;
+}
+
+.step-card:hover .step-num {
+  background: var(--teal);
+  border-color: var(--teal);
+  color: white;
+}
+
+.step-title {
+  font-weight: 800;
+  font-size: 15px;
+  color: var(--ink);
+  margin-bottom: 6px;
+}
+
+.step-desc {
+  font-size: 13px;
+  color: var(--ink-muted);
+  line-height: 1.6;
+}
+
+/* ── MODULES ── */
+.modules-grid {
+  display: grid;
+  grid-template-columns: repeat(4,1fr);
+  gap: 14px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.module-pill {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px 16px;
+  text-align: center;
+  transition: all 0.2s;
+  cursor: default;
+}
+
+.module-pill:hover {
+  border-color: var(--teal);
+  background: var(--teal-pale);
+}
+
+.module-emoji { font-size: 26px; margin-bottom: 8px; display: block; }
+.module-name { font-size: 14px; font-weight: 700; color: var(--ink); margin-bottom: 4px; }
+.module-sub { font-size: 11px; color: var(--ink-muted); }
+
+/* ── PRICING ── */
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(3,1fr);
+  gap: 20px;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.price-card {
+  background: white;
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border);
+  padding: 32px 28px;
+  position: relative;
+}
+
+.price-card.featured {
+  background: var(--ink);
+  border-color: var(--ink);
+  transform: scale(1.04);
+}
+
+.price-popular {
+  position: absolute;
+  top: -14px;
+  right: 50%;
+  transform: translateX(50%);
+  background: var(--gold);
+  color: white;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 4px 16px;
+  border-radius: 50px;
+  white-space: nowrap;
+}
+
+.price-plan { font-size: 13px; font-weight: 700; color: var(--ink-muted); margin-bottom: 10px; letter-spacing: .04em; text-transform: uppercase; }
+.price-card.featured .price-plan { color: rgba(255,255,255,0.5); }
+
+.price-amount {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.price-num {
+  font-family: 'Cairo', sans-serif;
+  font-size: 44px;
+  font-weight: 900;
+  color: var(--ink);
+}
+.price-card.featured .price-num { color: white; }
+
+.price-currency { font-size: 16px; font-weight: 700; color: var(--ink-soft); }
+.price-card.featured .price-currency { color: rgba(255,255,255,0.6); }
+
+.price-period { font-size: 13px; color: var(--ink-muted); font-weight: 500; }
+.price-card.featured .price-period { color: rgba(255,255,255,0.5); }
+
+.price-tagline { font-size: 13px; color: var(--ink-soft); margin: 10px 0 22px; }
+.price-card.featured .price-tagline { color: rgba(255,255,255,0.55); }
+
+.price-divider { height: 1px; background: var(--border); margin: 0 0 20px; }
+.price-card.featured .price-divider { background: rgba(255,255,255,0.12); }
+
+.price-features { list-style: none; display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
+.price-features li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--ink-mid);
+}
+.price-card.featured .price-features li { color: rgba(255,255,255,0.8); }
+
+.check-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--teal-pale);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+  font-size: 10px;
+  color: var(--teal);
+}
+.price-card.featured .check-icon { background: rgba(10,124,92,0.3); color: #0f9e75; }
+
+.price-btn {
+  display: block;
+  text-align: center;
+  padding: 13px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  font-family: 'Tajawal', sans-serif;
+  transition: all 0.2s;
+}
+
+.price-btn-outline {
+  background: transparent;
+  border: 1.5px solid var(--border);
+  color: var(--ink);
+}
+.price-btn-outline:hover { border-color: var(--teal); color: var(--teal); }
+
+.price-btn-solid {
+  background: var(--teal);
+  color: white;
+}
+.price-btn-solid:hover { background: var(--teal-dark); }
+
+/* ── TESTIMONIALS ── */
+.testimonials-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  max-width: 1050px;
+  margin: 0 auto;
+}
+
+.testi-card {
+  background: white;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  padding: 24px;
+}
+
+.testi-stars { color: var(--gold); font-size: 14px; margin-bottom: 12px; letter-spacing: 2px; }
+.testi-quote { font-size: 15px; color: var(--ink-mid); line-height: 1.7; margin-bottom: 18px; font-style: italic; }
+.testi-author { display: flex; align-items: center; gap: 12px; }
+
+.testi-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--teal-pale);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--teal-dark);
+  flex-shrink: 0;
+}
+
+.testi-name { font-size: 14px; font-weight: 700; color: var(--ink); }
+.testi-role { font-size: 12px; color: var(--ink-muted); }
+
+/* ── CTA BAND ── */
+.cta-band {
+  background: var(--ink);
+  padding: 80px 5vw;
+  text-align: center;
+}
+
+.cta-band h2 {
+  font-family: 'Cairo', sans-serif;
+  font-size: clamp(28px, 4vw, 46px);
+  font-weight: 900;
+  color: white;
+  margin-bottom: 14px;
+}
+
+.cta-band h2 span { color: #0f9e75; }
+
+.cta-band p {
+  font-size: 17px;
+  color: rgba(255,255,255,0.6);
+  margin-bottom: 36px;
+  max-width: 500px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.cta-band .btn-primary {
+  font-size: 17px;
+  padding: 16px 36px;
+  background: var(--teal-light);
+}
+
+.contact-panel {
+  max-width: 940px;
+  margin: 42px auto 0;
+  background: white;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  text-align: right;
+  box-shadow: 0 18px 50px rgba(0,0,0,0.16);
+}
+
+.contact-form {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.form-field.full { grid-column: 1 / -1; }
+
+.form-field label {
+  color: var(--ink-mid);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.form-field input,
+.form-field select,
+.form-field textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  font: inherit;
+  color: var(--ink);
+  background: #fbfdfc;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-field textarea { min-height: 92px; resize: vertical; }
+
+.form-field input:focus,
+.form-field select:focus,
+.form-field textarea:focus {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 4px rgba(10,124,92,0.10);
+}
+
+.form-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.form-status {
+  color: var(--teal-dark);
+  font-size: 14px;
+  font-weight: 700;
+  min-height: 24px;
+}
+
+.app-link {
+  color: white;
+  background: transparent;
+  border: 1.5px solid rgba(255,255,255,0.3);
+}
+
+.app-link:hover {
+  border-color: white;
+  color: white;
+}
+
+/* ── FOOTER ── */
+footer {
+  background: #070e14;
+  padding: 50px 5vw 30px;
+  color: rgba(255,255,255,0.4);
+}
+
+.footer-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1.5fr 1fr 1fr 1fr;
+  gap: 40px;
+  padding-bottom: 36px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  margin-bottom: 24px;
+}
+
+.footer-logo {
+  display: block;
+  width: min(230px, 100%);
+  height: auto;
+  margin-bottom: 14px;
+  border-radius: 10px;
+  background: #fffdf8;
+  mix-blend-mode: screen;
+}
+.footer-brand .logo-mark { margin-bottom: 14px; }
+.footer-brand p { font-size: 13px; line-height: 1.7; }
+
+.footer-col h4 {
+  font-size: 13px;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 14px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.footer-col ul { list-style: none; display: flex; flex-direction: column; gap: 9px; }
+.footer-col ul li a {
+  font-size: 13px;
+  color: rgba(255,255,255,0.4);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.footer-col ul li a:hover { color: #0f9e75; }
+
+.footer-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+}
+
+.footer-bottom .brand-name { color: #0f9e75; font-weight: 700; }
+
+/* ── SCROLL ANIMATIONS ── */
+.fade-in {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+.fade-in.visible { opacity: 1; transform: translateY(0); }
+
+/* ── SOFT SAAS DIRECTION ── */
+:root {
+  --cream: #fbfaf5;
+  --cream-card: #f2f0e9;
+  --sky: #bedcff;
+  --sky-dark: #91bff0;
+  --brown-ink: #241513;
+}
+
+body {
+  background: var(--cream);
+  color: var(--brown-ink);
+}
+
+.announcement-bar {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--sky);
+  color: var(--brown-ink);
+  font-size: 14px;
+  font-weight: 700;
+  padding: 6px 18px;
+}
+
+nav {
+  background: rgba(251,250,245,0.88);
+  border-bottom: 0;
+  height: 82px;
+  padding: 0 32px;
+}
+
+.logo-mark {
+  background: var(--teal);
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(10,124,92,0.14);
+}
+
+.logo-text {
+  color: var(--brown-ink);
+}
+
+.nav-links {
+  gap: 12px;
+  margin-inline-start: auto;
+}
+
+.nav-links a {
+  color: rgba(36,21,19,0.68);
+  font-weight: 800;
+}
+
+.nav-cta {
+  background: var(--sky) !important;
+  color: var(--brown-ink) !important;
+  border-radius: 12px;
+  padding: 11px 20px;
+}
+
+.nav-cta:hover {
+  background: var(--sky-dark) !important;
+}
+
+.menu-button {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  background: transparent;
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 8px;
+  cursor: pointer;
+}
+
+.menu-button span {
+  display: block;
+  width: 26px;
+  height: 2px;
+  background: var(--brown-ink);
+  border-radius: 999px;
+}
+
+.hero {
+  min-height: auto;
+  background:
+    radial-gradient(circle at 50% 10%, rgba(190,220,255,0.62), transparent 38%),
+    var(--cream);
+  padding: 58px 5vw 74px;
+}
+
+.hero-bg-pattern {
+  background-image:
+    radial-gradient(circle at 78% 18%, rgba(10,124,92,0.08) 0%, transparent 44%),
+    radial-gradient(circle at 18% 62%, rgba(190,220,255,0.44) 0%, transparent 38%);
+}
+
+.hero-grid {
+  grid-template-columns: 1fr;
+  gap: 44px;
+  max-width: 1100px;
+}
+
+.hero-content {
+  text-align: center;
+  max-width: 920px;
+  margin: 0 auto;
+}
+
+.hero-badge {
+  background: white;
+  color: var(--brown-ink);
+  border: 1px solid rgba(36,21,19,0.1);
+  box-shadow: 0 10px 30px rgba(36,21,19,0.05);
+}
+
+.hero-badge::before {
+  background: var(--sky-dark);
+}
+
+.hero-title {
+  color: var(--brown-ink);
+  font-size: clamp(40px, 6.4vw, 68px);
+  line-height: 1.18;
+  letter-spacing: 0;
+  margin-bottom: 24px;
+}
+
+.hero-title .accent {
+  color: var(--teal);
+}
+
+.hero-title .gold {
+  color: #996f12;
+}
+
+.hero-sub {
+  color: rgba(36,21,19,0.72);
+  font-size: clamp(18px, 2vw, 23px);
+  line-height: 1.48;
+  max-width: 760px;
+  margin: 0 auto 28px;
+}
+
+.hero-actions {
+  max-width: 960px;
+  margin: 0 auto;
+  justify-content: center;
+}
+
+.hero-actions .btn-primary {
+  background: var(--sky);
+  color: var(--brown-ink);
+  width: min(100%, 920px);
+  justify-content: center;
+  border-radius: 12px;
+  padding: 18px 32px;
+  font-size: 18px;
+  box-shadow: none;
+}
+
+.hero-actions .btn-primary:hover {
+  background: var(--sky-dark);
+  color: var(--brown-ink);
+}
+
+.hero-actions .btn-secondary {
+  background: white;
+  border-color: rgba(36,21,19,0.1);
+  color: var(--brown-ink);
+}
+
+.hero-proof {
+  color: rgba(36,21,19,0.62);
+  font-size: 13px;
+  font-weight: 700;
+  margin: 14px 0 0;
+}
+
+.hero-stats {
+  justify-content: center;
+  border-top: 0;
+  padding-top: 18px;
+  margin-top: 18px;
+}
+
+.stat-item {
+  background: rgba(255,255,255,0.72);
+  border: 1px solid rgba(36,21,19,0.08);
+  border-radius: 999px;
+  padding: 10px 16px;
+  min-width: 150px;
+}
+
+.stat-num {
+  color: var(--brown-ink);
+  font-size: 22px;
+}
+
+.hero-visual {
+  max-width: 1000px;
+  width: 100%;
+  margin: 0 auto;
+  padding-top: 26px;
+  isolation: isolate;
+}
+
+.branch-divider {
+  position: relative;
+  z-index: 3;
+  width: 100vw;
+  height: clamp(118px, 14vw, 178px);
+  margin: -6px calc(50% - 50vw) -44px;
+  overflow: visible;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,0.9) 9%, #000 18%, #000 82%, rgba(0,0,0,0.9) 91%, transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,0.9) 9%, #000 18%, #000 82%, rgba(0,0,0,0.9) 91%, transparent 100%);
+}
+
+.branch-divider img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 56%;
+  mix-blend-mode: normal;
+  filter: saturate(0.96) contrast(1.03) drop-shadow(0 18px 18px rgba(36,21,19,0.12));
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.64) 13%, #000 32%, #000 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.64) 13%, #000 32%, #000 100%);
+}
+
+.workspace-label {
+  display: inline-flex;
+  position: relative;
+  z-index: 4;
+  background: var(--cream-card);
+  border: 1px solid rgba(36,21,19,0.08);
+  border-bottom: 0;
+  border-radius: 28px 28px 0 0;
+  color: var(--brown-ink);
+  font-family: "Cairo", sans-serif;
+  font-size: clamp(22px, 3vw, 34px);
+  font-weight: 900;
+  padding: 18px 28px 12px;
+  margin-inline-start: 56px;
+  margin-bottom: -2px;
+}
+
+.dashboard-frame {
+  position: relative;
+  z-index: 2;
+  border-radius: 28px;
+  border-color: rgba(36,21,19,0.1);
+  box-shadow: 0 24px 70px rgba(36,21,19,0.12);
+}
+
+.notif-bubble {
+  top: clamp(150px, 17vw, 206px);
+  left: 0;
+  border-radius: 18px;
+  z-index: 5;
+}
+
+.notif-bubble-2 {
+  border-radius: 18px;
+  z-index: 5;
+}
+
+.trust-strip {
+  background: var(--cream);
+  border-top: 1px solid rgba(36,21,19,0.08);
+  border-bottom: 1px solid rgba(36,21,19,0.08);
+  display: flex;
+  justify-content: center;
+  gap: 34px;
+  flex-wrap: wrap;
+  color: rgba(36,21,19,0.72);
+  font-size: 15px;
+  font-weight: 900;
+  padding: 24px 5vw;
+}
+
+.trust-strip span::before {
+  content: "✦";
+  color: var(--teal);
+  margin-inline-end: 8px;
+}
+
+.section,
+.section-alt {
+  background: var(--cream);
+}
+
+.section-header {
+  max-width: 720px;
+}
+
+.section-tag {
+  background: white;
+  color: var(--teal);
+  border: 1px solid rgba(36,21,19,0.08);
+}
+
+.section-title {
+  color: var(--brown-ink);
+}
+
+.feature-card,
+.module-pill,
+.price-card,
+.testi-card,
+.contact-panel {
+  border-radius: 26px;
+  border-color: rgba(36,21,19,0.1);
+  box-shadow: 0 12px 34px rgba(36,21,19,0.04);
+}
+
+.feature-card.highlight,
+.price-card.featured,
+.cta-band {
+  background: var(--brown-ink);
+}
+
+.testi-card {
+  background: var(--sky);
+}
+
+.testi-quote {
+  color: var(--brown-ink);
+  font-size: 18px;
+  line-height: 1.35;
+}
+
+.cta-band {
+  border-radius: 34px 34px 0 0;
+}
+
+.cta-band .btn-primary {
+  background: var(--sky);
+  color: var(--brown-ink);
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 900px) {
+  .hero-grid { grid-template-columns: 1fr; gap: 40px; }
+  .hero-title { font-size: clamp(38px, 8vw, 54px); line-height: 1.18; }
+  .workspace-label { margin-inline-start: 20px; }
+  .branch-divider { height: 112px; margin-bottom: -32px; }
+  .features-grid { grid-template-columns: repeat(2,1fr); }
+  .modules-grid { grid-template-columns: repeat(2,1fr); }
+  .pricing-grid { grid-template-columns: 1fr; }
+  .price-card.featured { transform: none; }
+  .steps-row { grid-template-columns: repeat(2,1fr); }
+  .steps-row::before { display: none; }
+  .testimonials-grid { grid-template-columns: 1fr; }
+  .footer-inner { grid-template-columns: 1fr 1fr; }
+  .nav-links { display: flex; }
+}
+
+@media (max-width: 600px) {
+  nav { height: 70px; }
+  nav { padding: 0 20px; }
+  .hero { padding-top: 42px; }
+  .hero-title { font-size: 34px; line-height: 1.2; }
+  .hero-sub { font-size: 17px; line-height: 1.55; }
+  .hero-actions { flex-direction: column; align-items: stretch; }
+  .hero-actions .btn-primary { width: 100%; justify-content: center; }
+  .stat-item { min-width: 100%; }
+  .workspace-label { margin-inline-start: 8px; font-size: 22px; padding: 14px 18px 10px; }
+  .branch-divider { height: 84px; margin: -2px calc(50% - 50vw) -24px; }
+  .dash-body { grid-template-columns: 1fr; }
+  .dash-sidebar { display: none; }
+  .notif-bubble,
+  .notif-bubble-2 { display: none; }
+  .features-grid { grid-template-columns: 1fr; }
+  .modules-grid { grid-template-columns: repeat(2,1fr); }
+  .dash-kpi-row { grid-template-columns: repeat(2,1fr); }
+  .hero-stats { gap: 20px; }
+  .contact-form { grid-template-columns: 1fr; }
+  .contact-panel { padding: 20px; }
+}
+</style>
+</head>
+<body>
+
+<div class="announcement-bar">ابدأ تجربة رعاية مجاناً لمدة 14 يوم. بدون بطاقة بنكية.</div>
+
+<!-- NAV -->
+<nav>
+  <a href="index.html" class="nav-logo">
+    <img class="site-logo" src="assets/riaaya-logo-wordmark.png" alt="RIAAYA">
+  </a>
+  <ul class="nav-links">
+    <li><button class="language-toggle" type="button" data-landing-language-toggle>English</button></li>
+    <li><a href="app.html" class="nav-cta">افتح النموذج</a></li>
+  </ul>
+  <button class="menu-button" type="button" aria-label="القائمة">
+    <span></span>
+    <span></span>
+    <span></span>
+  </button>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-bg-pattern"></div>
+  <div class="hero-grid">
+    <div class="hero-content">
+      <div class="hero-badge">
+        منصة SaaS لإدارة العيادات في الأردن
+      </div>
+      <h1 class="hero-title">
+        مساحة واحدة<br>
+        ليوم عيادة <span class="accent">أوضح</span><br>
+        وفريق <span class="gold">أهدأ</span>
+      </h1>
+      <p class="hero-sub">
+        رعاية يرتب العمليات اليومية، المدفوعات، النسب، والمطابقة في واجهة واحدة هادئة، حتى تعرف بالضبط ماذا حدث اليوم وماذا يحتاج متابعة.
+      </p>
+      <div class="hero-actions">
+        <a href="#contact" class="btn-primary">
+          ابدأ تجربة مجانية
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+        </a>
+      </div>
+      <p class="hero-proof">بدون بطاقة بنكية · إعداد سريع · مصمم باللغة العربية</p>
+      <div class="hero-stats">
+        <div class="stat-item">
+          <span class="stat-num">14</span>
+          <span class="stat-label">يوم تجربة مجانية</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-num">5</span>
+          <span class="stat-label">دقائق لإدخال اليوم</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-num">أقل</span>
+          <span class="stat-label">أوراق وحسابات يدوية</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="hero-visual">
+      <div class="branch-divider" aria-hidden="true">
+        <img src="assets/branch-tree-transparent.png" alt="">
+      </div>
+      <div class="workspace-label">منصة رعاية لإدارة العيادات</div>
+      <div class="notif-bubble">
+        <div class="notif-icon">🔔</div>
+        <div class="notif-text">
+          <strong>بيانات تحتاج مراجعة</strong>
+          <span>هناك 3 عمليات غير مكتملة</span>
+        </div>
+      </div>
+
+      <div class="dashboard-frame">
+        <div class="dash-topbar">
+          <div class="dash-brand"><img src="assets/riaaya-logo-mark.png" alt=""> <span>RIAAYA</span> — ملخص اليوم</div>
+          <div class="dash-dots"><span></span><span></span><span></span></div>
+        </div>
+        <div class="dash-body">
+          <div class="dash-sidebar">
+            <div class="dash-nav-item active">
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+              لوحة التحكم
+            </div>
+            <div class="dash-nav-item">
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+              العمليات اليومية
+            </div>
+            <div class="dash-nav-item">
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+              الموظفون
+            </div>
+            <div class="dash-nav-item">
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 100 7h5a3.5 3.5 0 110 7H6"/></svg>
+              الرواتب
+            </div>
+            <div class="dash-nav-item">
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M20 12V22H4V12"/><path d="M22 7H2v5h20V7z"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z"/></svg>
+              المخزون
+            </div>
+            <div class="dash-nav-item">
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              التقارير
+            </div>
+          </div>
+
+          <div class="dash-main">
+            <div class="dash-kpi-row">
+              <div class="kpi-card">
+                <div class="kpi-label">إيرادات اليوم</div>
+                <div class="kpi-value">1,240</div>
+                <div class="kpi-change">↑ 12% عن أمس</div>
+              </div>
+              <div class="kpi-card">
+                <div class="kpi-label">العمليات</div>
+                <div class="kpi-value">28</div>
+                <div class="kpi-change">↑ 4 جلسات</div>
+              </div>
+              <div class="kpi-card">
+                <div class="kpi-label">راتب د. ليلى</div>
+                <div class="kpi-value">620</div>
+                <div class="kpi-change">50% من الإيراد</div>
+              </div>
+              <div class="kpi-card">
+                <div class="kpi-label">صافي الربح</div>
+                <div class="kpi-value">380</div>
+                <div class="kpi-change" style="color:#c8960a">⚠ راجع الفرق</div>
+              </div>
+            </div>
+
+            <div class="dash-chart-area">
+              <div class="chart-title">الإيرادات — الأسبوع الحالي (دينار)</div>
+              <div class="mini-bar-chart">
+                <div class="bar" style="height:45%"></div>
+                <div class="bar" style="height:62%"></div>
+                <div class="bar" style="height:38%"></div>
+                <div class="bar" style="height:78%"></div>
+                <div class="bar active" style="height:91%"></div>
+                <div class="bar" style="height:55%"></div>
+                <div class="bar" style="height:30%"></div>
+              </div>
+            </div>
+
+            <div class="dash-table-row">
+              <div class="mini-table">
+                <div class="mini-table-header">نسب الأخصائيين</div>
+                <div class="mini-table-row"><span class="name">سارة خالد</span><span class="amount">18 د.أ</span><span class="badge badge-ok">✓</span></div>
+                <div class="mini-table-row"><span class="name">نور عمر</span><span class="amount">15 د.أ</span><span class="badge badge-ok">✓</span></div>
+                <div class="mini-table-row"><span class="name">هنا محمود</span><span class="amount">12 د.أ</span><span class="badge badge-warn">!</span></div>
+              </div>
+              <div class="mini-table">
+                <div class="mini-table-header">المطابقة اليومية</div>
+                <div class="mini-table-row"><span class="name">كاش</span><span class="amount">840 د.أ</span><span class="badge badge-ok">✓</span></div>
+                <div class="mini-table-row"><span class="name">فيزا</span><span class="amount">320 د.أ</span><span class="badge badge-ok">✓</span></div>
+                <div class="mini-table-row"><span class="name">خصم</span><span class="amount">80 د.أ</span><span class="badge badge-warn">!</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="notif-bubble-2">
+        <span class="nb2-icon">✅</span>
+        <span class="nb2-text">كشف الرواتب جاهز</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="trust-strip" aria-label="ملخص فوائد رعاية">
+  <span>إدخال يومي أقل</span>
+  <span>مطابقة كاش وفيزا</span>
+  <span>نسب ورواتب واضحة</span>
+  <span>تقارير جاهزة للمراجعة</span>
+</section>
+
+<!-- FEATURES -->
+<section class="section" id="features">
+  <div class="section-header fade-in">
+    <span class="section-tag">لماذا رعاية؟</span>
+    <h2 class="section-title">كل ما تحتاجه لإغلاق يوم العيادة بثقة</h2>
+    <p class="section-desc">بدلاً من الأوراق وملفات الإكسل المتفرقة، يعطيك رعاية صورة واضحة عن الإيرادات، الدفعات، النسب، والملاحظات التي تحتاج متابعة.</p>
+  </div>
+
+  <div class="features-grid">
+    <div class="feature-card fade-in">
+      <div class="feature-icon">🔔</div>
+      <h3 class="feature-title">مطابقة يومية واضحة</h3>
+      <p class="feature-desc">قارن الكاش والفيزا والتحويلات مع العمليات المسجلة، واعرف الفرق مباشرة قبل إغلاق اليوم.</p>
+    </div>
+    <div class="feature-card fade-in">
+      <div class="feature-icon">📊</div>
+      <h3 class="feature-title">نسب ورواتب بدون تعب</h3>
+      <p class="feature-desc">حدد نسبة كل طبيب أو أخصائي مرة واحدة، واترك رعاية يحسب المستحقات من العمليات الفعلية.</p>
+    </div>
+    <div class="feature-card highlight fade-in">
+      <div class="feature-icon">🤖</div>
+      <h3 class="feature-title">تنبيهات تساعدك على القرار</h3>
+      <p class="feature-desc">يركز رعاية على الأرقام غير المعتادة، الخصومات، ونقاط المتابعة حتى لا تضيع التفاصيل الصغيرة.</p>
+    </div>
+    <div class="feature-card fade-in">
+      <div class="feature-icon">📦</div>
+      <h3 class="feature-title">متابعة المخزون بسهولة</h3>
+      <p class="feature-desc">تابع المنتجات والمواد المستخدمة في العيادة، واحصل على تذكير مبكر قبل نفاد الأصناف المهمة.</p>
+    </div>
+    <div class="feature-card fade-in">
+      <div class="feature-icon">📱</div>
+      <h3 class="feature-title">متابعة المرضى والعملاء</h3>
+      <p class="feature-desc">احتفظ بسجل واضح للاستفسارات والمراجعات، وجهز رسائل متابعة تساعد الفريق على تحويل الاهتمام إلى موعد.</p>
+    </div>
+    <div class="feature-card fade-in">
+      <div class="feature-icon">🧾</div>
+      <h3 class="feature-title">تقارير مالية مرتبة</h3>
+      <p class="feature-desc">صدّر ملخصات شهرية وسنوية تساعد الإدارة والمحاسب على مراجعة الإيرادات والمصاريف بثقة.</p>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="section section-alt" id="how">
+  <div class="section-header fade-in">
+    <span class="section-tag">كيف يعمل؟</span>
+    <h2 class="section-title">ابدأ بخطوات بسيطة، وراجع يومك بسرعة</h2>
+  </div>
+
+  <div class="steps-row">
+    <div class="step-card fade-in">
+      <div class="step-num">١</div>
+      <h4 class="step-title">أضف بيانات العيادة</h4>
+      <p class="step-desc">أدخل اسم العيادة، الفرع، الفريق، ونسب كل طبيب أو أخصائي مرة واحدة.</p>
+    </div>
+    <div class="step-card fade-in">
+      <div class="step-num">٢</div>
+      <h4 class="step-title">أدخل العمليات اليومية</h4>
+      <p class="step-desc">سجل كل خدمة، طريقة الدفع، الخصم، والطبيب أو الأخصائي المرتبط بالعملية.</p>
+    </div>
+    <div class="step-card fade-in">
+      <div class="step-num">٣</div>
+      <h4 class="step-title">طابق وتحقق</h4>
+      <p class="step-desc">قارن المبالغ المسجلة مع الموجود فعلياً في الصندوق وجهاز الدفع والتحويلات.</p>
+    </div>
+    <div class="step-card fade-in">
+      <div class="step-num">٤</div>
+      <h4 class="step-title">راجع واطبع</h4>
+      <p class="step-desc">اطبع كشف الرواتب والنسب، وجهز ملخص اليوم للمراجعة أو للمحاسب.</p>
+    </div>
+  </div>
+</section>
+
+<!-- MODULES -->
+<section class="section" id="modules">
+  <div class="section-header fade-in">
+    <span class="section-tag">الوحدات</span>
+    <h2 class="section-title">وحدات عملية تكبر مع احتياج عيادتك</h2>
+  </div>
+
+  <div class="modules-grid">
+    <div class="module-pill fade-in"><span class="module-emoji">🗓️</span><div class="module-name">حجز المواعيد</div><div class="module-sub">للمرضى والموظفين</div></div>
+    <div class="module-pill fade-in"><span class="module-emoji">📋</span><div class="module-name">الإدخال اليومي</div><div class="module-sub">يدوي أو عبر إكسل</div></div>
+    <div class="module-pill fade-in"><span class="module-emoji">💰</span><div class="module-name">الرواتب والنسب</div><div class="module-sub">أطباء وأخصائيون</div></div>
+    <div class="module-pill fade-in"><span class="module-emoji">✅</span><div class="module-name">المطابقة والتدقيق</div><div class="module-sub">مراجعة يومية</div></div>
+    <div class="module-pill fade-in"><span class="module-emoji">📦</span><div class="module-name">إدارة المخزون</div><div class="module-sub">مع طلب الموردين</div></div>
+    <div class="module-pill fade-in"><span class="module-emoji">👥</span><div class="module-name">إدارة العملاء</div><div class="module-sub">CRM متكامل</div></div>
+    <div class="module-pill fade-in"><span class="module-emoji">📣</span><div class="module-name">الحملات التسويقية</div><div class="module-sub">واتساب وإعلانات</div></div>
+    <div class="module-pill fade-in"><span class="module-emoji">📊</span><div class="module-name">التقارير المالية</div><div class="module-sub">ربح، ضرائب، تصدير</div></div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section class="section section-alt" id="pricing">
+  <div class="section-header fade-in">
+    <span class="section-tag">الأسعار</span>
+    <h2 class="section-title">اختر البداية المناسبة لعيادتك</h2>
+    <p class="section-desc">خطط واضحة بدون تعقيد. ابدأ بالأساسيات، ثم أضف الوحدات التي تحتاجها مع نمو العيادة.</p>
+  </div>
+
+  <div class="pricing-grid">
+    <div class="price-card fade-in">
+      <p class="price-plan">البداية</p>
+      <div class="price-amount">
+        <span class="price-num">25</span>
+        <div>
+          <div class="price-currency">دينار</div>
+          <div class="price-period">/شهرياً</div>
+        </div>
+      </div>
+      <p class="price-tagline">للعيادات التي تريد تنظيم العمليات اليومية أولاً</p>
+      <div class="price-divider"></div>
+      <ul class="price-features">
+        <li><div class="check-icon">✓</div>الإدخال اليومي والإكسل</li>
+        <li><div class="check-icon">✓</div>حساب الرواتب والنسب</li>
+        <li><div class="check-icon">✓</div>المطابقة مع تنبيهات</li>
+        <li><div class="check-icon">✓</div>إدارة مخزون أساسية</li>
+        <li><div class="check-icon">✓</div>3 حسابات موظفين</li>
+      </ul>
+      <a href="#contact" class="price-btn price-btn-outline" data-plan-choice="البداية">ابدأ بهذه الخطة</a>
+    </div>
+
+    <div class="price-card featured fade-in">
+      <span class="price-popular">⭐ الأكثر طلباً</span>
+      <p class="price-plan">الاحترافية</p>
+      <div class="price-amount">
+        <span class="price-num">55</span>
+        <div>
+          <div class="price-currency" style="color:rgba(255,255,255,0.55)">دينار</div>
+          <div class="price-period" style="color:rgba(255,255,255,0.4)">/شهرياً</div>
+        </div>
+      </div>
+      <p class="price-tagline" style="color:rgba(255,255,255,0.55)">للعيادات التي تريد تشغيل اليوم بالكامل من مكان واحد</p>
+      <div class="price-divider"></div>
+      <ul class="price-features">
+        <li><div class="check-icon">✓</div>كل مميزات البداية</li>
+        <li><div class="check-icon">✓</div>حجز المواعيد للمرضى</li>
+        <li><div class="check-icon">✓</div>إدارة العملاء والحملات</li>
+        <li><div class="check-icon">✓</div>طلب المخزون من الموردين</li>
+        <li><div class="check-icon">✓</div>مساعد الضريبة الأردنية</li>
+        <li><div class="check-icon">✓</div>واتساب وإشعارات SMS</li>
+        <li><div class="check-icon">✓</div>موظفون غير محدودين</li>
+      </ul>
+      <a href="#contact" class="price-btn price-btn-solid" data-plan-choice="الاحترافية">ابدأ بهذه الخطة</a>
+    </div>
+
+    <div class="price-card fade-in">
+      <p class="price-plan">المتقدمة</p>
+      <div class="price-amount">
+        <span class="price-num">100</span>
+        <div>
+          <div class="price-currency">دينار</div>
+          <div class="price-period">/شهرياً</div>
+        </div>
+      </div>
+      <p class="price-tagline">للعيادات متعددة الفروع التي تحتاج تقارير أعمق</p>
+      <div class="price-divider"></div>
+      <ul class="price-features">
+        <li><div class="check-icon">✓</div>كل مميزات الاحترافية</li>
+        <li><div class="check-icon">✓</div>تنبيهات للأرقام غير المعتادة</li>
+        <li><div class="check-icon">✓</div>توقع المخزون تلقائياً</li>
+        <li><div class="check-icon">✓</div>دعم متعدد الفروع</li>
+        <li><div class="check-icon">✓</div>تقارير مخصصة</li>
+        <li><div class="check-icon">✓</div>دعم فني أولوية 24/7</li>
+      </ul>
+      <a href="#contact" class="price-btn price-btn-outline" data-plan-choice="المتقدمة">تواصل معنا</a>
+    </div>
+  </div>
+</section>
+
+<!-- TESTIMONIALS -->
+<section class="section">
+  <div class="section-header fade-in">
+    <span class="section-tag">آراء العملاء</span>
+    <h2 class="section-title">ما الذي نريد أن يغيّره رعاية في يوم العيادة؟</h2>
+  </div>
+
+  <div class="testimonials-grid">
+    <div class="testi-card fade-in">
+      <div class="testi-stars">★★★★★</div>
+      <p class="testi-quote">"بدل ما نراجع أكثر من ملف آخر اليوم، صار عندنا ملخص واحد يوضح الإيرادات والنسب وأي فرق يحتاج مراجعة."</p>
+      <div class="testi-author">
+        <div class="testi-avatar">د.ن</div>
+        <div>
+          <div class="testi-name">د. نور الحسن</div>
+          <div class="testi-role">عيادة تجميل ليزر — عمّان</div>
+        </div>
+      </div>
+    </div>
+    <div class="testi-card fade-in">
+      <div class="testi-stars">★★★★★</div>
+      <p class="testi-quote">"المطابقة اليومية هي أهم شيء بالنسبة لنا. نريد أن نعرف مباشرة إذا كان هناك فرق بين السجل والموجود فعلياً."</p>
+      <div class="testi-author">
+        <div class="testi-avatar">م.س</div>
+        <div>
+          <div class="testi-name">محمد سليمان</div>
+          <div class="testi-role">مدير عيادة أسنان — الزرقاء</div>
+        </div>
+      </div>
+    </div>
+    <div class="testi-card fade-in">
+      <div class="testi-stars">★★★★★</div>
+      <p class="testi-quote">"الفكرة الأقوى أن النظام يتكلم بلغة العيادة: طبيب، أخصائي، خصم، كاش، فيزا، ونسبة واضحة لكل شخص."</p>
+      <div class="testi-author">
+        <div class="testi-avatar">ر.ع</div>
+        <div>
+          <div class="testi-name">رانيا عبيدات</div>
+          <div class="testi-role">مديرة عيادة تخسيس — إربد</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-band" id="contact">
+  <h2>خلّينا نرتب يوم العيادة معاً<br><span>ابدأ بتجربة مجانية</span></h2>
+  <p>جرّب رعاية لمدة 14 يوم بدون رسوم وبدون بطاقة بنكية.</p>
+  <div class="contact-panel">
+    <form class="contact-form" data-lead-form>
+      <div class="form-field">
+        <label for="lead-name">الاسم</label>
+        <input id="lead-name" name="name" type="text" placeholder="مثلاً: د. نور الحسن" required>
+      </div>
+      <div class="form-field">
+        <label for="lead-clinic">اسم العيادة</label>
+        <input id="lead-clinic" name="clinic" type="text" placeholder="عيادة رعاية التخصصية" required>
+      </div>
+      <div class="form-field">
+        <label for="lead-phone">رقم واتساب</label>
+        <input id="lead-phone" name="phone" type="tel" inputmode="tel" placeholder="+962 7X XXX XXXX" required>
+      </div>
+      <div class="form-field">
+        <label for="lead-city">المدينة</label>
+        <select id="lead-city" name="city" required>
+          <option value="">اختر المدينة</option>
+          <option>عمّان</option>
+          <option>إربد</option>
+          <option>الزرقاء</option>
+          <option>العقبة</option>
+          <option>مدينة أخرى</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label for="lead-plan">الخطة الأقرب لاحتياجك</label>
+        <select id="lead-plan" name="plan" required>
+          <option>البداية</option>
+          <option selected>الاحترافية</option>
+          <option>المتقدمة</option>
+          <option>غير متأكد</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label for="lead-size">حجم العيادة</label>
+        <select id="lead-size" name="size" required>
+          <option>عيادة واحدة</option>
+          <option>فرعان</option>
+          <option>3 فروع أو أكثر</option>
+        </select>
+      </div>
+      <div class="form-field full">
+        <label for="lead-notes">ما أول مشكلة تريد حلها؟</label>
+        <textarea id="lead-notes" name="notes" placeholder="مثلاً: حساب نسب الأطباء، مطابقة الكاش والفيزا، أو متابعة المرضى بعد الزيارة."></textarea>
+      </div>
+      <div class="form-actions">
+        <button class="btn-primary" type="submit">
+          أرسل طلب التجربة
+          <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+        </button>
+        <a href="app.html" class="btn-secondary app-link">شاهد النموذج التجريبي</a>
+        <span class="form-status" data-form-status></span>
+      </div>
+    </form>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <img class="footer-logo" src="assets/riaaya-logo-wordmark-tagline.png" alt="RIAAYA">
+      <p>رعاية يساعد العيادات في الأردن على تنظيم العمليات اليومية، مراجعة الإيرادات، وحساب النسب من مكان واحد.</p>
+    </div>
+    <div class="footer-col">
+      <h4>المنتج</h4>
+      <ul>
+        <li><a href="#features">المميزات</a></li>
+        <li><a href="#pricing">الأسعار</a></li>
+        <li><a href="#modules">الوحدات</a></li>
+        <li><a href="app.html">لوحة التحكم</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>الدعم</h4>
+      <ul>
+        <li><a href="app.html">مركز المساعدة</a></li>
+        <li><a href="#contact">تواصل معنا</a></li>
+        <li><a href="app.html">دليل الاستخدام</a></li>
+        <li><a href="app.html">حالة الخدمة</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>الشركة</h4>
+      <ul>
+        <li><a href="#contact">من نحن</a></li>
+        <li><a href="#features">المدونة</a></li>
+        <li><a href="#contact">سياسة الخصوصية</a></li>
+        <li><a href="#contact">الشروط والأحكام</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>© 2026 <span class="brand-name">رعاية</span>. جميع الحقوق محفوظة.</span>
+    <span>مصمم بعناية للعيادات في الأردن 🇯🇴</span>
+  </div>
+</footer>
+
+<script>
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach((entry, i) => {
+    if (entry.isIntersecting) {
+      setTimeout(() => entry.target.classList.add('visible'), i * 80);
+    }
+  });
+}, { threshold: 0.1 });
+
+document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+
+const bars = document.querySelectorAll('.bar');
+bars.forEach(bar => {
+  bar.addEventListener('mouseover', () => {
+    bars.forEach(b => b.classList.remove('active'));
+    bar.classList.add('active');
+  });
+});
+
+const leadForm = document.querySelector('[data-lead-form]');
+const formStatus = document.querySelector('[data-form-status]');
+const planSelect = document.querySelector('#lead-plan');
+
+document.querySelectorAll('[data-plan-choice]').forEach(link => {
+  link.addEventListener('click', () => {
+    if (planSelect) planSelect.value = link.dataset.planChoice;
+  });
+});
+
+function saveLeadLocally(data) {
+  const leads = JSON.parse(localStorage.getItem('riaayaLeads') || '[]');
+  leads.unshift({ ...data, createdAt: new Date().toISOString() });
+  localStorage.setItem('riaayaLeads', JSON.stringify(leads));
+}
+
+if (leadForm) {
+  leadForm.addEventListener('submit', async event => {
+    event.preventDefault();
+    const data = Object.fromEntries(new FormData(leadForm).entries());
+    const submitButton = leadForm.querySelector('button[type="submit"]');
+
+    formStatus.textContent = 'جاري إرسال طلب التجربة...';
+    submitButton.disabled = true;
+
+    try {
+      const response = await fetch('/api/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      const result = await response.json();
+
+      if (!response.ok) throw new Error(result.error || 'lead_submit_failed');
+
+      saveLeadLocally(result.lead || data);
+      formStatus.textContent = result.mode === 'database'
+        ? 'تم إرسال طلب التجربة بنجاح. سنتواصل معك قريباً.'
+        : 'تم حفظ الطلب في وضع التجربة. أضف إعدادات Supabase ليُحفظ في قاعدة البيانات.';
+      leadForm.reset();
+      planSelect.value = 'الاحترافية';
+    } catch (error) {
+      saveLeadLocally(data);
+      formStatus.textContent = 'تعذر الاتصال بالخادم الآن، فحفظنا الطلب محلياً حتى لا تضيع البيانات.';
+    } finally {
+      submitButton.disabled = false;
+    }
+  });
+}
+
+const landingTextEn = {
+  'ابدأ تجربة رعاية مجاناً لمدة 14 يوم. بدون بطاقة بنكية.': 'Start a free 14-day Riaaya trial. No credit card required.',
+  'رعاية': 'Riaaya',
+  'افتح النموذج': 'Open Prototype',
+  'منصة SaaS لإدارة العيادات في الأردن': 'A clinic management SaaS platform for Jordan',
+  'مساحة واحدة': 'One workspace',
+  'ليوم عيادة': 'for a',
+  'أوضح': 'clearer clinic day',
+  'وفريق': 'and a',
+  'أهدأ': 'calmer team',
+  'رعاية يرتب العمليات اليومية، المدفوعات، النسب، والمطابقة في واجهة واحدة هادئة، حتى تعرف بالضبط ماذا حدث اليوم وماذا يحتاج متابعة.': 'Riaaya organizes daily operations, payments, staff percentages, inventory, reconciliation, and salary slips in one calm workspace.',
+  'ابدأ تجربة مجانية': 'Start Free Trial',
+  'بدون بطاقة بنكية · إعداد سريع · مصمم باللغة العربية': 'No credit card · Fast setup · Arabic and English support',
+  'يوم تجربة مجانية': 'free trial days',
+  'دقائق لإدخال اليوم': 'minutes to enter the day',
+  'أقل': 'Less',
+  'أوراق وحسابات يدوية': 'paperwork and manual math',
+  'منصة رعاية لإدارة العيادات': 'Riaaya Clinic Management Platform',
+  'بيانات تحتاج مراجعة': 'Data Needs Review',
+  'هناك 3 عمليات غير مكتملة': '3 operations need completion',
+  'رعاية — ملخص اليوم': 'Riaaya — Today Summary',
+  '— ملخص اليوم': '— Today Summary',
+  'لوحة التحكم': 'Dashboard',
+  'العمليات اليومية': 'Daily Operations',
+  'الموظفون': 'Staff',
+  'الرواتب': 'Payroll',
+  'المخزون': 'Inventory',
+  'التقارير': 'Reports',
+  'إيرادات اليوم': 'Today Revenue',
+  'العمليات': 'Operations',
+  'راتب د. ليلى': 'Dr. Laila Salary',
+  'صافي الربح': 'Net Profit',
+  'الإيرادات — الأسبوع الحالي (دينار)': 'Revenue — Current Week (JOD)',
+  'نسب الأخصائيين': 'Specialist Payouts',
+  'المطابقة اليومية': 'Daily Reconciliation',
+  'كشف الرواتب جاهز': 'Salary slips are ready',
+  'إدخال يومي أقل': 'Less daily entry',
+  'مطابقة كاش وفيزا': 'Cash and card reconciliation',
+  'نسب ورواتب واضحة': 'Clear rates and salaries',
+  'تقارير جاهزة للمراجعة': 'Reports ready for review',
+  'لماذا رعاية؟': 'Why Riaaya?',
+  'كل ما تحتاجه لإغلاق يوم العيادة بثقة': 'Everything you need to close the clinic day with confidence',
+  'بدلاً من الأوراق وملفات الإكسل المتفرقة، يعطيك رعاية صورة واضحة عن الإيرادات، الدفعات، النسب، والملاحظات التي تحتاج متابعة.': 'Instead of scattered paper and spreadsheets, Riaaya gives you a clear view of revenue, payments, payouts, and follow-ups.',
+  'مطابقة يومية واضحة': 'Clear Daily Reconciliation',
+  'قارن الكاش والفيزا والتحويلات مع العمليات المسجلة، واعرف الفرق مباشرة قبل إغلاق اليوم.': 'Compare cash, card, and transfers against recorded operations before closing the day.',
+  'نسب ورواتب بدون تعب': 'Effortless Rates and Payroll',
+  'حدد نسبة كل طبيب أو أخصائي مرة واحدة، واترك رعاية يحسب المستحقات من العمليات الفعلية.': 'Set each doctor or specialist rate once, then let Riaaya calculate payouts from real operations.',
+  'تنبيهات تساعدك على القرار': 'Alerts That Support Decisions',
+  'خلّينا نرتب يوم العيادة معاً': 'Let’s organize your clinic day together',
+  'جرّب رعاية لمدة 14 يوم بدون رسوم وبدون بطاقة بنكية.': 'Try Riaaya for 14 days with no fees and no credit card.',
+  'الاسم': 'Name',
+  'اسم العيادة': 'Clinic Name',
+  'رقم واتساب': 'WhatsApp Number',
+  'المدينة': 'City',
+  'الخطة الأقرب لاحتياجك': 'Best-fit Plan',
+  'حجم العيادة': 'Clinic Size',
+  'ما أول مشكلة تريد حلها؟': 'What is the first problem you want to solve?',
+  'أرسل طلب التجربة': 'Send Trial Request',
+  'شاهد النموذج التجريبي': 'View Prototype',
+  'رعاية يساعد العيادات في الأردن على تنظيم العمليات اليومية، مراجعة الإيرادات، وحساب النسب من مكان واحد.': 'Riaaya helps clinics in Jordan manage daily operations, revenue review, and staff payouts from one place.',
+  'المنتج': 'Product',
+  'المميزات': 'Features',
+  'الأسعار': 'Pricing',
+  'الوحدات': 'Modules',
+  'الدعم': 'Support',
+  'تواصل معنا': 'Contact Us',
+  'الشركة': 'Company',
+  'من نحن': 'About',
+  'جميع الحقوق محفوظة.': 'All rights reserved.',
+  'مصمم بعناية للعيادات في الأردن 🇯🇴': 'Designed with care for clinics in Jordan',
+  'جاري إرسال طلب التجربة...': 'Sending trial request...',
+  'تم إرسال طلب التجربة بنجاح. سنتواصل معك قريباً.': 'Trial request sent. We will contact you soon.',
+  'تم حفظ الطلب في وضع التجربة. أضف إعدادات Supabase ليُحفظ في قاعدة البيانات.': 'Saved in preview mode. Add Supabase settings to save it in the database.',
+  'تعذر الاتصال بالخادم الآن، فحفظنا الطلب محلياً حتى لا تضيع البيانات.': 'Could not reach the server, so we saved the request locally.'
+};
+
+function translateLandingLiteral(text, language) {
+  if (language === 'en') return landingTextEn[text] || text;
+  const arabicMap = Object.fromEntries(Object.entries(landingTextEn).map(([arabic, english]) => [english, arabic]));
+  return arabicMap[text] || text;
+}
+
+function applyLandingLanguage(language = localStorage.getItem('riaayaLanguage') || 'ar') {
+  document.documentElement.lang = language;
+  document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
+  document.title = language === 'en'
+    ? 'Riaaya — Clear Clinic Management'
+    : 'رعاية — إدارة العيادات بوضوح واطمئنان';
+  const toggle = document.querySelector('[data-landing-language-toggle]');
+  if (toggle) toggle.textContent = language === 'en' ? 'العربية' : 'English';
+
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      const parent = node.parentElement;
+      if (!parent || ['SCRIPT', 'STYLE'].includes(parent.tagName)) return NodeFilter.FILTER_REJECT;
+      return node.nodeValue.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+    }
+  });
+  const nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  nodes.forEach(node => {
+    const original = node.nodeValue;
+    const trimmed = original.trim();
+    const translated = translateLandingLiteral(trimmed, language);
+    if (translated !== trimmed) {
+      node.nodeValue = `${original.match(/^\s*/)[0]}${translated}${original.match(/\s*$/)[0]}`;
+    }
+  });
+}
+
+document.querySelector('[data-landing-language-toggle]')?.addEventListener('click', () => {
+  const nextLanguage = (localStorage.getItem('riaayaLanguage') || 'ar') === 'ar' ? 'en' : 'ar';
+  localStorage.setItem('riaayaLanguage', nextLanguage);
+  applyLandingLanguage(nextLanguage);
+});
+
+applyLandingLanguage();
+</script>
+</body>
+</html>
