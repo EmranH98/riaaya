@@ -1,0 +1,1691 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>رعاية — النموذج التجريبي للعيادات</title>
+  <link rel="icon" type="image/png" href="assets/riaaya-favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="index.html" aria-label="العودة إلى الصفحة الرئيسية">
+        <img class="brand-logo-mark" src="assets/riaaya-logo-mark.png" alt="">
+        <span>
+          <strong>RIAAYA</strong>
+          <small>إدارة العيادات</small>
+        </span>
+      </a>
+
+      <nav class="side-nav" aria-label="أقسام لوحة التحكم">
+        <button class="nav-item active" data-view-button="dashboard" type="button">ملخص اليوم</button>
+        <button class="nav-item" data-view-button="entries" type="button">عمليات اليوم</button>
+        <button class="nav-item" data-view-button="patients" type="button">ملفات المرضى والزوار</button>
+        <button class="nav-item" data-view-button="bookings" type="button">الحجوزات</button>
+        <button class="nav-item" data-view-button="staff" type="button">الموظفون والنسب</button>
+        <button class="nav-item" data-view-button="services" type="button">الخدمات والقواعد</button>
+        <button class="nav-item" data-view-button="inventory" type="button">المخزون والموردون</button>
+        <button class="nav-item" data-view-button="reconcile" type="button">المطابقة</button>
+        <button class="nav-item" data-view-button="salaries" type="button">الرواتب</button>
+        <button class="nav-item" data-view-button="reports" type="button">التقارير</button>
+        <button class="nav-item" data-view-button="communications" type="button">التواصل والفوترة</button>
+        <button class="nav-item" data-view-button="accounts" type="button">الحسابات والصلاحيات</button>
+        <button class="nav-item" data-view-button="leads" type="button">طلبات التجربة</button>
+      </nav>
+
+      <div class="sidebar-card">
+        <span>الحالة</span>
+        <strong data-health-label>يتم التحديث</strong>
+        <small data-health-note>تتغير الحالة بعد كل عملية أو مطابقة.</small>
+      </div>
+    </aside>
+
+    <main class="workspace">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">نموذج تجريبي تفاعلي</p>
+          <h1 data-clinic-title>عيادة رعاية التجريبية</h1>
+        </div>
+        <div class="top-actions">
+          <label class="language-switcher">
+            اللغة
+            <select data-language-select>
+              <option value="ar">العربية</option>
+              <option value="en">English</option>
+            </select>
+          </label>
+          <label class="account-switcher">
+            الحساب
+            <select data-account-switcher></select>
+          </label>
+          <form class="global-search" data-global-search>
+            <input name="query" type="search" placeholder="ابحث في العيادة..." aria-label="البحث في العيادة">
+            <button class="dark-button" type="submit">بحث</button>
+          </form>
+          <div class="notification-shell">
+            <button class="notification-button" type="button" data-notification-toggle aria-label="التنبيهات" aria-expanded="false">
+              التنبيهات
+              <span data-notification-count>0</span>
+            </button>
+            <div class="notification-popover" data-notification-panel hidden>
+              <div class="notification-header">
+                <strong>مركز التنبيهات</strong>
+                <button class="text-button" type="button" data-mark-notifications-read>تحديد كمقروء</button>
+              </div>
+              <div class="notification-list" data-notification-list></div>
+            </div>
+          </div>
+          <a href="index.html" class="ghost-button">الصفحة الرئيسية</a>
+        </div>
+      </header>
+
+      <section class="clinic-strip" data-sensitive>
+        <form class="clinic-form" data-clinic-form>
+          <label>
+            اسم العيادة
+            <input name="clinicName" type="text" required>
+          </label>
+          <label>
+            تاريخ العمل
+            <input name="activeDate" type="date" required>
+          </label>
+          <label>
+            الفرع
+            <input name="branch" type="text" placeholder="الفرع الرئيسي">
+          </label>
+          <button class="dark-button" type="submit">حفظ الإعدادات</button>
+        </form>
+      </section>
+
+      <section class="view active" data-view="dashboard">
+        <section class="command-hero">
+          <div class="command-hero-copy">
+            <div>
+              <p class="eyebrow">مركز قيادة اليوم</p>
+              <h2>ما يحتاج انتباهك الآن</h2>
+              <p data-dashboard-summary>يتم تجهيز صورة اليوم من الحجوزات والعمليات والتنبيهات.</p>
+            </div>
+            <div class="summary-chips">
+              <span class="metric-chip" data-chip="close">الإغلاق قيد المراجعة</span>
+              <span class="metric-chip" data-chip="discount">الخصومات 0 د.أ</span>
+              <span class="metric-chip" data-chip="average">متوسط العملية 0 د.أ</span>
+            </div>
+          </div>
+          <div class="next-visitor-card" data-next-visitor></div>
+        </section>
+
+        <div class="command-kpi-grid">
+          <article class="command-kpi blue">
+            <span>حجوزات اليوم</span>
+            <strong data-dashboard-kpi="bookings">0</strong>
+            <small data-dashboard-note="bookings">0 مؤكدة</small>
+          </article>
+          <article class="command-kpi green">
+            <span>وصلوا للعيادة</span>
+            <strong data-dashboard-kpi="arrived">0</strong>
+            <small data-dashboard-note="arrived">بانتظار الخدمة</small>
+          </article>
+          <article class="command-kpi violet">
+            <span>عمليات اليوم</span>
+            <strong data-dashboard-kpi="operations">0</strong>
+            <small data-dashboard-note="operations">من الحجوزات والإدخال المباشر</small>
+          </article>
+          <article class="command-kpi amber">
+            <span>تحتاج متابعة</span>
+            <strong data-dashboard-kpi="attention">0</strong>
+            <small data-dashboard-note="attention">مواعيد وتنبيهات تشغيلية</small>
+          </article>
+          <article class="command-kpi dark" data-sensitive>
+            <span>إيرادات اليوم</span>
+            <strong data-kpi="revenue">0 د.أ</strong>
+            <small data-kpi-note="revenue">من 0 عملية</small>
+          </article>
+        </div>
+
+        <div class="command-analytics-grid">
+          <article class="panel performance-panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">الأداء الأسبوعي</p>
+                <h2>نبض العيادة خلال 7 أيام</h2>
+              </div>
+              <div class="performance-total">
+                <span>إجمالي الأسبوع</span>
+                <strong data-kpi="weekRevenue">0 د.أ</strong>
+                <small data-kpi-note="weekRevenue">0 عملية</small>
+              </div>
+            </div>
+            <span class="status-pill good" data-week-count>0 عملية</span>
+            <div class="week-chart" data-week-chart></div>
+          </article>
+
+          <article class="panel booking-flow-panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">رحلة الموعد</p>
+                <h2>حالة حجوزات اليوم</h2>
+              </div>
+              <button class="text-button" type="button" data-jump="bookings">فتح الجدول</button>
+            </div>
+            <div class="booking-funnel" data-booking-funnel></div>
+          </article>
+        </div>
+
+        <div class="command-work-grid">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">الجدول المباشر</p>
+                <h2>القادمون اليوم</h2>
+              </div>
+              <button class="text-button" type="button" data-jump="bookings">إدارة المواعيد</button>
+            </div>
+            <div class="dashboard-schedule" data-dashboard-schedule></div>
+          </article>
+
+          <article class="panel smart-actions-panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">اقتراحات ذكية</p>
+                <h2>إجراءات عالية الأولوية</h2>
+              </div>
+              <button class="text-button" type="button" data-jump="communications">الأتمتة</button>
+            </div>
+            <div class="smart-action-list" data-smart-actions></div>
+          </article>
+        </div>
+
+        <div class="dashboard-grid enhanced">
+          <article class="panel" data-sensitive>
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">طرق الدفع</p>
+                <h2>توزيع المقبوضات</h2>
+              </div>
+            </div>
+            <div class="payment-summary" data-payment-summary>لا توجد مدفوعات بعد.</div>
+            <div class="payment-bars" data-payment-bars></div>
+          </article>
+
+          <article class="panel" data-sensitive>
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">الإغلاق المالي</p>
+                <h2>المطابقة اليومية</h2>
+              </div>
+              <button class="text-button" type="button" data-jump="reconcile">فتح المطابقة</button>
+            </div>
+            <div class="close-summary" data-close-summary></div>
+            <div class="financial-mini-kpis">
+              <div><span>الكاش</span><strong data-kpi="cash">0 د.أ</strong></div>
+              <div><span>البطاقات</span><strong data-kpi="card">0 د.أ</strong></div>
+              <div><span>الفرق</span><strong data-kpi="difference">0 د.أ</strong><small data-kpi-note="difference">لا توجد فروقات</small></div>
+            </div>
+          </article>
+        </div>
+
+        <div class="dashboard-grid">
+          <article class="panel" data-sensitive>
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">التزامات الفريق</p>
+                <h2>المستحقات حسب الأداء</h2>
+              </div>
+              <button class="text-button" type="button" data-jump="salaries">التفاصيل</button>
+            </div>
+            <div class="salary-breakdown" data-salary-breakdown></div>
+          </article>
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">قراءة تشغيلية</p>
+                <h2>اتجاهات اليوم</h2>
+              </div>
+            </div>
+            <div class="insight-list" data-insight-list></div>
+          </article>
+        </div>
+
+        <div class="dashboard-grid dashboard-lower-grid">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">آخر ما تم تسجيله</p>
+                <h2>عمليات اليوم</h2>
+              </div>
+              <button class="text-button" type="button" data-jump="entries">إضافة عملية</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>المريض</th>
+                    <th>الخدمة</th>
+                    <th>الدفع</th>
+                    <th data-sensitive>الصافي</th>
+                  </tr>
+                </thead>
+                <tbody data-recent-entries></tbody>
+              </table>
+            </div>
+          </article>
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">مركز التنبيه</p>
+                <h2>ما يحتاج مراجعة</h2>
+              </div>
+            </div>
+            <div class="alerts" data-alerts></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="view" data-view="entries">
+        <div class="operations-workspace">
+          <article class="panel operation-entry-panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">تسجيل سريع</p>
+                <h2>إضافة عملية للملف</h2>
+                <p class="panel-description">سجّل الخدمة والدفع والفريق من شاشة واحدة. التكلفة تُحتسب من إعدادات الخدمة ولا تظهر هنا.</p>
+              </div>
+            </div>
+            <form class="entry-form operation-entry-form" data-entry-form>
+              <input name="bookingId" type="hidden">
+              <input name="cost" type="hidden" value="0">
+              <label class="operation-patient-field">
+                اسم المريض
+                <input name="patient" type="text" list="operation-patient-options" placeholder="ابحث بالاسم أو اكتب اسماً جديداً" required>
+                <datalist id="operation-patient-options" data-operation-patient-options></datalist>
+              </label>
+              <label>
+                الطبيب
+                <select name="doctorId" data-doctor-select></select>
+              </label>
+              <label>
+                الأخصائي
+                <select name="specialistId" data-specialist-select></select>
+              </label>
+              <label>
+                طريقة الدفع
+                <select name="paymentMethod" required>
+                  <option value="cash">كاش</option>
+                  <option value="card">فيزا</option>
+                  <option value="transfer">تحويل</option>
+                </select>
+              </label>
+              <label>
+                حالة العملية
+                <select name="status">
+                  <option value="completed">مكتملة</option>
+                  <option value="pending_assignment">بانتظار التعيين</option>
+                  <option value="scheduled">محجوزة</option>
+                  <option value="pending_payment">بانتظار الدفع</option>
+                  <option value="cancelled">ملغاة</option>
+                </select>
+              </label>
+              <label>
+                ملاحظات
+                <input name="notes" type="text" placeholder="اختياري">
+              </label>
+              <div class="operation-line-builder">
+                <div class="operation-line-composer">
+                  <label>
+                    الخدمة
+                    <select name="serviceId" data-service-select required></select>
+                  </label>
+                  <label>
+                    الكمية
+                    <input name="quantity" type="number" min="1" step="1" value="1" required>
+                  </label>
+                  <label>
+                    سعر الوحدة
+                    <input name="amount" type="number" min="0" step="0.01" placeholder="80" required>
+                  </label>
+                  <label>
+                    الخصم
+                    <input name="discount" type="number" min="0" step="0.01" value="0">
+                  </label>
+                  <button class="dark-button add-operation-line" type="button" data-add-operation-line>إضافة للقائمة</button>
+                </div>
+                <div class="operation-line-list" data-operation-lines></div>
+              </div>
+              <div class="operation-checkout">
+                <div class="formula-preview" data-entry-preview data-sensitive>أضف خدمة واحدة أو أكثر إلى نفس الزيارة.</div>
+                <button class="primary-button form-submit" type="submit" data-entry-submit>حفظ الزيارة</button>
+              </div>
+            </form>
+          </article>
+
+          <article class="panel operation-log-panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">مركز العمليات</p>
+                <h2>سجل العمليات</h2>
+              </div>
+              <div class="form-actions">
+                <button class="focus-icon-button" type="button" data-open-table-focus="entries" aria-label="عرض جدول العمليات بملء الشاشة" title="عرض جدول العمليات بملء الشاشة">
+                  <span aria-hidden="true">⛶</span>
+                </button>
+                <button class="text-button" type="button" data-export-entries data-sensitive>تصدير CSV</button>
+                <button class="text-button danger" type="button" data-clear-entries data-sensitive>مسح سجل اليوم</button>
+              </div>
+            </div>
+            <form class="operation-filter-form" data-entry-filter-form>
+              <label class="filter-search">
+                بحث
+                <input name="query" type="search" placeholder="المريض، الخدمة، الطبيب، الملاحظات...">
+              </label>
+              <label>
+                الخدمة
+                <select name="serviceId" data-entry-filter-service>
+                  <option value="">كل الخدمات</option>
+                </select>
+              </label>
+              <label>
+                الفريق
+                <select name="staffId" data-entry-filter-staff>
+                  <option value="">كل الفريق</option>
+                </select>
+              </label>
+              <label>
+                الحالة
+                <select name="status">
+                  <option value="">كل الحالات</option>
+                  <option value="completed">مكتملة</option>
+                  <option value="pending_assignment">بانتظار التعيين</option>
+                  <option value="scheduled">محجوزة</option>
+                  <option value="pending_payment">بانتظار الدفع</option>
+                  <option value="cancelled">ملغاة</option>
+                </select>
+              </label>
+              <label>
+                الدفع
+                <select name="paymentMethod">
+                  <option value="">كل طرق الدفع</option>
+                  <option value="cash">كاش</option>
+                  <option value="card">فيزا</option>
+                  <option value="transfer">تحويل</option>
+                </select>
+              </label>
+              <label>
+                في الصفحة
+                <select name="pageSize" data-entry-page-size>
+                  <option value="10">10</option>
+                  <option value="25" selected>25</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                </select>
+              </label>
+            </form>
+            <div class="table-wrap practical-table-wrap">
+              <table class="practical-table operations-table">
+                <thead>
+                  <tr>
+                    <th>الوقت</th>
+                    <th>المريض</th>
+                    <th>الخدمة</th>
+                    <th>الفريق</th>
+                    <th>الدفع</th>
+                    <th>الحالة</th>
+                    <th data-sensitive>الصافي</th>
+                    <th data-sensitive>المستحقات</th>
+                    <th data-sensitive></th>
+                  </tr>
+                </thead>
+                <tbody data-entry-table></tbody>
+              </table>
+            </div>
+            <div class="table-pagination" data-entry-pagination></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="view" data-view="patients">
+        <article class="panel patient-create-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">ملف جديد</p>
+              <h2>إضافة مريض أو زائر</h2>
+            </div>
+            <button class="text-button" type="button" data-reset-patient-form>تفريغ النموذج</button>
+          </div>
+          <form class="patient-form" data-patient-form>
+            <input name="patientId" type="hidden">
+            <label>
+              نوع الملف
+              <select name="profileType">
+                <option value="patient">مريض</option>
+                <option value="visitor">زائر</option>
+              </select>
+            </label>
+            <label>
+              الاسم الكامل
+              <input name="name" type="text" required placeholder="سارة أحمد">
+            </label>
+            <label>
+              الهاتف
+              <input name="phone" type="tel" placeholder="0790000000">
+            </label>
+            <label>
+              البريد الإلكتروني
+              <input name="email" type="email" placeholder="patient@example.com">
+            </label>
+            <label>
+              الجنس
+              <select name="gender">
+                <option value="">غير محدد</option>
+                <option value="female">أنثى</option>
+                <option value="male">ذكر</option>
+              </select>
+            </label>
+            <label>
+              الجنسية
+              <input name="nationality" type="text" placeholder="الأردن">
+            </label>
+            <label>
+              المدينة
+              <input name="city" type="text" placeholder="عمّان">
+            </label>
+            <label>
+              الفئة
+              <input name="category" type="text" placeholder="ليزر، أسنان، متابعة...">
+            </label>
+            <label class="wide-field">
+              ملاحظات الملف
+              <input name="notes" type="text" placeholder="حساسية، تفضيلات التواصل، أو معلومات مهمة">
+            </label>
+            <label class="consent-check">
+              <input name="marketingConsent" type="checkbox">
+              موافقة على رسائل التذكير والحملات
+            </label>
+            <button class="primary-button form-submit" type="submit" data-patient-submit>حفظ الملف</button>
+          </form>
+        </article>
+
+        <div class="patient-workspace">
+          <article class="panel patient-directory-panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">الدليل</p>
+                <h2>المرضى والزوار</h2>
+              </div>
+            </div>
+            <form class="patient-filter-form" data-patient-filter-form>
+              <label class="filter-search">
+                بحث ذكي
+                <input name="query" type="search" placeholder="الاسم، الرقم، الهاتف، المدينة، الملاحظات...">
+              </label>
+              <label>
+                نوع الملف
+                <select name="profileType">
+                  <option value="">الكل</option>
+                  <option value="patient">مرضى</option>
+                  <option value="visitor">زوار</option>
+                </select>
+              </label>
+              <label>
+                الجنس
+                <select name="gender">
+                  <option value="">الكل</option>
+                  <option value="female">أنثى</option>
+                  <option value="male">ذكر</option>
+                </select>
+              </label>
+              <label>
+                الترتيب
+                <select name="sort">
+                  <option value="recent">الأحدث</option>
+                  <option value="name">الاسم</option>
+                  <option value="activity">الأكثر نشاطاً</option>
+                </select>
+              </label>
+              <label>
+                في الصفحة
+                <select name="pageSize" data-patient-page-size>
+                  <option value="10" selected>10</option>
+                  <option value="25">25</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                </select>
+              </label>
+            </form>
+            <div class="table-wrap practical-table-wrap">
+              <table class="practical-table patient-directory-table">
+                <thead>
+                  <tr>
+                    <th>رقم الملف</th>
+                    <th>الاسم</th>
+                    <th>النوع</th>
+                    <th>الهاتف</th>
+                    <th>آخر نشاط</th>
+                    <th>العمليات</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody data-patient-table></tbody>
+              </table>
+            </div>
+            <div class="table-pagination" data-patient-pagination></div>
+          </article>
+
+          <article class="panel patient-file-panel">
+            <div data-patient-file>
+              <div class="empty-state">اختر مريضاً أو زائراً لفتح ملفه ومراجعة الحجوزات والعمليات.</div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="view" data-view="bookings">
+        <div class="kpi-grid booking-kpis">
+          <article class="kpi">
+            <span>حجوزات اليوم</span>
+            <strong data-booking-kpi="today">0</strong>
+            <small>حسب تاريخ العمل</small>
+          </article>
+          <article class="kpi warn">
+            <span>بانتظار التأكيد</span>
+            <strong data-booking-kpi="pending">0</strong>
+            <small>حجوزات تحتاج متابعة</small>
+          </article>
+          <article class="kpi">
+            <span>تم الوصول</span>
+            <strong data-booking-kpi="arrived">0</strong>
+            <small>جاهزة للتحويل إلى عملية</small>
+          </article>
+          <article class="kpi" data-sensitive>
+            <span>قيمة متوقعة</span>
+            <strong data-booking-kpi="expected">0 د.أ</strong>
+            <small>من الحجوزات غير الملغاة</small>
+          </article>
+        </div>
+
+        <article class="panel booking-calendar-panel">
+          <div class="panel-header calendar-panel-header">
+            <div>
+              <p class="eyebrow">تقويم الحجوزات</p>
+              <h2 data-booking-calendar-title>الشهر الحالي</h2>
+              <p class="calendar-summary" data-booking-calendar-summary>اختر يوماً لعرض حجوزاته.</p>
+            </div>
+            <div class="calendar-actions">
+              <button class="icon-button" type="button" data-calendar-nav="prev" aria-label="الشهر السابق" title="الشهر السابق">‹</button>
+              <button class="text-button" type="button" data-calendar-nav="today">اليوم</button>
+              <button class="icon-button" type="button" data-calendar-nav="next" aria-label="الشهر التالي" title="الشهر التالي">›</button>
+            </div>
+          </div>
+          <div class="booking-calendar-legend">
+            <span><i class="legend-dot scheduled"></i>محجوز</span>
+            <span><i class="legend-dot confirmed"></i>مؤكد</span>
+            <span><i class="legend-dot arrived"></i>وصل</span>
+            <span><i class="legend-dot completed"></i>مكتمل</span>
+          </div>
+          <div class="booking-calendar-weekdays" data-booking-calendar-weekdays></div>
+          <div class="booking-calendar-grid" data-booking-calendar></div>
+        </article>
+
+        <div class="split-layout">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">إدارة المواعيد</p>
+                <h2>حجز جديد</h2>
+              </div>
+            </div>
+            <form class="entry-form" data-booking-form>
+              <label>
+                اسم المريض
+                <input name="patient" type="text" placeholder="سارة أحمد" required>
+              </label>
+              <label>
+                الهاتف
+                <input name="phone" type="tel" placeholder="0790000000">
+              </label>
+              <label>
+                الخدمة
+                <select name="serviceId" data-booking-service-select required></select>
+              </label>
+              <label>
+                التاريخ
+                <input name="date" type="date" required>
+              </label>
+              <label>
+                الوقت
+                <input name="time" type="time" required>
+              </label>
+              <label>
+                الحالة
+                <select name="status">
+                  <option value="scheduled">محجوز</option>
+                  <option value="confirmed">مؤكد</option>
+                  <option value="arrived">وصل</option>
+                  <option value="completed">تمت العملية</option>
+                  <option value="no_show">لم يحضر</option>
+                  <option value="cancelled">ملغي</option>
+                </select>
+              </label>
+              <label>
+                الطبيب
+                <select name="doctorId" data-booking-doctor-select></select>
+              </label>
+              <label>
+                الأخصائي
+                <select name="specialistId" data-booking-specialist-select></select>
+              </label>
+              <label data-sensitive>
+                القيمة المتوقعة
+                <input name="expectedAmount" type="number" min="0" step="0.01" placeholder="80">
+              </label>
+              <label class="wide-field">
+                ملاحظات الحجز
+                <input name="notes" type="text" placeholder="سبب الزيارة، تعليمات قبل الموعد، أو ملاحظات اتصال">
+              </label>
+              <button class="primary-button form-submit" type="submit">حفظ الحجز</button>
+            </form>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">الجدول</p>
+                <h2>حجوزات اليوم</h2>
+              </div>
+              <button class="text-button" type="button" data-jump="reports">تقرير الحجوزات</button>
+            </div>
+            <div class="booking-day-calendar" data-booking-day-calendar></div>
+            <div class="staff-list" data-booking-list></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="view" data-view="staff">
+        <div class="split-layout">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">إضافة عضو للفريق</p>
+                <h2>النسب والقواعد</h2>
+              </div>
+            </div>
+            <form class="staff-form" data-staff-form>
+              <label>
+                الاسم
+                <input name="name" type="text" placeholder="د. ليلى منصور" required>
+              </label>
+              <label>
+                الدور
+                <select name="role" required>
+                  <option value="doctor">طبيب</option>
+                  <option value="specialist">أخصائي</option>
+                </select>
+              </label>
+              <label data-sensitive>
+                النسبة
+                <input name="rate" type="number" min="0" max="100" step="0.01" placeholder="50" required>
+              </label>
+              <button class="primary-button form-submit" type="submit">إضافة الموظف</button>
+            </form>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">الفريق الحالي</p>
+                <h2>الفريق الحالي</h2>
+              </div>
+            </div>
+            <div class="staff-list" data-staff-list></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="view" data-view="services">
+        <div class="split-layout">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">كتالوج الخدمات</p>
+                <h2>إضافة خدمة وتسعيرها</h2>
+              </div>
+            </div>
+            <form class="entry-form" data-service-form>
+              <label>
+                اسم الخدمة
+                <input name="name" type="text" placeholder="جلسة ليزر" required>
+              </label>
+              <label>
+                السعر الافتراضي
+                <input name="defaultPrice" type="number" min="0" step="0.01" placeholder="80" required>
+              </label>
+              <label data-sensitive>
+                التكلفة المباشرة
+                <input name="defaultCost" type="number" min="0" step="0.01" value="0">
+              </label>
+              <label>
+                الحالة
+                <select name="active">
+                  <option value="true">فعالة</option>
+                  <option value="false">متوقفة</option>
+                </select>
+              </label>
+              <button class="primary-button form-submit" type="submit">حفظ الخدمة</button>
+            </form>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">الخدمات الحالية</p>
+                <h2>الخدمات المتاحة للعمليات</h2>
+              </div>
+            </div>
+            <div class="staff-list" data-service-list></div>
+          </article>
+        </div>
+
+        <div class="split-layout rules-layout" data-sensitive>
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">قواعد المستحقات</p>
+                <h2>قاعدة جديدة</h2>
+              </div>
+            </div>
+            <form class="entry-form" data-rule-form>
+              <label>
+                اسم القاعدة
+                <input name="name" type="text" placeholder="د. ليلى — 60% ليزر" required>
+              </label>
+              <label>
+                تطبق على
+                <select name="appliesTo" required>
+                  <option value="doctor">طبيب</option>
+                  <option value="specialist">أخصائي</option>
+                </select>
+              </label>
+              <label>
+                الشخص
+                <select name="personId" data-rule-person-select></select>
+              </label>
+              <label>
+                الخدمة
+                <select name="serviceId" data-rule-service-select></select>
+              </label>
+              <label>
+                طريقة الحساب
+                <select name="model" required>
+                  <option value="pct_net">نسبة من الربح بعد التكلفة</option>
+                  <option value="pct_gross">نسبة من المقبوض</option>
+                  <option value="fixed">مبلغ ثابت لكل عملية</option>
+                  <option value="member_rate">نسبة العضو الافتراضية</option>
+                </select>
+              </label>
+              <label>
+                القيمة
+                <input name="value" type="number" min="0" step="0.01" placeholder="50">
+              </label>
+              <button class="primary-button form-submit" type="submit">حفظ القاعدة</button>
+            </form>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">أولوية الحساب</p>
+                <h2>القواعد الحالية</h2>
+              </div>
+            </div>
+            <div class="rule-note">الأولوية: شخص + خدمة، ثم شخص فقط، ثم خدمة فقط، ثم قاعدة عامة.</div>
+            <div class="staff-list" data-rule-list></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="view" data-view="inventory">
+        <div class="kpi-grid inventory-kpis">
+          <article class="kpi">
+            <span>أصناف المخزون</span>
+            <strong data-inventory-kpi="items">0</strong>
+            <small>الأصناف الفعالة</small>
+          </article>
+          <article class="kpi warn">
+            <span>تنبيهات منخفضة</span>
+            <strong data-inventory-kpi="low">0</strong>
+            <small>حسب حد الطلب لكل صنف</small>
+          </article>
+          <article class="kpi">
+            <span>الموردون</span>
+            <strong data-inventory-kpi="suppliers">0</strong>
+            <small>جهات يمكن الطلب منها</small>
+          </article>
+          <article class="kpi" data-sensitive>
+            <span>قيمة المخزون</span>
+            <strong data-inventory-kpi="value">0 د.أ</strong>
+            <small>حسب آخر تكلفة للصنف</small>
+          </article>
+        </div>
+
+        <div class="split-layout">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">الموردون</p>
+                <h2>إضافة مورد للعيادة</h2>
+              </div>
+            </div>
+            <form class="entry-form" data-supplier-form>
+              <label>
+                اسم المورد
+                <input name="name" type="text" placeholder="MedCare Supplies" required>
+              </label>
+              <label>
+                التواصل
+                <input name="contact" type="text" placeholder="هاتف أو بريد">
+              </label>
+              <label>
+                المدينة
+                <input name="city" type="text" placeholder="عمّان">
+              </label>
+              <label>
+                التصنيف
+                <input name="category" type="text" placeholder="مواد طبية">
+              </label>
+              <label class="wide-field">
+                ملاحظات
+                <input name="notes" type="text" placeholder="شروط الطلب، أيام التوصيل، أو الأسعار">
+              </label>
+              <button class="primary-button form-submit" type="submit">حفظ المورد</button>
+            </form>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">دليل الطلب</p>
+                <h2>من أين يمكن الطلب؟</h2>
+              </div>
+            </div>
+            <div class="staff-list" data-supplier-list></div>
+          </article>
+        </div>
+
+        <div class="split-layout rules-layout">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">المخزون</p>
+                <h2>إضافة صنف وحد التنبيه</h2>
+              </div>
+            </div>
+            <form class="entry-form" data-inventory-form>
+              <label>
+                اسم الصنف
+                <input name="name" type="text" placeholder="قفازات نيتريل" required>
+              </label>
+              <label>
+                رمز الصنف
+                <input name="sku" type="text" placeholder="GLV-NIT-M">
+              </label>
+              <label>
+                الوحدة
+                <input name="unit" type="text" placeholder="علبة" required>
+              </label>
+              <label>
+                الكمية الحالية
+                <input name="quantity" type="number" min="0" step="0.01" placeholder="12" required>
+              </label>
+              <label>
+                حد الطلب المنخفض
+                <input name="lowThreshold" type="number" min="0" step="0.01" placeholder="10" required>
+              </label>
+              <label data-sensitive>
+                آخر تكلفة للوحدة
+                <input name="unitCost" type="number" min="0" step="0.01" placeholder="4.5">
+              </label>
+              <label>
+                المورد المفضل
+                <select name="supplierId" data-inventory-supplier-select></select>
+              </label>
+              <div class="formula-preview">اكتب 0 في حد الطلب إذا كان الصنف لا يحتاج تنبيهات، حتى لا تظهر إشعارات بلا سبب.</div>
+              <button class="primary-button form-submit" type="submit">حفظ الصنف</button>
+            </form>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">تنبيهات المخزون</p>
+                <h2>أصناف تحتاج طلب</h2>
+              </div>
+            </div>
+            <div class="rule-note">التنبيه يظهر فقط عندما يكون حد الطلب أكبر من 0 والكمية الحالية أقل أو تساوي ذلك الحد.</div>
+            <div class="staff-list" data-low-stock-list></div>
+          </article>
+        </div>
+
+        <div class="dashboard-grid enhanced">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">قائمة المخزون</p>
+                <h2>الأصناف الحالية</h2>
+              </div>
+              <button class="focus-icon-button" type="button" data-open-table-focus="inventory" aria-label="عرض جدول المخزون بملء الشاشة" title="عرض جدول المخزون بملء الشاشة">
+                <span aria-hidden="true">⛶</span>
+              </button>
+            </div>
+            <div class="staff-list" data-inventory-list></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">الطلبات</p>
+                <h2>تسجيل طلب أو استلام</h2>
+              </div>
+            </div>
+            <form class="entry-form" data-order-form>
+              <label>
+                الصنف
+                <select name="itemId" data-order-item-select required></select>
+              </label>
+              <label>
+                المورد
+                <select name="supplierId" data-order-supplier-select required></select>
+              </label>
+              <label>
+                تاريخ الطلب
+                <input name="date" type="date" required>
+              </label>
+              <label>
+                الكمية
+                <input name="quantity" type="number" min="0.01" step="0.01" required>
+              </label>
+              <label data-sensitive>
+                تكلفة الوحدة
+                <input name="unitCost" type="number" min="0" step="0.01" required>
+              </label>
+              <label>
+                الحالة
+                <select name="status">
+                  <option value="ordered">تم الطلب</option>
+                  <option value="received">تم الاستلام</option>
+                  <option value="planned">مخطط</option>
+                  <option value="cancelled">ملغي</option>
+                </select>
+              </label>
+              <label class="wide-field">
+                ملاحظات
+                <input name="notes" type="text" placeholder="رقم الفاتورة أو شروط التوصيل">
+              </label>
+              <button class="primary-button form-submit" type="submit">حفظ الطلب</button>
+            </form>
+          </article>
+        </div>
+
+        <article class="panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">من أين طلبنا؟</p>
+              <h2>سجل الموردين والتكاليف</h2>
+            </div>
+            <button class="text-button" type="button" data-export-inventory data-sensitive>تصدير CSV</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>التاريخ</th>
+                  <th>الصنف</th>
+                  <th>المورد</th>
+                  <th>الفرع</th>
+                  <th>الكمية</th>
+                  <th data-sensitive>تكلفة الوحدة</th>
+                  <th data-sensitive>الإجمالي</th>
+                  <th>الحالة</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody data-purchase-order-list></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <section class="view" data-view="reconcile">
+        <div class="split-layout compact">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">إغلاق اليوم</p>
+                <h2>مطابقة الإغلاق</h2>
+              </div>
+            </div>
+            <form class="reconcile-form" data-reconcile-form>
+              <label>
+                الكاش الموجود فعلياً
+                <input name="countedCash" type="number" min="0" step="0.01" required>
+              </label>
+              <label>
+                مجموع الفيزا من الجهاز
+                <input name="countedCard" type="number" min="0" step="0.01" required>
+              </label>
+              <label>
+                التحويلات المؤكدة
+                <input name="countedTransfer" type="number" min="0" step="0.01" required>
+              </label>
+              <button class="primary-button form-submit" type="submit">حفظ الإغلاق</button>
+            </form>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">النتيجة</p>
+                <h2>هل الإغلاق متطابق؟</h2>
+              </div>
+            </div>
+            <div class="reconcile-result" data-reconcile-result></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="view" data-view="salaries">
+        <article class="panel report-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">كشف قابل للطباعة</p>
+              <h2>نسب ورواتب اليوم</h2>
+            </div>
+            <div class="form-actions">
+              <button class="text-button" type="button" data-export-salaries data-sensitive>تصدير CSV</button>
+              <button class="primary-button" type="button" data-print-payroll-report data-sensitive>طباعة التقرير</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>الموظف</th>
+                  <th>الدور</th>
+                  <th>الصيغة</th>
+                  <th>عدد العمليات</th>
+                  <th>المستحق</th>
+                  <th>الحالة</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody data-salary-table></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="panel salary-slip-panel" data-salary-slip-panel data-sensitive>
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">كشف فردي</p>
+              <h2>تفاصيل راتب الموظف</h2>
+            </div>
+            <div class="form-actions salary-slip-actions">
+              <select data-salary-slip-select aria-label="اختيار الموظف"></select>
+              <button class="primary-button" type="button" data-print-salary-slip>طباعة كشف فردي</button>
+            </div>
+          </div>
+          <div class="salary-slip" data-salary-slip></div>
+        </article>
+      </section>
+
+      <section class="view" data-view="reports">
+        <article class="panel full-report-panel">
+          <div class="panel-header report-toolbar">
+            <div>
+              <p class="eyebrow">مركز التقارير</p>
+              <h2>ابحث وحلّل أي جزء من عمل العيادة</h2>
+            </div>
+            <div class="form-actions">
+              <select data-report-select aria-label="اختيار التقرير">
+                <option value="universal">بحث شامل في العيادة</option>
+                <option value="reconciliation">مطابقة المرضى والمدفوعات</option>
+                <option value="byPatient">حسب المريض</option>
+                <option value="perProcedure">كل عملية</option>
+                <option value="bookings">الحجوزات والجدول</option>
+                <option value="patients">دليل المرضى والزوار</option>
+                <option value="costs">قائمة التكاليف</option>
+                <option value="assignments">تعيين الأخصائيين</option>
+              </select>
+              <label class="compact-field">
+                من
+                <input type="date" data-report-date-from>
+              </label>
+              <label class="compact-field">
+                إلى
+                <input type="date" data-report-date-to>
+              </label>
+              <button class="text-button" type="button" data-report-today>اليوم</button>
+              <button class="focus-icon-button" type="button" data-open-table-focus="report" aria-label="عرض التقرير بملء الشاشة" title="عرض التقرير بملء الشاشة">
+                <span aria-hidden="true">⛶</span>
+              </button>
+              <button class="primary-button" type="button" data-print-selected-report data-sensitive>طباعة التقرير</button>
+            </div>
+          </div>
+          <form class="report-filter-form" data-report-filter-form>
+            <label class="filter-search">
+              البحث الشامل
+              <input name="query" type="search" data-report-search placeholder="اكتب اسم مريض، خدمة، طبيب، حالة، دفعة، ملاحظة، مورد أو صنف...">
+            </label>
+            <label>
+              المصدر
+              <select name="source" data-report-source>
+                <option value="">كل البيانات</option>
+                <option value="operation">العمليات</option>
+                <option value="booking">الحجوزات</option>
+                <option value="patient">المرضى والزوار</option>
+                <option value="inventory">المخزون</option>
+                <option value="service">الخدمات</option>
+                <option value="supplier">الموردون</option>
+                <option value="staff">الموظفون</option>
+              </select>
+            </label>
+            <label>
+              الحالة
+              <select name="status" data-report-status>
+                <option value="">كل الحالات</option>
+                <option value="completed">مكتمل</option>
+                <option value="scheduled">محجوز</option>
+                <option value="confirmed">مؤكد</option>
+                <option value="arrived">وصل</option>
+                <option value="pending_assignment">بانتظار التعيين</option>
+                <option value="pending_payment">بانتظار الدفع</option>
+                <option value="cancelled">ملغي</option>
+                <option value="no_show">لم يحضر</option>
+              </select>
+            </label>
+            <label>
+              الدفع
+              <select name="paymentMethod" data-report-payment>
+                <option value="">كل طرق الدفع</option>
+                <option value="cash">كاش</option>
+                <option value="card">فيزا</option>
+                <option value="transfer">تحويل</option>
+              </select>
+            </label>
+            <label>
+              في الصفحة
+              <select name="pageSize" data-report-page-size>
+                <option value="10">10</option>
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </label>
+          </form>
+          <div class="report-visuals" data-report-visuals></div>
+          <div class="report-page" data-report-page></div>
+          <div class="table-pagination report-pagination" data-report-pagination></div>
+        </article>
+      </section>
+
+      <section class="view" data-view="accounts">
+        <article class="panel access-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">إدارة المستخدمين</p>
+              <h2>Manage Users</h2>
+            </div>
+            <button class="text-button" type="button" data-reset-account-form>حساب جديد</button>
+          </div>
+
+          <form class="account-form practical-form" data-account-form>
+            <input name="accountId" type="hidden">
+            <label>
+              User Name
+              <input name="userName" type="text" placeholder="reception01" required>
+            </label>
+            <label>
+              Arabic First Name
+              <input name="arabicFirstName" type="text" placeholder="سارة">
+            </label>
+            <label>
+              Arabic Last Name
+              <input name="arabicLastName" type="text" placeholder="خالد">
+            </label>
+            <label>
+              First Name
+              <input name="firstName" type="text" placeholder="Sara">
+            </label>
+            <label>
+              Last Name
+              <input name="lastName" type="text" placeholder="Khaled">
+            </label>
+            <label>
+              Mobile No.
+              <input name="mobile" type="tel" placeholder="079 000 0000">
+            </label>
+            <label>
+              Tel. No.
+              <input name="telNo" type="tel" placeholder="06 000 0000">
+            </label>
+            <label>
+              Role
+              <select name="role" required>
+                <option value="data_entry">assistant</option>
+                <option value="doctor">doctor-compound</option>
+                <option value="specialist">specialist</option>
+                <option value="admin">admin</option>
+              </select>
+            </label>
+            <label>
+              ربط بموظف
+              <select name="staffId" data-account-staff-select></select>
+            </label>
+            <label>
+              Status
+              <select name="active">
+                <option value="true">Active</option>
+                <option value="false">Inactive</option>
+              </select>
+            </label>
+            <label class="permission-check inline-check">
+              <input name="ownEntriesOnly" type="checkbox">
+              يرى عملياته فقط
+            </label>
+            <label class="permission-check inline-check">
+              <input name="canViewSensitive" type="checkbox">
+              يرى المبالغ والنسب
+            </label>
+            <button class="primary-button form-submit" type="submit" data-account-submit>Save User</button>
+          </form>
+
+          <form class="account-filter-form" data-account-filter-form>
+            <label>
+              Active
+              <select name="active">
+                <option value="">- Any -</option>
+                <option value="true">Active</option>
+                <option value="false">Inactive</option>
+              </select>
+            </label>
+            <label>
+              User Name
+              <input name="userName" type="search">
+            </label>
+            <label>
+              Arabic First Name
+              <input name="arabicFirstName" type="search">
+            </label>
+            <label>
+              First Name
+              <input name="firstName" type="search">
+            </label>
+            <label>
+              Mobile No.
+              <input name="mobile" type="search">
+            </label>
+            <label>
+              Tel. No.
+              <input name="telNo" type="search">
+            </label>
+            <label>
+              Role
+              <select name="role">
+                <option value="">- Any -</option>
+                <option value="data_entry">assistant</option>
+                <option value="doctor">doctor-compound</option>
+                <option value="specialist">specialist</option>
+                <option value="admin">admin</option>
+              </select>
+            </label>
+          </form>
+
+          <div class="table-wrap practical-table-wrap">
+            <table class="practical-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Arabic First Name</th>
+                  <th>Arabic Last Name</th>
+                  <th>Uid</th>
+                  <th>First Name</th>
+                  <th>Last Name</th>
+                  <th>Roles</th>
+                  <th>Status</th>
+                  <th>Member Since</th>
+                  <th>Last access</th>
+                  <th>Edit</th>
+                  <th>Delete</th>
+                </tr>
+              </thead>
+              <tbody data-account-table></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="panel access-panel permissions-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Feature Permissions</p>
+              <h2>Permissions</h2>
+            </div>
+          </div>
+          <form class="permission-assignment-form" data-permission-form>
+            <label>
+              Full Name
+              <select name="accountIds" data-permission-account-select multiple required></select>
+              <small>Press in box to choose more users</small>
+            </label>
+            <label>
+              Module
+              <select name="category" data-permission-category-select>
+                <option value="">All modules</option>
+              </select>
+            </label>
+            <label>
+              Search permissions
+              <input name="permissionQuery" type="search" data-permission-search placeholder="Patient, calendar, finance...">
+            </label>
+            <label>
+              Feature
+              <select name="feature" data-permission-feature-select required></select>
+            </label>
+            <button class="primary-button form-submit" type="submit">Save</button>
+          </form>
+
+          <div class="permission-catalog" data-permission-catalog></div>
+
+          <div class="table-wrap practical-table-wrap">
+            <table class="practical-table permission-record-table">
+              <thead>
+                <tr>
+                  <th>User Name</th>
+                  <th>Feature</th>
+                  <th>Edit</th>
+                  <th>Delete</th>
+                </tr>
+              </thead>
+              <tbody data-permission-table></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <section class="view" data-view="communications">
+        <div class="communications-kpis">
+          <article class="command-kpi blue">
+            <span>تقارير يومية مفعلة</span>
+            <strong data-communications-kpi="digests">0</strong>
+            <small>حسب الدور والموظف</small>
+          </article>
+          <article class="command-kpi green">
+            <span>رسائل في الانتظار</span>
+            <strong data-communications-kpi="queued">0</strong>
+            <small>واتساب وSMS</small>
+          </article>
+          <article class="command-kpi amber">
+            <span>حملات هذا الشهر</span>
+            <strong data-communications-kpi="campaigns">0</strong>
+            <small>بموافقة المرضى</small>
+          </article>
+          <article class="command-kpi violet">
+            <span>فواتير JoFotara</span>
+            <strong data-communications-kpi="receipts">0</strong>
+            <small>جاهزة أو بانتظار الإرسال</small>
+          </article>
+        </div>
+
+        <div class="communications-grid">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">تقارير الفريق</p>
+                <h2>ملخص يومي مخصص لكل دور</h2>
+              </div>
+            </div>
+            <form class="automation-form" data-digest-form>
+              <label>
+                المستلم
+                <select name="accountId" data-digest-account required></select>
+              </label>
+              <label>
+                القناة
+                <select name="channel">
+                  <option value="whatsapp">WhatsApp</option>
+                  <option value="sms">SMS</option>
+                </select>
+              </label>
+              <label>
+                وقت الإرسال
+                <input name="sendTime" type="time" value="18:30" required>
+              </label>
+              <label>
+                نوع الملخص
+                <select name="template">
+                  <option value="role_daily">ملخص الدور اليومي</option>
+                  <option value="tomorrow_schedule">جدول الغد</option>
+                  <option value="financial_close">الإغلاق المالي</option>
+                  <option value="inventory_alerts">تنبيهات المخزون</option>
+                </select>
+              </label>
+              <button class="primary-button form-submit" type="submit">حفظ التقرير اليومي</button>
+            </form>
+            <div class="digest-preview" data-digest-preview></div>
+            <div class="automation-list" data-digest-rules></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">التنبيهات التشغيلية</p>
+                <h2>إشعارات قابلة للتنفيذ</h2>
+              </div>
+              <button class="text-button" type="button" data-mark-notifications-read>تحديد كمقروء</button>
+            </div>
+            <div class="communication-notifications" data-communication-notifications></div>
+          </article>
+        </div>
+
+        <div class="communications-grid campaign-grid">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">حملات المرضى</p>
+                <h2>حملة SMS موجهة داخل الأردن</h2>
+              </div>
+            </div>
+            <form class="campaign-form" data-campaign-form>
+              <label>
+                الجمهور
+                <select name="audience" data-campaign-audience>
+                  <option value="all_consented">كل المرضى الموافقين</option>
+                  <option value="no_show">من لم يحضروا</option>
+                  <option value="inactive_60">لم يزوروا منذ 60 يوماً</option>
+                  <option value="visitors">الزوار غير المحولين</option>
+                  <option value="service">حسب الخدمة أو الفئة</option>
+                </select>
+              </label>
+              <label>
+                الخدمة أو الفئة
+                <input name="category" type="text" placeholder="ليزر، أسنان...">
+              </label>
+              <label>
+                موعد الإرسال
+                <input name="scheduledAt" type="datetime-local">
+              </label>
+              <label class="campaign-message">
+                نص الرسالة
+                <textarea name="message" rows="4" maxlength="320" placeholder="مرحباً {{name}}، نود تذكيرك..." required></textarea>
+              </label>
+              <label class="consent-check">
+                <input name="confirmConsent" type="checkbox" required>
+                أرسل فقط لمن لديهم موافقة تسويقية فعالة
+              </label>
+              <div class="campaign-estimate" data-campaign-estimate></div>
+              <button class="primary-button form-submit" type="submit">إضافة الحملة إلى قائمة الإرسال</button>
+            </form>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">سجل الحملات</p>
+                <h2>الأداء وحالة التسليم</h2>
+              </div>
+            </div>
+            <div class="campaign-list" data-campaign-list></div>
+          </article>
+        </div>
+
+        <div class="integration-grid">
+          <article class="panel integration-card">
+            <div class="integration-heading">
+              <div>
+                <span class="integration-mark whatsapp">WA</span>
+                <div>
+                  <h2>WhatsApp Business</h2>
+                  <p>قوالب معتمدة وتقارير يومية حسب الدور</p>
+                </div>
+              </div>
+              <span class="status-pill" data-integration-status="whatsapp">غير متصل</span>
+            </div>
+            <form class="integration-form" data-whatsapp-settings>
+              <label>
+                رقم WhatsApp Business
+                <input name="businessPhone" type="tel" placeholder="+962790000000">
+              </label>
+              <label>
+                Phone Number ID
+                <input name="phoneNumberId" type="text" placeholder="Meta Phone Number ID">
+              </label>
+              <label>
+                قالب التقرير اليومي
+                <input name="templateName" type="text" value="clinic_daily_role_report">
+              </label>
+              <p class="integration-note">Access Token ونسخة Graph API تضبطان كمتغيرات آمنة على الخادم، ولا تحفظان في المتصفح.</p>
+              <button class="dark-button" type="submit">حفظ إعداد الاتصال</button>
+            </form>
+          </article>
+
+          <article class="panel integration-card">
+            <div class="integration-heading">
+              <div>
+                <span class="integration-mark sms">SMS</span>
+                <div>
+                  <h2>بوابة SMS الأردن</h2>
+                  <p>مزود محلي أو REST API مع تقارير تسليم</p>
+                </div>
+              </div>
+              <span class="status-pill" data-integration-status="sms">غير متصل</span>
+            </div>
+            <form class="integration-form" data-sms-settings>
+              <label>
+                المزود
+                <select name="provider">
+                  <option value="local">مزود أردني محلي</option>
+                  <option value="mersal">Mersal</option>
+                  <option value="sama">Sama</option>
+                  <option value="custom">REST API مخصص</option>
+                </select>
+              </label>
+              <label>
+                اسم المرسل
+                <input name="senderId" type="text" placeholder="RIAAYA">
+              </label>
+              <label>
+                رابط API
+                <input name="endpoint" type="url" placeholder="https://provider.example/api/send">
+              </label>
+              <p class="integration-note">مفتاح المزود يحفظ على الخادم. قائمة الإرسال لا تشمل أي مريض دون موافقة فعالة.</p>
+              <button class="dark-button" type="submit">حفظ إعداد الاتصال</button>
+            </form>
+          </article>
+
+          <article class="panel integration-card">
+            <div class="integration-heading">
+              <div>
+                <span class="integration-mark invoice">JO</span>
+                <div>
+                  <h2>JoFotara</h2>
+                  <p>الفوترة الإلكترونية الوطنية الأردنية</p>
+                </div>
+              </div>
+              <span class="status-pill" data-integration-status="jofotara">غير مهيأ</span>
+            </div>
+            <form class="integration-form" data-jofotara-settings>
+              <label>
+                الرقم الضريبي
+                <input name="taxNumber" type="text" placeholder="Tax Number">
+              </label>
+              <label>
+                Client ID
+                <input name="clientId" type="text" placeholder="Client-Id">
+              </label>
+              <label>
+                تسلسل مصدر الدخل
+                <input name="incomeSourceSequence" type="text" placeholder="Income source sequence">
+              </label>
+              <p class="integration-note">Secret Key يحفظ في بيئة الخادم فقط. الإرسال الضريبي يبقى في وضع المعاينة حتى تفعيل الإنتاج صراحة.</p>
+              <button class="dark-button" type="submit">حفظ جاهزية الربط</button>
+            </form>
+          </article>
+        </div>
+
+        <article class="panel receipts-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">الفواتير والإيصالات</p>
+              <h2>قائمة JoFotara</h2>
+            </div>
+            <span class="status-pill good">UBL 2.1</span>
+          </div>
+          <div class="table-wrap">
+            <table class="receipts-table">
+              <thead>
+                <tr>
+                  <th>رقم الفاتورة</th>
+                  <th>التاريخ</th>
+                  <th>المريض</th>
+                  <th>البنود</th>
+                  <th>الإجمالي</th>
+                  <th>الحالة</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody data-receipt-table></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <section class="view" data-view="leads">
+        <article class="panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">من صفحة التعريف</p>
+              <h2>طلبات التجربة المحفوظة</h2>
+            </div>
+            <button class="text-button danger" type="button" data-clear-leads>مسح الطلبات</button>
+          </div>
+          <div class="lead-list" data-lead-list></div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <section class="table-focus-overlay" data-table-focus hidden role="dialog" aria-modal="true" aria-labelledby="table-focus-title">
+    <div class="table-focus-header">
+      <div>
+        <p class="eyebrow" data-table-focus-subtitle>عرض كامل</p>
+        <h2 id="table-focus-title" data-table-focus-title>الجدول</h2>
+      </div>
+      <button class="focus-close-button" type="button" data-close-table-focus>إغلاق</button>
+    </div>
+    <div class="table-focus-content" data-table-focus-content></div>
+  </section>
+
+  <script src="app.js"></script>
+</body>
+</html>
