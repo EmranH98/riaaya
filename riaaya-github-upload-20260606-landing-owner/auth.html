@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="تسجيل الدخول وإنشاء حساب عيادة في رعاية">
+  <title>رعاية | الدخول والتسجيل</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@500;700;800&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="auth.css">
+</head>
+<body>
+  <main class="auth-shell">
+    <section class="auth-context">
+      <a class="auth-brand" href="index.html">
+        <img src="assets/riaaya-logo-mark.png" alt="">
+        <span><strong>RIAAYA</strong><small>إدارة العيادات</small></span>
+      </a>
+      <div>
+        <p class="eyebrow">حساب عيادتك الخاص</p>
+        <h1>بيانات كل عيادة تبقى داخل مساحتها.</h1>
+        <p>تسجيل آمن، صلاحيات تفصيلية، سجل تدقيق، وتجربة مجانية لمدة 14 يوماً بدون بطاقة بنكية.</p>
+      </div>
+      <ul class="trust-list">
+        <li>جلسات دخول HttpOnly ولا تحفظ كلمات المرور في المتصفح</li>
+        <li>عزل كامل بين حسابات العيادات</li>
+        <li>صلاحيات للتقويم والمرضى والمالية حسب الدور</li>
+      </ul>
+      <a class="trial-link" href="app.html?trial=1">فتح النموذج التجريبي العام</a>
+    </section>
+
+    <section class="auth-workspace">
+      <div class="auth-tabs" role="tablist" aria-label="الدخول أو التسجيل">
+        <button class="active" type="button" data-auth-tab="login">تسجيل الدخول</button>
+        <button type="button" data-auth-tab="register">إنشاء حساب عيادة</button>
+      </div>
+
+      <form class="auth-form active" data-login-form>
+        <div class="form-heading">
+          <p class="eyebrow">مرحباً بعودتك</p>
+          <h2>الدخول إلى رعاية</h2>
+        </div>
+        <label>
+          البريد الإلكتروني
+          <input name="email" type="email" autocomplete="username" required>
+        </label>
+        <label>
+          كلمة المرور
+          <input name="password" type="password" autocomplete="current-password" required>
+        </label>
+        <button class="primary-action" type="submit">دخول آمن</button>
+        <p class="form-status" data-login-status aria-live="polite"></p>
+      </form>
+
+      <form class="auth-form" data-register-form>
+        <div class="form-heading">
+          <p class="eyebrow">14 يوم مجاناً</p>
+          <h2>إنشاء مساحة عيادة</h2>
+        </div>
+        <div class="form-grid">
+          <label>
+            اسم المسؤول
+            <input name="name" type="text" autocomplete="name" required>
+          </label>
+          <label>
+            اسم العيادة
+            <input name="clinicName" type="text" autocomplete="organization" required>
+          </label>
+          <label>
+            البريد الإلكتروني
+            <input name="email" type="email" autocomplete="username" required>
+          </label>
+          <label>
+            رقم الهاتف
+            <input name="phone" type="tel" autocomplete="tel" placeholder="079 000 0000" required>
+          </label>
+          <label>
+            المدينة
+            <input name="city" type="text" value="عمّان" required>
+          </label>
+          <label>
+            الخطة
+            <select name="plan">
+              <option value="starter">البداية</option>
+              <option value="professional" selected>الاحترافية</option>
+              <option value="enterprise">المؤسسات</option>
+            </select>
+          </label>
+        </div>
+        <label>
+          كلمة المرور
+          <input name="password" type="password" autocomplete="new-password" minlength="12" required>
+          <small>12 خانة على الأقل، مع حرف كبير وصغير ورقم ورمز.</small>
+        </label>
+        <label class="consent-row">
+          <input name="acceptedPrivacy" type="checkbox" required>
+          <span>أوافق على معالجة بيانات الحساب لتشغيل الخدمة، وأفهم حقوق الوصول والتصحيح وسحب الموافقة.</span>
+        </label>
+        <button class="primary-action" type="submit">إنشاء الحساب وبدء التجربة</button>
+        <p class="form-status" data-register-status aria-live="polite"></p>
+      </form>
+    </section>
+  </main>
+  <script src="auth.js"></script>
+</body>
+</html>
