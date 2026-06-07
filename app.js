@@ -10,6 +10,7 @@ const runtime = {
   saveInFlight: false,
   savePending: false,
   openReceiptId: "",
+  operationReturnView: "dashboard",
   stateVersion: 0
 };
 
@@ -1559,6 +1560,7 @@ let expensePage = 1;
 let importSession = null;
 let pendingOperationLines = [];
 let communicationBackendStatus = null;
+let storageSafetyStatus = null;
 
 const els = {
   viewButtons: document.querySelectorAll("[data-view-button]"),
@@ -1573,6 +1575,11 @@ const els = {
   accountFilterForm: document.querySelector("[data-account-filter-form]"),
   accountTable: document.querySelector("[data-account-table]"),
   accountSubmit: document.querySelector("[data-account-submit]"),
+  storageSafetyPanel: document.querySelector("[data-storage-safety-panel]"),
+  storageStatusBadge: document.querySelector("[data-storage-status-badge]"),
+  storageStatusTitle: document.querySelector("[data-storage-status-title]"),
+  storageStatusDetail: document.querySelector("[data-storage-status-detail]"),
+  storageStatusMeta: document.querySelector("[data-storage-status-meta]"),
   permissionForm: document.querySelector("[data-permission-form]"),
   permissionAccountSelect: document.querySelector("[data-permission-account-select]"),
   permissionCategorySelect: document.querySelector("[data-permission-category-select]"),
@@ -1580,7 +1587,20 @@ const els = {
   permissionFeatureSelect: document.querySelector("[data-permission-feature-select]"),
   permissionCatalog: document.querySelector("[data-permission-catalog]"),
   permissionTable: document.querySelector("[data-permission-table]"),
+  dailyCommandDate: document.querySelector("[data-daily-command-date]"),
+  dailyCommandClinic: document.querySelector("[data-daily-command-clinic]"),
+  dailyCommandNextTime: document.querySelector("[data-daily-command-next-time]"),
+  dailyCommandNextName: document.querySelector("[data-daily-command-next-name]"),
+  dailyCommandNextMeta: document.querySelector("[data-daily-command-next-meta]"),
+  dailyCommandRevenue: document.querySelector("[data-daily-command-revenue]"),
+  dailyCommandRevenueNote: document.querySelector("[data-daily-command-revenue-note]"),
+  dailyCommandReconcileStatus: document.querySelector("[data-daily-command-reconcile-status]"),
+  dailyCommandReconcileNote: document.querySelector("[data-daily-command-reconcile-note]"),
+  dailyCommandAlerts: document.querySelector("[data-daily-command-alerts]"),
+  dailyCommandAlertsNote: document.querySelector("[data-daily-command-alerts-note]"),
+  operationModal: document.querySelector("[data-operation-modal]"),
   entryForm: document.querySelector("[data-entry-form]"),
+  paymentQuickRow: document.querySelector("[data-payment-quick-row]"),
   operationPatientOptions: document.querySelector("[data-operation-patient-options]"),
   entryFilterForm: document.querySelector("[data-entry-filter-form]"),
   entryFilterService: document.querySelector("[data-entry-filter-service]"),
@@ -1855,6 +1875,7 @@ async function initializeApp() {
   render();
   if (initializeClinicState) saveState();
   loadCommunicationBackendStatus();
+  loadStorageSafetyStatus();
 }
 
 function currentLanguage() {
@@ -3467,6 +3488,51 @@ function renderDashboardCommandCenter(entries) {
   renderDashboardSchedule();
   renderSmartActions();
   renderNotificationCenters();
+}
+
+function renderDailyCommandCenter(entries, totals, diffs) {
+  if (!els.dailyCommandDate) return;
+  const booking = nextVisitorBooking();
+  const patient = booking ? (getPatient(booking.patientId) || findPatientByName(booking.patient)) : null;
+  const notifications = operationalNotifications();
+  const urgent = notifications.filter(notification => notification.severity !== "info");
+  const revenueVisible = canViewSensitive();
+
+  els.dailyCommandDate.textContent = displayDate(state.settings.activeDate);
+  els.dailyCommandClinic.textContent = state.settings.clinicName || "عيادة رعاية";
+
+  if (booking) {
+    const phone = booking.phone || patient?.phone || "";
+    const meta = [serviceLabel(booking), bookingStatusLabel(booking.status), canUseFeature("see_mobile") ? phone : ""].filter(Boolean).join(" | ");
+    els.dailyCommandNextTime.textContent = displayTime(booking.time);
+    els.dailyCommandNextName.textContent = booking.patient;
+    els.dailyCommandNextName.dataset.openPatient = patient?.id || "";
+    els.dailyCommandNextMeta.textContent = meta || "موعد قريب يحتاج متابعة";
+  } else {
+    els.dailyCommandNextTime.textContent = "--:--";
+    els.dailyCommandNextName.textContent = "لا يوجد موعد قريب";
+    els.dailyCommandNextName.dataset.openPatient = "";
+    els.dailyCommandNextMeta.textContent = "الجدول فارغ لهذا الوقت";
+  }
+
+  if (revenueVisible) {
+    els.dailyCommandRevenue.textContent = money(totals.revenue);
+    els.dailyCommandRevenueNote.textContent = `${totals.count} ${totals.count === 1 ? "عملية" : "عمليات"} اليوم`;
+    els.dailyCommandReconcileStatus.textContent = !diffs ? "بانتظار" : Math.abs(diffs.totalDiff) < 0.01 ? "✓ مطابق" : "فرق";
+    els.dailyCommandReconcileNote.textContent = !diffs
+      ? "لم يتم إغلاق اليوم بعد"
+      : Math.abs(diffs.totalDiff) < 0.01 ? "الإغلاق متطابق" : `الفرق ${money(diffs.totalDiff)}`;
+  } else {
+    els.dailyCommandRevenue.textContent = "مخفي";
+    els.dailyCommandRevenueNote.textContent = "حسب صلاحيات هذا الحساب";
+    els.dailyCommandReconcileStatus.textContent = "مخفي";
+    els.dailyCommandReconcileNote.textContent = "الإغلاق المالي غير ظاهر لهذا الدور";
+  }
+
+  els.dailyCommandAlerts.textContent = urgent.length;
+  els.dailyCommandAlertsNote.textContent = urgent.length
+    ? urgent.slice(0, 2).map(notification => notification.title).join("، ")
+    : "لا توجد إجراءات عاجلة";
 }
 
 function renderWeekChart(series) {
@@ -6231,6 +6297,56 @@ function createReceiptForVisit(entries, patient, options = {}) {
   return receipt;
 }
 
+function renderPaymentQuickButtons() {
+  if (!els.paymentQuickRow || !els.entryForm) return;
+  const method = els.entryForm.elements.paymentMethod?.value || "cash";
+  els.paymentQuickRow.querySelectorAll("[data-payment-option]").forEach(button => {
+    button.classList.toggle("active", button.dataset.paymentOption === method);
+  });
+}
+
+function resetEntryFormDefaults() {
+  if (!els.entryForm) return;
+  els.entryForm.reset();
+  els.entryForm.elements.bookingId.value = "";
+  els.entryForm.elements.quantity.value = 1;
+  els.entryForm.elements.discount.value = 0;
+  els.entryForm.elements.paymentMethod.value = "cash";
+  els.entryForm.elements.status.value = "completed";
+  pendingOperationLines = [];
+  const firstService = activeServices()[0];
+  if (firstService) {
+    els.entryForm.elements.serviceId.value = firstService.id;
+    els.entryForm.elements.amount.value = firstService.defaultPrice || "";
+    els.entryForm.elements.cost.value = firstService.defaultCost || 0;
+  }
+  renderOperationLines();
+  updateEntryPreview();
+  renderPaymentQuickButtons();
+}
+
+function openOperationModal({ returnView = "" } = {}) {
+  if (!canView("entries")) return;
+  const currentView = document.querySelector(".view.active")?.dataset.view || "dashboard";
+  runtime.operationReturnView = returnView || currentView;
+  setView("entries");
+  if (!els.operationModal) return;
+  els.operationModal.hidden = false;
+  document.body.classList.add("operation-modal-open");
+  renderPaymentQuickButtons();
+  window.setTimeout(() => {
+    els.entryForm?.querySelector('input[name="patient"]')?.focus({ preventScroll: true });
+  }, 120);
+}
+
+function closeOperationModal({ restoreView = "" } = {}) {
+  if (!els.operationModal) return;
+  els.operationModal.hidden = true;
+  document.body.classList.remove("operation-modal-open");
+  const target = restoreView || runtime.operationReturnView;
+  if (target && target !== "entries" && canView(target)) setView(target);
+}
+
 function updateEntryPreview() {
   if (!els.entryPreview || !els.entryForm) return;
   const lines = pendingOperationLines.length
@@ -6486,6 +6602,49 @@ async function loadClinicIntegrations() {
       configured: integration.configured
     };
   });
+}
+
+function renderStorageSafety() {
+  if (!els.storageSafetyPanel) return;
+  const visible = canManagePermissions();
+  els.storageSafetyPanel.hidden = !visible;
+  if (!visible) return;
+
+  const localTrial = runtime.mode !== "live";
+  const storage = storageSafetyStatus?.storage || {};
+  const safe = localTrial ? false : Boolean(storage.safeForPilot);
+  const badgeClass = safe ? "good" : localTrial ? "warn" : "bad";
+  const title = safe
+    ? "جاهز لتجربة عيادة واحدة بحذر"
+    : localTrial ? "هذه نسخة تجربة داخل المتصفح" : "التخزين يحتاج تأكيد قبل البيانات الحقيقية";
+  const detail = storageSafetyStatus?.message || (localTrial
+    ? "بيانات التجربة محفوظة على هذا المتصفح فقط. استخدم تنزيل JSON قبل أي تجربة مهمة."
+    : "لم يتم فحص التخزين بعد.");
+  const meta = localTrial
+    ? "الوضع: Trial محلي | النسخ الاحتياطي: تنزيل يدوي"
+    : `الوضع: ${storage.mode || "غير معروف"} | المزود: ${storage.provider || "غير محدد"} | آخر فحص: ${storage.checkedAt ? new Date(storage.checkedAt).toLocaleString("ar-JO") : "بانتظار"}`;
+
+  els.storageStatusBadge.className = `status-pill ${badgeClass}`;
+  els.storageStatusBadge.textContent = safe ? "آمن للتجربة" : localTrial ? "تجربة فقط" : "غير مؤكد";
+  els.storageStatusTitle.textContent = title;
+  els.storageStatusDetail.textContent = detail;
+  els.storageStatusMeta.textContent = meta;
+}
+
+async function loadStorageSafetyStatus() {
+  if (!canManagePermissions()) return;
+  if (runtime.mode !== "live") {
+    storageSafetyStatus = null;
+    renderStorageSafety();
+    return;
+  }
+  try {
+    const response = await fetch("/api/clinic-storage-status", { headers: { Accept: "application/json" } });
+    storageSafetyStatus = response.ok ? await response.json() : null;
+  } catch {
+    storageSafetyStatus = null;
+  }
+  renderStorageSafety();
 }
 
 async function saveClinicIntegration(provider, config, secret = "") {
@@ -6975,6 +7134,7 @@ function render() {
   renderKpis(entries, totals, diffs);
   renderDashboardSummary(entries, totals, diffs, weekEntries, weekTotals);
   renderDashboardCommandCenter(entries);
+  renderDailyCommandCenter(entries, totals, diffs);
   renderWeekChart(weekSeries);
   renderRevenueTrend(weeklySeries(14));
   renderCapacityHeatmap();
@@ -7006,8 +7166,10 @@ function render() {
   renderImportHistory();
   renderCommunications();
   renderLeads();
+  renderStorageSafety();
   renderAlerts(entries, totals, diffs);
   updateEntryPreview();
+  renderPaymentQuickButtons();
   applyLanguage();
 }
 
@@ -7764,6 +7926,7 @@ if (els.entryForm) {
       }
     }
     updateEntryPreview();
+    renderPaymentQuickButtons();
   });
 }
 
@@ -7936,19 +8099,11 @@ els.entryForm.addEventListener("submit", event => {
     const booking = state.bookings.find(item => item.id === data.bookingId);
     if (booking) booking.status = "completed";
   }
-  pendingOperationLines = [];
-  els.entryForm.reset();
-  els.entryForm.elements.quantity.value = 1;
-  els.entryForm.elements.discount.value = 0;
-  els.entryForm.elements.status.value = "completed";
-  const firstService = activeServices()[0];
-  if (firstService) {
-    els.entryForm.elements.serviceId.value = firstService.id;
-    els.entryForm.elements.amount.value = firstService.defaultPrice || "";
-    els.entryForm.elements.cost.value = firstService.defaultCost || 0;
-  }
+  const returnView = runtime.operationReturnView || "dashboard";
+  resetEntryFormDefaults();
   saveState();
   render();
+  closeOperationModal({ restoreView: returnView });
   if (receipt) openReceipt(receipt.id);
 });
 
@@ -8039,6 +8194,7 @@ function fillEntryFromBooking(bookingId) {
   const booking = state.bookings.find(item => item.id === bookingId);
   if (!booking) return;
   const service = getService(booking.serviceId);
+  const returnView = document.querySelector(".view.active")?.dataset.view || "bookings";
   setView("entries");
   pendingOperationLines = [];
   els.entryForm.elements.bookingId.value = booking.id;
@@ -8065,7 +8221,7 @@ function fillEntryFromBooking(bookingId) {
   });
   renderOperationLines();
   updateEntryPreview();
-  els.entryForm.scrollIntoView({ behavior: "smooth", block: "center" });
+  openOperationModal({ returnView });
 }
 
 if (els.supplierForm) {
@@ -8335,6 +8491,38 @@ document.addEventListener("click", async event => {
   const expandViewName = event.target.dataset.expandView;
   const calendarDate = event.target.closest("[data-calendar-date]")?.dataset.calendarDate;
   const calendarNav = event.target.closest("[data-calendar-nav]")?.dataset.calendarNav;
+  const openOperationAction = event.target.closest("[data-open-operation-modal]");
+  const closeOperationAction = event.target.closest("[data-close-operation-modal]");
+  const paymentOptionAction = event.target.closest("[data-payment-option]");
+  const downloadClinicJsonAction = event.target.closest("[data-download-clinic-json]");
+  const exportClinicCsvAction = event.target.closest("[data-export-clinic-csv]");
+
+  if (openOperationAction) {
+    openOperationModal();
+    return;
+  }
+
+  if (closeOperationAction || event.target === els.operationModal) {
+    closeOperationModal();
+    return;
+  }
+
+  if (paymentOptionAction && els.entryForm) {
+    els.entryForm.elements.paymentMethod.value = paymentOptionAction.dataset.paymentOption;
+    renderPaymentQuickButtons();
+    updateEntryPreview();
+    return;
+  }
+
+  if (downloadClinicJsonAction) {
+    await downloadClinicJson();
+    return;
+  }
+
+  if (exportClinicCsvAction) {
+    exportClinicCsvBundle();
+    return;
+  }
 
   if (openReceiptId) {
     openReceipt(openReceiptId);
@@ -8796,6 +8984,10 @@ document.addEventListener("change", async event => {
 });
 
 document.addEventListener("keydown", event => {
+  if (event.key === "Escape" && els.operationModal && !els.operationModal.hidden) {
+    closeOperationModal();
+    return;
+  }
   if (event.key === "Escape" && !els.tableFocus?.hidden) {
     closeTableFocus();
     return;
@@ -8814,6 +9006,49 @@ document.querySelector("[data-clear-entries]").addEventListener("click", () => {
   render();
 });
 
+function downloadBlob(blob, filename) {
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
+function downloadJSON(value, filename) {
+  downloadBlob(new Blob([JSON.stringify(value, null, 2)], { type: "application/json;charset=utf-8" }), filename);
+}
+
+function downloadFilenameFromHeader(header, fallback) {
+  const match = String(header || "").match(/filename="?([^"]+)"?/i);
+  return match?.[1] || fallback;
+}
+
+function exportStamp() {
+  return new Date().toISOString().slice(0, 10).replaceAll("-", "");
+}
+
+async function downloadClinicJson() {
+  if (!canManagePermissions()) return;
+  const filename = `riaaya-clinic-export-${exportStamp()}.json`;
+  if (runtime.mode !== "live") {
+    downloadJSON({
+      exportedAt: new Date().toISOString(),
+      formatVersion: 1,
+      mode: "trial-browser",
+      state
+    }, filename);
+    return;
+  }
+  try {
+    const response = await fetch("/api/clinic-export", { headers: { Accept: "application/json" } });
+    if (!response.ok) throw new Error("export_failed");
+    const blob = await response.blob();
+    downloadBlob(blob, downloadFilenameFromHeader(response.headers.get("Content-Disposition"), filename));
+  } catch {
+    alert("تعذر تنزيل نسخة العيادة الآن.");
+  }
+}
+
 function csvValue(value) {
   return `"${String(value ?? "").replaceAll('"', '""')}"`;
 }
@@ -8830,6 +9065,135 @@ function downloadCSV(rows, filename) {
   link.download = filename;
   link.click();
   URL.revokeObjectURL(link.href);
+}
+
+function exportClinicCsvBundle() {
+  if (!canManagePermissions()) return;
+  const stamp = exportStamp();
+  const datasets = [
+    {
+      name: "patients",
+      rows: (state.patients || []).map(patient => ({
+        id: patient.id,
+        profileType: patient.profileType,
+        name: patient.name,
+        phone: patient.phone,
+        email: patient.email,
+        gender: patient.gender,
+        nationality: patient.nationality,
+        city: patient.city,
+        category: patient.category,
+        marketingConsent: patient.marketingConsent,
+        notes: patient.notes
+      }))
+    },
+    {
+      name: "bookings",
+      rows: (state.bookings || []).map(booking => ({
+        id: booking.id,
+        date: booking.date,
+        time: booking.time,
+        patient: booking.patient,
+        phone: booking.phone,
+        service: serviceLabel(booking),
+        doctor: getStaffMember(booking.doctorId)?.name || "",
+        specialist: getStaffMember(booking.specialistId)?.name || "",
+        expectedAmount: booking.expectedAmount,
+        status: booking.status,
+        notes: booking.notes
+      }))
+    },
+    {
+      name: "operations",
+      rows: (state.entries || []).map(entry => ({
+        id: entry.id,
+        visitId: entry.visitId,
+        date: entry.date,
+        patient: entry.patient,
+        service: serviceLabel(entry),
+        doctor: getStaffMember(entry.doctorId)?.name || "",
+        specialist: getStaffMember(entry.specialistId)?.name || "",
+        quantity: entry.quantity || 1,
+        revenue: netAmount(entry),
+        discount: entry.discount,
+        paymentMethod: paymentLabel(entry.paymentMethod),
+        status: entry.status,
+        notes: entry.notes
+      }))
+    },
+    {
+      name: "expenses",
+      rows: (state.expenses || []).map(expense => ({
+        id: expense.id,
+        date: expense.date,
+        group: expenseGroupName(expense),
+        subgroup: expenseSubgroupName(expense),
+        amount: expense.amount,
+        paymentMethod: paymentLabel(expense.paymentMethod),
+        vendor: expense.vendor,
+        reference: expense.reference,
+        notes: expense.notes
+      }))
+    },
+    {
+      name: "receipts",
+      rows: (state.receipts || []).map(receipt => ({
+        id: receipt.id,
+        invoiceNumber: receipt.invoiceNumber,
+        date: receipt.date,
+        patient: receipt.patient,
+        itemCount: receipt.itemCount,
+        subtotal: receipt.subtotal,
+        taxAmount: receipt.taxAmount,
+        total: receipt.total,
+        status: receipt.status,
+        reference: receipt.reference
+      }))
+    },
+    {
+      name: "inventory",
+      rows: (state.inventory || []).map(item => ({
+        id: item.id,
+        name: item.name,
+        sku: item.sku,
+        category: item.category,
+        quantity: item.quantity,
+        unit: item.unit,
+        lowThreshold: item.lowThreshold,
+        supplier: (state.suppliers || []).find(supplier => supplier.id === item.supplierId)?.name || "",
+        unitCost: item.unitCost,
+        active: item.active
+      }))
+    },
+    {
+      name: "services",
+      rows: (state.services || []).map(service => ({
+        id: service.id,
+        name: service.name,
+        defaultPrice: service.defaultPrice,
+        defaultCost: service.defaultCost,
+        active: service.active
+      }))
+    },
+    {
+      name: "staff",
+      rows: (state.staff || []).map(member => ({
+        id: member.id,
+        name: member.name,
+        role: roleLabel(member.role),
+        rate: member.rate,
+        active: member.active !== false
+      }))
+    }
+  ];
+  const available = datasets.filter(dataset => dataset.rows.length);
+  if (!available.length) {
+    alert("لا توجد بيانات لتصديرها.");
+    return;
+  }
+  available.forEach((dataset, index) => {
+    window.setTimeout(() => downloadCSV(dataset.rows, `riaaya-${dataset.name}-${stamp}.csv`), index * 120);
+  });
 }
 
 function exportEntries() {

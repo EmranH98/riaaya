@@ -114,7 +114,13 @@ const server = createServer(async (req, res) => {
     return;
   }
 
-  if (url.pathname === "/api/clinic-state" || url.pathname.startsWith("/api/clinic-users") || url.pathname === "/api/clinic-integrations") {
+  if (
+    url.pathname === "/api/clinic-state"
+    || url.pathname === "/api/clinic-storage-status"
+    || url.pathname === "/api/clinic-export"
+    || url.pathname.startsWith("/api/clinic-users")
+    || url.pathname === "/api/clinic-integrations"
+  ) {
     if (!await attachBody(req, res)) return;
     await clinicHandler(req, adaptResponse(res), url);
     return;

@@ -368,8 +368,33 @@ h2 {
 }
 
 .clinic-strip {
-  padding: 16px;
-  margin-bottom: 20px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  border-radius: 14px;
+}
+
+.clinic-settings summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--ink);
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.clinic-settings summary::marker {
+  color: var(--teal);
+}
+
+.clinic-settings summary small {
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.clinic-settings[open] summary {
+  margin-bottom: 12px;
 }
 
 .clinic-form {
@@ -536,6 +561,115 @@ textarea {
   margin-top: 2px;
   color: var(--ink-soft);
   font-size: 12px;
+}
+
+.daily-command-center {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 18px;
+  padding: 16px;
+  border: 1px solid rgba(36,21,19,0.08);
+  border-radius: 14px;
+  background: linear-gradient(135deg, #ffffff 0%, #fbfaf5 56%, #edf6f3 100%);
+  box-shadow: 0 16px 34px rgba(36,21,19,0.06);
+}
+
+.daily-command-top,
+.daily-command-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.daily-command-top span {
+  display: block;
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.daily-command-top strong {
+  display: block;
+  color: var(--ink);
+  font-family: "Cairo", sans-serif;
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.daily-command-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.daily-command-tile {
+  min-height: 132px;
+  display: grid;
+  align-content: space-between;
+  gap: 8px;
+  border: 1px solid rgba(36,21,19,0.08);
+  border-radius: 10px;
+  background: white;
+  padding: 14px;
+}
+
+.daily-command-tile.next {
+  background: #17212b;
+  color: white;
+}
+
+.daily-command-tile.revenue {
+  border-top: 4px solid var(--teal);
+}
+
+.daily-command-tile.reconcile {
+  border-top: 4px solid var(--gold);
+}
+
+.daily-command-tile.alerts {
+  border-top: 4px solid var(--danger);
+}
+
+.daily-command-tile span,
+.daily-command-tile small {
+  color: var(--ink-soft);
+  font-weight: 900;
+}
+
+.daily-command-tile.next span,
+.daily-command-tile.next small {
+  color: #a9bfca;
+}
+
+.daily-command-tile strong {
+  color: var(--ink);
+  font-family: "Cairo", sans-serif;
+  font-size: 26px;
+  font-weight: 900;
+}
+
+.daily-command-tile.next strong {
+  color: #80dfc3;
+}
+
+.daily-command-tile button {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font-weight: 900;
+  text-align: inherit;
+}
+
+.daily-command-tile.next button {
+  color: white;
+  font-size: 20px;
+}
+
+.daily-command-actions {
+  justify-content: flex-start;
 }
 
 .command-hero {
@@ -1657,6 +1791,24 @@ td {
   gap: 18px;
 }
 
+.operation-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(15,25,35,0.56);
+  overflow: auto;
+}
+
+.operation-entry-dialog {
+  width: min(1120px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+  box-shadow: 0 22px 60px rgba(15,25,35,0.24);
+}
+
 .operation-entry-panel {
   border-top: 4px solid var(--teal);
 }
@@ -1668,6 +1820,28 @@ td {
 
 .operation-entry-form .operation-patient-field {
   grid-column: span 2;
+}
+
+.payment-quick-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.payment-quick-row button {
+  min-height: 44px;
+  border: 1px solid #cfe2db;
+  border-radius: 9px;
+  background: white;
+  color: var(--ink);
+  font-weight: 900;
+}
+
+.payment-quick-row button.active {
+  border-color: var(--teal);
+  background: var(--teal-pale);
+  color: var(--teal-dark);
+  box-shadow: inset 0 0 0 1px var(--teal);
 }
 
 .operation-line-builder,
@@ -2376,6 +2550,47 @@ td {
 
 .access-panel + .access-panel {
   margin-top: 18px;
+}
+
+.storage-safety-panel {
+  margin-bottom: 18px;
+  border-inline-start: 4px solid var(--gold);
+}
+
+.storage-safety-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+}
+
+.storage-safety-grid strong,
+.storage-safety-grid p,
+.storage-safety-grid small {
+  display: block;
+}
+
+.storage-safety-grid strong {
+  color: var(--ink);
+  font-size: 18px;
+}
+
+.storage-safety-grid p {
+  margin: 4px 0;
+  color: var(--ink-soft);
+  font-weight: 800;
+}
+
+.storage-safety-grid small {
+  color: var(--ink-muted);
+  font-weight: 800;
+}
+
+.storage-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .practical-form {
@@ -3733,6 +3948,7 @@ html[dir="ltr"] label {
   }
 
   .command-kpi-grid,
+  .daily-command-grid,
   .communications-kpis,
   .expense-kpis,
   .import-summary {
@@ -3801,6 +4017,33 @@ html[dir="ltr"] label {
     flex-direction: column;
   }
 
+  .topbar {
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .top-actions {
+    flex-wrap: nowrap;
+    min-width: 0;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .top-actions > * {
+    flex: 0 0 auto;
+  }
+
+  .global-search {
+    min-width: 260px;
+  }
+
+  .runtime-banner {
+    gap: 10px;
+    margin-bottom: 12px;
+    padding: 10px 12px;
+  }
+
   .capacity-heatmap {
     grid-template-columns: repeat(5, minmax(42px, 1fr));
   }
@@ -3811,6 +4054,7 @@ html[dir="ltr"] label {
 
   .permission-assignment-form,
   .practical-form,
+  .storage-safety-grid,
   .operation-entry-form,
   .operation-line-composer,
   .operation-filter-form,
@@ -3863,6 +4107,23 @@ html[dir="ltr"] label {
 
   .operation-checkout {
     grid-template-columns: 1fr;
+  }
+
+  .storage-safety-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .daily-command-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .operation-modal {
+    align-items: start;
+    padding: 10px;
+  }
+
+  .operation-entry-dialog {
+    max-height: calc(100vh - 20px);
   }
 
   .operation-checkout .form-submit {

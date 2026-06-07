@@ -96,24 +96,68 @@
       </section>
 
       <section class="clinic-strip" data-sensitive>
-        <form class="clinic-form" data-clinic-form>
-          <label>
-            اسم العيادة
-            <input name="clinicName" type="text" required>
-          </label>
-          <label>
-            تاريخ العمل
-            <input name="activeDate" type="date" required>
-          </label>
-          <label>
-            الفرع
-            <input name="branch" type="text" placeholder="الفرع الرئيسي">
-          </label>
-          <button class="dark-button" type="submit">حفظ الإعدادات</button>
-        </form>
+        <details class="clinic-settings">
+          <summary>
+            <span>إعدادات اليوم</span>
+            <small>تغيير تاريخ العمل أو الفرع</small>
+          </summary>
+          <form class="clinic-form" data-clinic-form>
+            <label>
+              اسم العيادة
+              <input name="clinicName" type="text" required>
+            </label>
+            <label>
+              تاريخ العمل
+              <input name="activeDate" type="date" required>
+            </label>
+            <label>
+              الفرع
+              <input name="branch" type="text" placeholder="الفرع الرئيسي">
+            </label>
+            <button class="dark-button" type="submit">حفظ الإعدادات</button>
+          </form>
+        </details>
       </section>
 
       <section class="view active" data-view="dashboard">
+        <section class="daily-command-center" data-daily-command-center>
+          <div class="daily-command-top">
+            <div>
+              <span data-daily-command-date>اليوم</span>
+              <strong data-daily-command-clinic>عيادة رعاية</strong>
+            </div>
+            <span class="status-pill good">مركز اليوم</span>
+          </div>
+          <div class="daily-command-grid">
+            <article class="daily-command-tile next">
+              <span>القادم</span>
+              <strong data-daily-command-next-time>--:--</strong>
+              <button type="button" data-daily-command-next-name data-open-patient="">لا يوجد موعد قريب</button>
+              <small data-daily-command-next-meta>الجدول فارغ لهذا الوقت</small>
+            </article>
+            <article class="daily-command-tile revenue" data-sensitive>
+              <span>الإيراد</span>
+              <strong data-daily-command-revenue>0 د.أ</strong>
+              <small data-daily-command-revenue-note>0 عملية</small>
+            </article>
+            <article class="daily-command-tile reconcile" data-sensitive>
+              <span>المطابقة</span>
+              <strong data-daily-command-reconcile-status>بانتظار</strong>
+              <small data-daily-command-reconcile-note>لم يتم إغلاق اليوم بعد</small>
+            </article>
+            <article class="daily-command-tile alerts">
+              <span>تنبيهات</span>
+              <strong data-daily-command-alerts>0</strong>
+              <small data-daily-command-alerts-note>لا توجد إجراءات عاجلة</small>
+            </article>
+          </div>
+          <div class="daily-command-actions">
+            <button class="primary-button" type="button" data-open-operation-modal>تسجيل عملية</button>
+            <button class="dark-button" type="button" data-jump="bookings">حجز جديد</button>
+            <button class="text-button" type="button" data-jump="reconcile">فتح المطابقة</button>
+          </div>
+        </section>
+
         <section class="command-hero">
           <div class="command-hero-copy">
             <div>
@@ -287,7 +331,7 @@
                 <p class="eyebrow">آخر ما تم تسجيله</p>
                 <h2>عمليات اليوم</h2>
               </div>
-              <button class="text-button" type="button" data-jump="entries">إضافة عملية</button>
+              <button class="text-button" type="button" data-open-operation-modal>إضافة عملية</button>
             </div>
             <div class="table-wrap">
               <table>
@@ -316,14 +360,15 @@
       </section>
 
       <section class="view" data-view="entries">
-        <div class="operations-workspace">
-          <article class="panel operation-entry-panel">
+        <div class="operation-modal" data-operation-modal hidden>
+          <article class="panel operation-entry-panel operation-entry-dialog">
             <div class="panel-header">
               <div>
                 <p class="eyebrow">تسجيل سريع</p>
                 <h2>إضافة عملية للملف</h2>
                 <p class="panel-description">سجّل الخدمة والدفع والفريق من شاشة واحدة. التكلفة تُحتسب من إعدادات الخدمة ولا تظهر هنا.</p>
               </div>
+              <button class="icon-button" type="button" data-close-operation-modal aria-label="إغلاق">×</button>
             </div>
             <form class="entry-form operation-entry-form" data-entry-form>
               <input name="bookingId" type="hidden">
@@ -349,6 +394,11 @@
                   <option value="transfer">تحويل</option>
                 </select>
               </label>
+              <div class="payment-quick-row" data-payment-quick-row>
+                <button type="button" data-payment-option="cash">كاش</button>
+                <button type="button" data-payment-option="card">فيزا</button>
+                <button type="button" data-payment-option="transfer">تحويل</button>
+              </div>
               <label>
                 حالة العملية
                 <select name="status">
@@ -416,7 +466,9 @@
               </div>
             </form>
           </article>
+        </div>
 
+        <div class="operations-workspace">
           <article class="panel operation-log-panel">
             <div class="panel-header">
               <div>
@@ -424,6 +476,7 @@
                 <h2>سجل العمليات</h2>
               </div>
               <div class="form-actions">
+                <button class="primary-button" type="button" data-open-operation-modal>تسجيل عملية</button>
                 <button class="focus-icon-button" type="button" data-open-table-focus="entries" aria-label="عرض جدول العمليات بملء الشاشة" title="عرض جدول العمليات بملء الشاشة">
                   <span aria-hidden="true">⛶</span>
                 </button>
@@ -1450,6 +1503,27 @@
       </section>
 
       <section class="view" data-view="accounts">
+        <article class="panel storage-safety-panel" data-storage-safety-panel hidden>
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">أمان البيانات</p>
+              <h2>التخزين والنسخ الاحتياطي</h2>
+            </div>
+            <span class="status-pill warn" data-storage-status-badge>يتم الفحص</span>
+          </div>
+          <div class="storage-safety-grid">
+            <div>
+              <strong data-storage-status-title>فحص التخزين</strong>
+              <p data-storage-status-detail>يتم التحقق من مكان حفظ بيانات العيادة.</p>
+              <small data-storage-status-meta></small>
+            </div>
+            <div class="storage-actions">
+              <button class="dark-button" type="button" data-download-clinic-json>تنزيل نسخة JSON</button>
+              <button class="text-button" type="button" data-export-clinic-csv>تصدير CSV</button>
+            </div>
+          </div>
+        </article>
+
         <article class="panel access-panel">
           <div class="panel-header">
             <div>

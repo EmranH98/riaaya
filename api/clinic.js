@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { audit, db, defaultClinicModules, nowIso, parseJson, publicUser } from "../lib/database.js";
+import { audit, databasePath, db, defaultClinicModules, nowIso, parseJson, publicClinic, publicUser } from "../lib/database.js";
 import { requireSession } from "./auth.js";
 import { clientIp, encryptSecret, hashPassword, normalizeEmail, safeText, validatePassword } from "../lib/security.js";
 
@@ -16,6 +16,22 @@ function sendJson(res, statusCode, payload) {
   res.setHeader("Content-Type", "application/json; charset=utf-8");
   res.setHeader("Cache-Control", "no-store");
   res.end(JSON.stringify(payload));
+}
+
+function storageModeForPath(path = "") {
+  const value = String(path || "");
+  if (!value) return "unknown";
+  if (value.startsWith("/tmp/") || value.includes("/tmp/")) return "ephemeral";
+  if (value.includes("/data/") || value.startsWith("/var/") || value.includes("/mnt/")) return "persistent";
+  return process.env.NODE_ENV === "production" ? "unknown" : "local_development";
+}
+
+function jsonAttachment(res, filename, payload) {
+  res.statusCode = 200;
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  res.end(JSON.stringify(payload, null, 2));
 }
 
 function can(user, permission) {
@@ -335,6 +351,109 @@ function getState(req, res) {
   });
 }
 
+function getStorageStatus(req, res) {
+  const auth = requireSession(req, res);
+  if (!auth) return;
+  const mode = storageModeForPath(databasePath);
+  const backupPath = process.env.RIAAYA_BACKUP_DIR || "";
+  const backupMode = storageModeForPath(backupPath);
+  const cloudBacked = process.env.RIAAYA_CLOUD_BACKED === "true";
+  const hasManagedDatabase = Boolean(process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.TURSO_DATABASE_URL);
+  const hasDurableSqlite = mode === "persistent" || mode === "local_development";
+  const hasBackupTarget = Boolean(backupPath && backupMode !== "ephemeral");
+  const safeForPilot = (cloudBacked || hasManagedDatabase || hasDurableSqlite) && (hasBackupTarget || hasManagedDatabase || cloudBacked);
+  const admin = auth.user.role === "admin";
+
+  sendJson(res, 200, {
+    ok: true,
+    storage: {
+      engine: hasManagedDatabase ? "managed_database" : "sqlite",
+      provider: process.env.RIAAYA_STORAGE_PROVIDER || (hasManagedDatabase ? "managed_cloud_database" : "server_sqlite"),
+      mode,
+      cloudBacked,
+      safeForPilot,
+      demoOnly: mode === "ephemeral" && !hasManagedDatabase && !cloudBacked,
+      databaseLocation: admin ? databasePath : mode,
+      backupLocation: admin ? backupPath : backupMode,
+      backupRetentionDays: Number(process.env.RIAAYA_BACKUP_RETENTION_DAYS || 30),
+      checkedAt: nowIso()
+    },
+    message: safeForPilot
+      ? "Clinic data has a durable storage path and an export/backup route for a careful pilot."
+      : "Do not rely on this environment for real clinic data until durable storage or a managed database is configured.",
+    recommendations: safeForPilot
+      ? ["Download a clinic export before major edits.", "Keep Render backups or a managed database enabled during the pilot."]
+      : ["Use a managed free database for the first clinic pilot, or mount durable storage before entering real patient data.", "Export the clinic JSON at the end of every testing session."]
+  });
+}
+
+function exportClinic(req, res) {
+  const auth = requireSession(req, res);
+  if (!auth) return;
+  if (auth.user.role !== "admin") {
+    sendJson(res, 403, { error: "permission_denied" });
+    return;
+  }
+  const clinicRow = db.prepare("select * from clinics where id = ?").get(auth.user.clinicId);
+  if (!clinicRow) {
+    sendJson(res, 404, { error: "clinic_not_found" });
+    return;
+  }
+  const users = db.prepare("select * from users where clinic_id = ? order by created_at asc").all(auth.user.clinicId);
+  const integrations = db.prepare(`
+    select provider, config_json, secret_cipher, updated_at
+    from clinic_integrations
+    where clinic_id = ?
+    order by provider asc
+  `).all(auth.user.clinicId);
+  const auditRows = db.prepare(`
+    select action, entity, entity_id, metadata_json, ip_address, created_at
+    from audit_logs
+    where clinic_id = ?
+    order by created_at desc
+    limit 1000
+  `).all(auth.user.clinicId);
+  const state = parseJson(clinicRow.state_json, {});
+  const payload = {
+    exportedAt: nowIso(),
+    formatVersion: 1,
+    storage: {
+      engine: "sqlite",
+      mode: storageModeForPath(databasePath)
+    },
+    clinic: publicClinic(clinicRow),
+    stateVersion: Number(clinicRow.state_version || 0),
+    state,
+    users: users.map(publicUser),
+    integrations: integrations.map(row => ({
+      provider: row.provider,
+      config: parseJson(row.config_json, {}),
+      configured: Boolean(row.secret_cipher),
+      updatedAt: row.updated_at
+    })),
+    recentAudit: auditRows.map(row => ({
+      action: row.action,
+      entity: row.entity,
+      entityId: row.entity_id || "",
+      metadata: parseJson(row.metadata_json, {}),
+      ipAddress: row.ip_address || "",
+      createdAt: row.created_at
+    }))
+  };
+  audit({
+    clinicId: auth.user.clinicId,
+    userId: auth.user.id,
+    action: "export",
+    entity: "clinic_data",
+    entityId: auth.user.clinicId,
+    metadata: { bytes: JSON.stringify(payload).length },
+    ipAddress: clientIp(req)
+  });
+  const slug = String(clinicRow.slug || "clinic").replace(/[^a-z0-9-]+/gi, "-").toLowerCase();
+  const stamp = nowIso().slice(0, 10).replaceAll("-", "");
+  jsonAttachment(res, `riaaya-${slug}-export-${stamp}.json`, payload);
+}
+
 function saveState(req, res) {
   const auth = requireSession(req, res, { csrf: true });
   if (!auth) return;
@@ -652,6 +771,8 @@ function saveIntegration(req, res) {
 export default async function clinicHandler(req, res, url) {
   if (url.pathname === "/api/clinic-state" && req.method === "GET") return getState(req, res);
   if (url.pathname === "/api/clinic-state" && req.method === "PUT") return saveState(req, res);
+  if (url.pathname === "/api/clinic-storage-status" && req.method === "GET") return getStorageStatus(req, res);
+  if (url.pathname === "/api/clinic-export" && req.method === "GET") return exportClinic(req, res);
   if (url.pathname === "/api/clinic-users" && req.method === "GET") return listUsers(req, res);
   if (url.pathname === "/api/clinic-users" && req.method === "POST") return saveUser(req, res);
   if (url.pathname === "/api/clinic-integrations" && req.method === "GET") return listIntegrations(req, res);
