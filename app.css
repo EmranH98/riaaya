@@ -5159,6 +5159,105 @@ html[dir="ltr"] label {
 }
 
 /* ═══════════════════════════════════════════════════════════
+   PATIENT BALANCE REPORT — ميزان المريض — تكملة الحسابات
+   ═══════════════════════════════════════════════════════════ */
+
+/* Doctor filter: hidden by default, shown via JS when report type = patientBalance */
+[data-report-doctor-wrap] { display: none; }
+
+/* Status chips summary bar */
+.balance-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+
+.balance-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+
+.balance-chip strong { font-size: 14px; }
+
+.chip-partial  { background: #FEF3C0; color: #92610A; border-color: #F5CC6A; }
+.chip-bad      { background: var(--danger-pale); color: var(--danger); border-color: var(--danger); }
+.chip-warn     { background: var(--gold-pale); color: #7A5200; border-color: var(--gold); }
+.chip-over     { background: var(--status-confirmed-pale); color: var(--status-confirmed); border-color: var(--status-confirmed); }
+.chip-good     { background: var(--teal-pale); color: var(--teal); border-color: var(--teal); }
+
+/* Patient balance table */
+.patient-balance-table { min-width: 820px; }
+
+.patient-balance-table .patient-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.patient-balance-table .patient-cell strong {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.patient-balance-table .patient-cell small {
+  font-size: 11px;
+  color: var(--ink-muted);
+}
+
+/* Row accent stripe by status (inline-end = right in RTL) */
+.balance-row--partial    td:first-child { border-inline-end: 3px solid #F5CC6A; }
+.balance-row--underpaid  td:first-child { border-inline-end: 3px solid var(--danger); }
+.balance-row--no-pay     td:first-child { border-inline-end: 3px solid var(--danger); }
+.balance-row--no-service td:first-child { border-inline-end: 3px solid var(--gold); }
+.balance-row--overpaid   td:first-child { border-inline-end: 3px solid var(--status-confirmed); }
+.balance-row--match      td:first-child { border-inline-end: 3px solid var(--teal); }
+
+/* Subtle row background for at-a-glance scanning */
+.balance-row--partial    { background: rgba(254,243,192,0.28); }
+.balance-row--underpaid  { background: rgba(220,38,38,0.04); }
+.balance-row--no-pay     { background: rgba(220,38,38,0.06); }
+.balance-row--match      { background: rgba(26,92,56,0.03); }
+
+/* Balance cell colours */
+.balance-negative strong { color: var(--danger); }
+.balance-positive strong { color: var(--teal); }
+
+/* Remaining due badge */
+.remaining-badge {
+  display: inline-block;
+  background: #FEF3C0;
+  color: #92610A;
+  border: 1px solid #F5CC6A;
+  border-radius: 8px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+/* Overpaid pill variant */
+.status-pill.overpaid-pill {
+  background: var(--status-confirmed-pale);
+  color: var(--status-confirmed);
+}
+
+/* Empty cell */
+.patient-balance-table .empty-cell {
+  text-align: center;
+  padding: 32px;
+  color: var(--ink-muted);
+  font-size: 14px;
+}
+
+/* ═══════════════════════════════════════════════════════════
    PARTIAL PAYMENT STATUS — "دفع جزئي — تكملة حساب"
    ═══════════════════════════════════════════════════════════ */
 

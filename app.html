@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=2026064">
+  <link rel="stylesheet" href="app.css?v=2026065">
 </head>
 <body>
   <div class="app-shell">
@@ -1466,6 +1466,7 @@
             <div class="form-actions">
               <select data-report-select aria-label="اختيار التقرير">
                 <option value="universal">بحث شامل في العيادة</option>
+                <option value="patientBalance">ميزان المريض — تكملة الحسابات</option>
                 <option value="profit">ربح العيادة</option>
                 <option value="reconciliation">مطابقة المرضى والمدفوعات</option>
                 <option value="byPatient">حسب المريض</option>
@@ -1516,6 +1517,7 @@
               <select name="status" data-report-status>
                 <option value="">كل الحالات</option>
                 <option value="completed">مكتمل</option>
+                <option value="partial_payment">دفع جزئي — تكملة حساب</option>
                 <option value="scheduled">محجوز</option>
                 <option value="confirmed">مؤكد</option>
                 <option value="arrived">وصل</option>
@@ -1532,6 +1534,12 @@
                 <option value="cash">كاش</option>
                 <option value="card">فيزا</option>
                 <option value="transfer">تحويل</option>
+              </select>
+            </label>
+            <label class="report-doctor-filter" data-report-doctor-wrap>
+              الطبيب
+              <select name="doctorId" data-report-doctor>
+                <option value="">كل الأطباء</option>
               </select>
             </label>
             <label>

@@ -5434,6 +5434,212 @@ function renderBookingList() {
   }).join("");
 }
 
+/* ─── PATIENT BALANCE REPORT ─────────────────────────────────────────────── */
+
+function patientBalanceRows(entries, doctorId = "") {
+  const isEnglish = currentLanguage() === "en";
+  const filtered = doctorId
+    ? entries.filter(e => e.doctorId === doctorId || e.specialistId === doctorId)
+    : entries;
+
+  const rows = new Map();
+  filtered.forEach(entry => {
+    const key = entry.patient || (isEnglish ? "Unknown" : "غير محدد");
+    const cur = rows.get(key) || {
+      patient: key,
+      doctorId: entry.doctorId || entry.specialistId || "",
+      paid: 0,
+      procedures: 0,
+      count: 0,
+      hasPartial: false,
+      lastDate: entry.date || ""
+    };
+    cur.paid       += paidAmount(entry);
+    cur.procedures += netAmount(entry);
+    cur.count      += 1;
+    if (entry.status === "partial_payment") cur.hasPartial = true;
+    if ((entry.date || "") > cur.lastDate) cur.lastDate = entry.date;
+    rows.set(key, cur);
+  });
+
+  return [...rows.values()].map(row => {
+    const balance   = row.paid - row.procedures;
+    const remaining = Math.max(-balance, 0);
+    const doctor    = getStaffMember(row.doctorId);
+    const doctorName = doctor ? doctor.name : (isEnglish ? "—" : "—");
+
+    let status, className;
+    if (row.hasPartial && balance < -0.01) {
+      status    = isEnglish ? "Partial — follow-up" : "دفع جزئي — تكملة";
+      className = "partial";
+    } else if (Math.abs(balance) < 0.01 && row.procedures > 0) {
+      status    = isEnglish ? "✓ Match"   : "✓ مطابق";
+      className = "match";
+    } else if (row.paid < 0.01 && row.procedures > 0) {
+      status    = isEnglish ? "Service, Not Paid" : "خدمة بلا دفع";
+      className = "no-pay";
+    } else if (row.procedures < 0.01 && row.paid > 0.01) {
+      status    = isEnglish ? "Paid, No Service"  : "دفع بلا خدمة";
+      className = "no-service";
+    } else if (balance > 0.01) {
+      status    = isEnglish ? "Overpaid"   : "زيادة دفع";
+      className = "overpaid";
+    } else {
+      status    = isEnglish ? "Underpaid"  : "ناقص دفع";
+      className = "underpaid";
+    }
+
+    return { ...row, balance, remaining, status, className, doctorName };
+  }).sort((a, b) => {
+    const order = { partial: 0, "no-pay": 1, underpaid: 2, "no-service": 3, overpaid: 4, match: 5 };
+    const od = (order[a.className] ?? 9) - (order[b.className] ?? 9);
+    return od !== 0 ? od : Math.abs(b.balance) - Math.abs(a.balance);
+  });
+}
+
+function renderPatientBalanceReport(entries) {
+  const isEnglish = currentLanguage() === "en";
+  const doctorEl  = document.querySelector("[data-report-doctor]");
+  const doctorId  = doctorEl ? doctorEl.value : "";
+
+  /* Populate doctor select with doctors from state */
+  if (doctorEl && doctorEl.options.length <= 1) {
+    const doctors = (state.staff || []).filter(m => m.role === "doctor" || m.role === "specialist");
+    doctors.forEach(d => {
+      const opt = document.createElement("option");
+      opt.value = d.id; opt.textContent = d.name;
+      doctorEl.appendChild(opt);
+    });
+  }
+
+  const L = isEnglish ? {
+    title:       "Patient Balance — Follow-up Accounts",
+    subtitle:    "Per-patient comparison of payments received vs procedures performed. Flags partial payments and outstanding balances.",
+    totalPaid:   "Total Paid",
+    totalProc:   "Procedures Value",
+    difference:  "Net Difference",
+    patients:    "Patients",
+    partial:     "Partial Payments",
+    unresolved:  "Unresolved",
+    patient:     "Patient",
+    doctor:      "Doctor",
+    paid:        "Paid",
+    procedures:  "Procedures",
+    balance:     "Balance",
+    remaining:   "Remaining Due",
+    visits:      "Visits",
+    status:      "Status",
+    empty:       "No data for this period.",
+    allClear:    "All accounts balanced",
+    needsAction: "accounts need follow-up"
+  } : {
+    title:       "ميزان المريض — تكملة الحسابات",
+    subtitle:    "مقارنة المدفوعات المستلمة مقابل قيمة الإجراءات المنجزة لكل مريض. يُظهر الدفع الجزئي والمبالغ المتبقية بوضوح.",
+    totalPaid:   "إجمالي المدفوع",
+    totalProc:   "قيمة الإجراءات",
+    difference:  "الفرق الصافي",
+    patients:    "عدد المرضى",
+    partial:     "دفع جزئي",
+    unresolved:  "تحتاج متابعة",
+    patient:     "المريض",
+    doctor:      "الطبيب",
+    paid:        "المدفوع",
+    procedures:  "قيمة الإجراءات",
+    balance:     "الرصيد",
+    remaining:   "المتبقي",
+    visits:      "الزيارات",
+    status:      "الحالة",
+    empty:       "لا توجد بيانات لهذه الفترة.",
+    allClear:    "جميع الحسابات متوازنة",
+    needsAction: "تحتاج متابعة"
+  };
+
+  const rows        = patientBalanceRows(entries, doctorId);
+  const totalPaid   = rows.reduce((s, r) => s + r.paid, 0);
+  const totalProc   = rows.reduce((s, r) => s + r.procedures, 0);
+  const difference  = totalPaid - totalProc;
+  const partialCount   = rows.filter(r => r.className === "partial").length;
+  const unresolvedCount = rows.filter(r => !["match"].includes(r.className)).length;
+
+  const statusBadge = (row) => {
+    const cls = {
+      "partial":    "partial",
+      "match":      "good",
+      "no-pay":     "bad",
+      "no-service": "warn",
+      "overpaid":   "overpaid-pill",
+      "underpaid":  "bad"
+    }[row.className] || "warn";
+    return `<span class="status-pill ${cls}">${row.status}</span>`;
+  };
+
+  const body = rows.length
+    ? rows.map(row => `
+      <tr class="balance-row balance-row--${row.className}">
+        <td class="patient-cell">
+          <strong>${row.patient}</strong>
+          <small>${displayDate(row.lastDate)}</small>
+        </td>
+        <td>${row.doctorName}</td>
+        <td>${money(row.paid)}</td>
+        <td>${money(row.procedures)}</td>
+        <td class="${row.balance < -0.01 ? "balance-negative" : row.balance > 0.01 ? "balance-positive" : ""}">
+          <strong>${row.balance > 0.01 ? "+" : ""}${money(row.balance)}</strong>
+        </td>
+        <td>${row.remaining > 0.01 ? `<span class="remaining-badge">${money(row.remaining)}</span>` : "—"}</td>
+        <td>${row.count}</td>
+        <td>${statusBadge(row)}</td>
+      </tr>
+    `).join("")
+    : `<tr><td colspan="8" class="empty-cell">${L.empty}</td></tr>`;
+
+  /* Status summary chips */
+  const statusGroups = [
+    { key: "partial",     label: isEnglish ? "Partial" : "دفع جزئي",      cls: "chip-partial"  },
+    { key: "underpaid",   label: isEnglish ? "Underpaid" : "ناقص دفع",    cls: "chip-bad"      },
+    { key: "no-pay",      label: isEnglish ? "Not Paid" : "خدمة بلا دفع", cls: "chip-bad"      },
+    { key: "no-service",  label: isEnglish ? "No Service" : "دفع بلا خدمة", cls: "chip-warn"   },
+    { key: "overpaid",    label: isEnglish ? "Overpaid" : "زيادة دفع",    cls: "chip-over"     },
+    { key: "match",       label: isEnglish ? "Match" : "مطابق",            cls: "chip-good"     }
+  ].map(g => {
+    const count = rows.filter(r => r.className === g.key).length;
+    if (!count) return "";
+    return `<span class="balance-chip ${g.cls}">${g.label} <strong>${count}</strong></span>`;
+  }).join("");
+
+  return `
+    ${reportHeader(L.title, L.subtitle)}
+    ${reportKpis([
+      { label: L.totalPaid,  value: money(totalPaid) },
+      { label: L.totalProc,  value: money(totalProc) },
+      { label: L.difference, value: money(difference),
+        note: Math.abs(difference) < 0.01 ? L.allClear : `${unresolvedCount} ${L.needsAction}` },
+      { label: L.partial, value: partialCount },
+      { label: L.patients, value: rows.length }
+    ])}
+    ${statusGroups ? `<div class="balance-chips">${statusGroups}</div>` : ""}
+    <div class="table-wrap report-table">
+      <table class="patient-balance-table">
+        <thead>
+          <tr>
+            <th>${L.patient}</th>
+            <th>${L.doctor}</th>
+            <th>${L.paid}</th>
+            <th>${L.procedures}</th>
+            <th>${L.balance}</th>
+            <th>${L.remaining}</th>
+            <th>${L.visits}</th>
+            <th>${L.status}</th>
+          </tr>
+        </thead>
+        <tbody>${body}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+
 function patientReconciliationRows(entries) {
   const isEnglish = currentLanguage() === "en";
   const rows = new Map();
@@ -6496,7 +6702,7 @@ function renderReports() {
     : [];
   const universalItems = universalReportItems(from, to);
   const reportType = els.reportSelect.value || "reconciliation";
-  const financialReports = ["profit", "reconciliation", "byPatient", "perProcedure", "costs", "expenses"];
+  const financialReports = ["profit", "reconciliation", "patientBalance", "byPatient", "perProcedure", "costs", "expenses"];
   if (!canViewSensitive() && financialReports.includes(reportType)) {
     els.reportVisuals.innerHTML = "";
     els.reportPagination.innerHTML = "";
@@ -6507,7 +6713,14 @@ function renderReports() {
   const pageSize = filters.pageSize || 25;
   let pagination;
   let content;
-  if (reportType === "universal") {
+  /* Show / hide the doctor filter based on report type */
+  const doctorWrap = document.querySelector("[data-report-doctor-wrap]");
+  if (doctorWrap) doctorWrap.style.display = reportType === "patientBalance" ? "" : "none";
+
+  if (reportType === "patientBalance") {
+    pagination = paginateItems(allEntries, 1, Math.max(allEntries.length, 1));
+    content = renderPatientBalanceReport(pagination.items);
+  } else if (reportType === "universal") {
     pagination = paginateItems(universalItems, reportPage, pageSize);
     content = renderUniversalReport(pagination.items);
   } else if (reportType === "patients") {
