@@ -75,14 +75,20 @@ Use a Node host with persistent storage, such as Render persistent disk, Railway
 
 Do not use Vercel static hosting for the real SaaS backend. Vercel can serve the landing/demo pages, but registration, login, owner controls, clinic data, receipts, and reports require `server.mjs` plus the database.
 
-### Render Docker Launch
+### Render Free Preview
 
-The repository includes `Dockerfile` and `render.yaml` for a practical first production launch.
+The default `render.yaml` deploys a free Render preview service with `RIAAYA_DB_PATH=/tmp/riaaya.sqlite`.
+
+This avoids payment, but it is not production storage. Free Render services can restart, spin down, redeploy, and lose local filesystem data. Use this only to test the online backend, login, registration, owner dashboard, permissions, and demo flows. Do not enter real patient data.
+
+### Render Production Launch
+
+The repository includes `Dockerfile` and `render.production.yaml` for a practical first production launch with a persistent disk. Rename `render.production.yaml` to `render.yaml` when you are ready to add payment information and launch for real clinics.
 
 1. Push the repository with the app files at the GitHub repository root.
 2. In Render, create a new Blueprint or Web Service from the repo.
 3. Use the Docker runtime.
-4. Keep the persistent disk mounted at `/data`.
+4. For production, keep the persistent disk mounted at `/data`.
 5. Set these secret environment variables in Render:
    - `RIAAYA_OWNER_EMAIL`
    - `RIAAYA_OWNER_PASSWORD`
