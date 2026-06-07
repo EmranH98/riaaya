@@ -81,6 +81,15 @@ The default `render.yaml` deploys a free Render preview service with `RIAAYA_DB_
 
 This avoids payment, but it is not production storage. Free Render services can restart, spin down, redeploy, and lose local filesystem data. Use this only to test the online backend, login, registration, owner dashboard, permissions, and demo flows. Do not enter real patient data.
 
+The free preview intentionally uses public demo owner credentials:
+
+```text
+Email: preview-owner@riaaya.local
+Password: PreviewOwner1!
+```
+
+Change to `render.production.yaml` and private Render environment variables before using Riaaya with real clinics.
+
 ### Render Production Launch
 
 The repository includes `Dockerfile` and `render.production.yaml` for a practical first production launch with a persistent disk. Rename `render.production.yaml` to `render.yaml` when you are ready to add payment information and launch for real clinics.
