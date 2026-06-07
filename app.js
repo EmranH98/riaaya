@@ -2986,12 +2986,41 @@ function renderAccessControls() {
 
 function setView(viewName) {
   const targetView = canView(viewName) ? viewName : firstAllowedView();
+  let activeButton = null;
   els.viewButtons.forEach(button => {
-    button.classList.toggle("active", button.dataset.viewButton === targetView);
+    const isActive = button.dataset.viewButton === targetView;
+    button.classList.toggle("active", isActive);
+    if (isActive) activeButton = button;
   });
   els.views.forEach(view => {
     view.classList.toggle("active", view.dataset.view === targetView);
   });
+  keepActiveNavItemVisible(activeButton);
+}
+
+function keepActiveNavItemVisible(activeButton) {
+  const nav = activeButton?.closest(".side-nav");
+  if (!nav) return;
+  const navRect = nav.getBoundingClientRect();
+  const buttonRect = activeButton.getBoundingClientRect();
+  const hasHorizontalScroll = nav.scrollWidth > nav.clientWidth;
+  const hasVerticalScroll = nav.scrollHeight > nav.clientHeight;
+
+  if (hasHorizontalScroll) {
+    if (buttonRect.left < navRect.left) {
+      nav.scrollLeft -= navRect.left - buttonRect.left + 12;
+    } else if (buttonRect.right > navRect.right) {
+      nav.scrollLeft += buttonRect.right - navRect.right + 12;
+    }
+  }
+
+  if (hasVerticalScroll) {
+    if (buttonRect.top < navRect.top) {
+      nav.scrollTop -= navRect.top - buttonRect.top + 12;
+    } else if (buttonRect.bottom > navRect.bottom) {
+      nav.scrollTop += buttonRect.bottom - navRect.bottom + 12;
+    }
+  }
 }
 
 function setActiveDate(dateString) {

@@ -1302,9 +1302,23 @@ nav {
   box-shadow: 0 24px 70px rgba(36,21,19,0.12);
 }
 
+.real-dashboard-frame {
+  margin: 0;
+  background: #fffdf8;
+  overflow: hidden;
+}
+
+.dashboard-preview-image {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  object-position: center top;
+}
+
 .notif-bubble {
-  top: clamp(150px, 17vw, 206px);
-  left: 0;
+  top: 96px;
+  left: -18px;
   border-radius: 18px;
   z-index: 5;
 }
@@ -1490,10 +1504,7 @@ nav {
     </div>
 
     <div class="hero-visual">
-      <div class="branch-divider" aria-hidden="true">
-        <img src="assets/branch-tree-transparent.png" alt="">
-      </div>
-      <div class="workspace-label">منصة رعاية لإدارة العيادات</div>
+      <div class="workspace-label">صورة حقيقية من لوحة رعاية</div>
       <div class="notif-bubble">
         <div class="notif-icon">🔔</div>
         <div class="notif-text">
@@ -1502,96 +1513,12 @@ nav {
         </div>
       </div>
 
-      <div class="dashboard-frame">
-        <div class="dash-topbar">
-          <div class="dash-brand"><img src="assets/riaaya-logo-mark.png" alt=""> <span>RIAAYA</span> — ملخص اليوم</div>
-          <div class="dash-dots"><span></span><span></span><span></span></div>
-        </div>
-        <div class="dash-body">
-          <div class="dash-sidebar">
-            <div class="dash-nav-item active">
-              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-              لوحة التحكم
-            </div>
-            <div class="dash-nav-item">
-              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
-              العمليات اليومية
-            </div>
-            <div class="dash-nav-item">
-              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-              الموظفون
-            </div>
-            <div class="dash-nav-item">
-              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 100 7h5a3.5 3.5 0 110 7H6"/></svg>
-              الرواتب
-            </div>
-            <div class="dash-nav-item">
-              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M20 12V22H4V12"/><path d="M22 7H2v5h20V7z"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z"/></svg>
-              المخزون
-            </div>
-            <div class="dash-nav-item">
-              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-              التقارير
-            </div>
-          </div>
-
-          <div class="dash-main">
-            <div class="dash-kpi-row">
-              <div class="kpi-card">
-                <div class="kpi-label">إيرادات اليوم</div>
-                <div class="kpi-value">1,240</div>
-                <div class="kpi-change">↑ 12% عن أمس</div>
-              </div>
-              <div class="kpi-card">
-                <div class="kpi-label">العمليات</div>
-                <div class="kpi-value">28</div>
-                <div class="kpi-change">↑ 4 جلسات</div>
-              </div>
-              <div class="kpi-card">
-                <div class="kpi-label">راتب د. ليلى</div>
-                <div class="kpi-value">620</div>
-                <div class="kpi-change">50% من الإيراد</div>
-              </div>
-              <div class="kpi-card">
-                <div class="kpi-label">صافي الربح</div>
-                <div class="kpi-value">380</div>
-                <div class="kpi-change" style="color:#c8960a">⚠ راجع الفرق</div>
-              </div>
-            </div>
-
-            <div class="dash-chart-area">
-              <div class="chart-title">الإيرادات — الأسبوع الحالي (دينار)</div>
-              <div class="mini-bar-chart">
-                <div class="bar" style="height:45%"></div>
-                <div class="bar" style="height:62%"></div>
-                <div class="bar" style="height:38%"></div>
-                <div class="bar" style="height:78%"></div>
-                <div class="bar active" style="height:91%"></div>
-                <div class="bar" style="height:55%"></div>
-                <div class="bar" style="height:30%"></div>
-              </div>
-            </div>
-
-            <div class="dash-table-row">
-              <div class="mini-table">
-                <div class="mini-table-header">نسب الأخصائيين</div>
-                <div class="mini-table-row"><span class="name">سارة خالد</span><span class="amount">18 د.أ</span><span class="badge badge-ok">✓</span></div>
-                <div class="mini-table-row"><span class="name">نور عمر</span><span class="amount">15 د.أ</span><span class="badge badge-ok">✓</span></div>
-                <div class="mini-table-row"><span class="name">هنا محمود</span><span class="amount">12 د.أ</span><span class="badge badge-warn">!</span></div>
-              </div>
-              <div class="mini-table">
-                <div class="mini-table-header">المطابقة اليومية</div>
-                <div class="mini-table-row"><span class="name">كاش</span><span class="amount">840 د.أ</span><span class="badge badge-ok">✓</span></div>
-                <div class="mini-table-row"><span class="name">فيزا</span><span class="amount">320 د.أ</span><span class="badge badge-ok">✓</span></div>
-                <div class="mini-table-row"><span class="name">خصم</span><span class="amount">80 د.أ</span><span class="badge badge-warn">!</span></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <figure class="dashboard-frame real-dashboard-frame">
+        <img class="dashboard-preview-image" src="assets/landing-dashboard-preview-20260607.png" alt="لقطة حقيقية من لوحة رعاية لإدارة العيادة">
+      </figure>
 
       <div class="notif-bubble-2">
-        <span class="nb2-icon">✅</span>
+        <span class="nb2-icon">✓</span>
         <span class="nb2-text">كشف الرواتب جاهز</span>
       </div>
     </div>
