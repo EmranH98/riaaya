@@ -1,6 +1,7 @@
 const STORAGE_KEY = "riaayaMvpState";
 const LEADS_KEY = "riaayaLeads";
 const DEMO_HISTORY_VERSION = 8;
+const PAYMENT_METHODS = ["cash", "card", "transfer"];
 const runtime = {
   mode: "trial",
   session: null,
@@ -877,6 +878,11 @@ function normalizeOutboundMessage(message) {
 }
 
 function normalizeReceipt(receipt) {
+  const paymentBreakdown = cleanPaymentBreakdown(
+    receipt.paymentBreakdown || receipt.payment_breakdown,
+    receipt.paymentMethod || receipt.payment_method || "cash",
+    asNumber(receipt.total)
+  );
   return {
     id: receipt.id || nextId("receipt"),
     invoiceNumber: receipt.invoiceNumber || receipt.invoice_number || "",
@@ -891,7 +897,8 @@ function normalizeReceipt(receipt) {
     total: asNumber(receipt.total),
     buyerType: receipt.buyerType || receipt.buyer_type || "individual",
     buyerTaxNumber: receipt.buyerTaxNumber || receipt.buyer_tax_number || "",
-    paymentMethod: receipt.paymentMethod || receipt.payment_method || "cash",
+    paymentBreakdown,
+    paymentMethod: paymentMethodFromBreakdown(paymentBreakdown, receipt.paymentMethod || receipt.payment_method || "cash"),
     reference: receipt.reference || "",
     notes: receipt.notes || "",
     status: receipt.status || "draft",
@@ -948,6 +955,27 @@ function normalizeImportHistory(record) {
 
 function asNumber(value) {
   return Number.parseFloat(value || 0) || 0;
+}
+
+function cleanPaymentBreakdown(input = {}, fallbackMethod = "cash", fallbackAmount = 0) {
+  const raw = Array.isArray(input)
+    ? input.reduce((totals, row) => {
+        const method = row.method || row.type || row.paymentMethod;
+        if (PAYMENT_METHODS.includes(method)) totals[method] = numberValue(totals[method]) + numberValue(row.amount);
+        return totals;
+      }, {})
+    : input && typeof input === "object" ? input : {};
+  const breakdown = Object.fromEntries(PAYMENT_METHODS.map(method => [method, Math.max(numberValue(raw[method]), 0)]));
+  const total = PAYMENT_METHODS.reduce((sum, method) => sum + breakdown[method], 0);
+  if (total > 0.009) return breakdown;
+  const method = PAYMENT_METHODS.includes(fallbackMethod) ? fallbackMethod : "cash";
+  return { cash: 0, card: 0, transfer: 0, [method]: Math.max(numberValue(fallbackAmount), 0) };
+}
+
+function paymentMethodFromBreakdown(breakdown = {}, fallback = "cash") {
+  const active = PAYMENT_METHODS.filter(method => numberValue(breakdown[method]) > 0.009);
+  if (active.length > 1) return "mixed";
+  return active[0] || (PAYMENT_METHODS.includes(fallback) ? fallback : "cash");
 }
 
 function mergeById(baseRecords, incomingRecords) {
@@ -1187,9 +1215,15 @@ function normalizeEntry(entry, services = seedServices) {
   const amount = asNumber(entry.amount ?? entry.price);
   const unitPrice = asNumber(entry.unitPrice ?? entry.unit_price) || (quantity ? amount / quantity : amount);
   const totalAmount = amount || unitPrice * quantity;
+  const discount = Math.min(asNumber(entry.discount), totalAmount);
   const doctorId = entry.doctorId || entry.doctor_id || "";
   const specialistId = entry.specialistId || entry.staff_id || "";
   const status = entry.status || (!doctorId && !specialistId ? "pending_assignment" : "completed");
+  const paymentBreakdown = cleanPaymentBreakdown(
+    entry.paymentBreakdown || entry.payment_breakdown || entry.payments,
+    entry.paymentMethod || entry.payment_method || "cash",
+    Math.max(totalAmount - discount, 0)
+  );
 
   return {
     ...entry,
@@ -1205,8 +1239,9 @@ function normalizeEntry(entry, services = seedServices) {
     unitPrice,
     amount: totalAmount,
     cost: asNumber(entry.cost ?? service?.defaultCost),
-    discount: Math.min(asNumber(entry.discount), totalAmount),
-    paymentMethod: entry.paymentMethod || entry.payment_method || "cash",
+    discount,
+    paymentBreakdown,
+    paymentMethod: entry.paymentMethod || entry.payment_method || paymentMethodFromBreakdown(paymentBreakdown, "cash"),
     status,
     bookingId: entry.bookingId || entry.booking_id || "",
     createdAt: entry.createdAt || entry.created_at || new Date().toISOString(),
@@ -1917,8 +1952,8 @@ function roleLabel(role) {
 
 function paymentLabel(method) {
   const labels = currentLanguage() === "en"
-    ? { cash: "Cash", card: "Card", transfer: "Transfer" }
-    : { cash: "كاش", card: "فيزا", transfer: "تحويل" };
+    ? { cash: "Cash", card: "Card", transfer: "Transfer", mixed: "Split" }
+    : { cash: "كاش", card: "فيزا", transfer: "تحويل", mixed: "مقسّم" };
   return labels[method] || method;
 }
 
@@ -2340,6 +2375,37 @@ function netAmount(entry) {
   return Math.max(numberValue(entry.amount) - numberValue(entry.discount), 0);
 }
 
+function entryPaymentBreakdown(entry) {
+  return cleanPaymentBreakdown(entry.paymentBreakdown || entry.payment_breakdown, entry.paymentMethod, netAmount(entry));
+}
+
+function paidAmount(entry) {
+  const breakdown = entryPaymentBreakdown(entry);
+  return PAYMENT_METHODS.reduce((sum, method) => sum + numberValue(breakdown[method]), 0);
+}
+
+function entryPaymentLabel(entry) {
+  const breakdown = entryPaymentBreakdown(entry);
+  const activeMethods = PAYMENT_METHODS.filter(method => numberValue(breakdown[method]) > 0.009);
+  if (activeMethods.length > 1) {
+    return activeMethods.map(method => `${paymentLabel(method)} ${money(breakdown[method])}`).join(" + ");
+  }
+  return paymentLabel(activeMethods[0] || entry.paymentMethod || "cash");
+}
+
+function receiptPaymentLabel(receipt) {
+  const breakdown = cleanPaymentBreakdown(receipt.paymentBreakdown || receipt.payment_breakdown, receipt.paymentMethod, receipt.total);
+  const activeMethods = PAYMENT_METHODS.filter(method => numberValue(breakdown[method]) > 0.009);
+  if (activeMethods.length > 1) {
+    return activeMethods.map(method => `${paymentLabel(method)} ${money(breakdown[method])}`).join(" + ");
+  }
+  return paymentLabel(activeMethods[0] || receipt.paymentMethod || "cash");
+}
+
+function entryMatchesPayment(entry, method) {
+  return !method || numberValue(entryPaymentBreakdown(entry)[method]) > 0.009 || entry.paymentMethod === method;
+}
+
 function entryCost(entry) {
   return numberValue(entry.cost) * Math.max(numberValue(entry.quantity) || 1, 1);
 }
@@ -2554,14 +2620,17 @@ function totalsFor(entries) {
   return entries.reduce((totals, entry) => {
     if (!isBillableEntry(entry)) return totals;
     const net = netAmount(entry);
+    const payments = entryPaymentBreakdown(entry);
     totals.revenue += net;
+    totals.paid += PAYMENT_METHODS.reduce((sum, method) => sum + numberValue(payments[method]), 0);
     totals.discount += numberValue(entry.discount);
     totals.count += 1;
-    if (entry.paymentMethod === "cash") totals.cash += net;
-    if (entry.paymentMethod === "card") totals.card += net;
-    if (entry.paymentMethod === "transfer") totals.transfer += net;
+    totals.cash += numberValue(payments.cash);
+    totals.card += numberValue(payments.card);
+    totals.transfer += numberValue(payments.transfer);
+    totals.unpaid += Math.max(net - PAYMENT_METHODS.reduce((sum, method) => sum + numberValue(payments[method]), 0), 0);
     return totals;
-  }, { revenue: 0, discount: 0, count: 0, cash: 0, card: 0, transfer: 0 });
+  }, { revenue: 0, paid: 0, discount: 0, count: 0, cash: 0, card: 0, transfer: 0, unpaid: 0 });
 }
 
 function dateRangeForLastDays(days) {
@@ -3624,12 +3693,13 @@ function renderPaymentBreakdown(totals) {
   const paymentRows = [
     { label: "كاش", value: totals.cash, className: "cash" },
     { label: "فيزا", value: totals.card, className: "card" },
-    { label: "تحويل", value: totals.transfer, className: "transfer" }
+    { label: "تحويل", value: totals.transfer, className: "transfer" },
+    { label: "غير مدفوع", value: totals.unpaid, className: "pending" }
   ];
-  const total = Math.max(totals.cash + totals.card + totals.transfer, 0);
+  const total = Math.max(totals.cash + totals.card + totals.transfer + totals.unpaid, 0);
 
   els.paymentSummary.textContent = total
-    ? `إجمالي المقبوضات المسجلة اليوم ${money(total)}`
+    ? `المقبوض اليوم ${money(totals.paid)}${totals.unpaid ? ` | المتبقي ${money(totals.unpaid)}` : ""}`
     : "لا توجد مدفوعات مسجلة لهذا التاريخ.";
 
   els.paymentBars.innerHTML = paymentRows.map(row => {
@@ -3766,7 +3836,7 @@ function renderRecentEntries(entries) {
     <tr>
         <td>${entry.patient}</td>
         <td>${serviceLabel(entry)}</td>
-        <td><span class="pill">${paymentLabel(entry.paymentMethod)}</span></td>
+        <td><span class="pill">${entryPaymentLabel(entry)}</span></td>
         <td>${canViewSensitive() ? money(netAmount(entry)) : "مخفي"}</td>
       </tr>
   `).join("");
@@ -3785,14 +3855,14 @@ function filteredActiveEntries(entries) {
     return (!filters.serviceId || entry.serviceId === filters.serviceId)
       && (!filters.staffId || entry.doctorId === filters.staffId || entry.specialistId === filters.staffId)
       && (!filters.status || entry.status === filters.status)
-      && (!filters.paymentMethod || entry.paymentMethod === filters.paymentMethod)
+      && entryMatchesPayment(entry, filters.paymentMethod)
       && matchesSmartQuery([
         entry.patient,
         serviceLabel(entry),
         doctor?.name,
         specialist?.name,
         entryStatusLabel(entry.status),
-        paymentLabel(entry.paymentMethod),
+        entryPaymentLabel(entry),
         entry.notes
       ], filters.query);
   });
@@ -3846,7 +3916,7 @@ function renderEntryTable(entries) {
         </td>
         <td>${serviceLabel(entry)}</td>
         <td>${[doctor?.name, specialist?.name].filter(Boolean).join(" / ") || "بانتظار التعيين"}</td>
-        <td><span class="pill">${paymentLabel(entry.paymentMethod)}</span></td>
+        <td><span class="pill">${entryPaymentLabel(entry)}</span></td>
         <td><span class="status-pill ${statusClass(entry.status)}">${entryStatusLabel(entry.status)}</span></td>
         ${showSensitive ? `<td>${money(netAmount(entry))}</td>` : ""}
         ${showSensitive ? `<td><span class="formula-pill">${payoutText}</span></td>` : ""}
@@ -3957,7 +4027,7 @@ function renderPatientFile() {
         <td>${displayDate(entry.date)}</td>
         <td>${serviceLabel(entry)}</td>
         <td>${entryStatusLabel(entry.status)}</td>
-        <td>${paymentLabel(entry.paymentMethod)}</td>
+        <td>${entryPaymentLabel(entry)}</td>
         <td>${canViewSensitive() ? money(netAmount(entry)) : "مخفي"}</td>
         <td>${receiptForEntry(entry.id) && canUseFeature("view_receipts") ? `<button class="text-button" type="button" data-open-receipt="${receiptForEntry(entry.id).id}">عرض</button>` : "-"}</td>
       </tr>
@@ -5204,8 +5274,8 @@ function patientReconciliationRows(entries) {
   const rows = new Map();
   billableEntries(entries).forEach(entry => {
     const current = rows.get(entry.patient) || { patient: entry.patient, paid: 0, procedures: 0, count: 0 };
-    current.paid += netAmount(entry);
-    current.procedures += numberValue(entry.amount);
+    current.paid += paidAmount(entry);
+    current.procedures += netAmount(entry);
     current.count += 1;
     rows.set(entry.patient, current);
   });
@@ -5259,7 +5329,7 @@ function entryMatchesReportFilters(entry, filters) {
   const doctor = getStaffMember(entry.doctorId);
   const specialist = getStaffMember(entry.specialistId);
   return (!filters.status || entry.status === filters.status)
-    && (!filters.paymentMethod || entry.paymentMethod === filters.paymentMethod)
+    && entryMatchesPayment(entry, filters.paymentMethod)
     && matchesSmartQuery([
       entry.patient,
       serviceLabel(entry),
@@ -5267,7 +5337,7 @@ function entryMatchesReportFilters(entry, filters) {
       specialist?.name,
       entryStatusLabel(entry.status),
       entry.status,
-      paymentLabel(entry.paymentMethod),
+      entryPaymentLabel(entry),
       entry.paymentMethod,
       entry.notes,
       entry.date
@@ -5340,7 +5410,7 @@ function universalReportItems(from, to) {
       statusLabel: entryStatusLabel(entry.status),
       paymentMethod: entry.paymentMethod,
       value: netAmount(entry),
-      searchValues: [entry.patient, serviceLabel(entry), doctor?.name, specialist?.name, entry.notes, entryStatusLabel(entry.status), entry.status, paymentLabel(entry.paymentMethod), entry.paymentMethod]
+      searchValues: [entry.patient, serviceLabel(entry), doctor?.name, specialist?.name, entry.notes, entryStatusLabel(entry.status), entry.status, entryPaymentLabel(entry), entry.paymentMethod]
     });
   });
   bookingsForDateRange(from, to).forEach(booking => {
@@ -5448,7 +5518,9 @@ function universalReportItems(from, to) {
   return sources
     .filter(item => !filters.source || item.source === filters.source)
     .filter(item => !filters.status || item.status === filters.status)
-    .filter(item => !filters.paymentMethod || item.paymentMethod === filters.paymentMethod)
+    .filter(item => !filters.paymentMethod || (item.source === "operation"
+      ? entryMatchesPayment(state.entries.find(entry => entry.id === item.id) || {}, filters.paymentMethod)
+      : item.paymentMethod === filters.paymentMethod))
     .filter(item => matchesSmartQuery([...item.searchValues, item.title, item.details, item.statusLabel, item.date], filters.query))
     .sort((a, b) => `${b.date} ${b.id}`.localeCompare(`${a.date} ${a.id}`));
 }
@@ -5730,8 +5802,8 @@ function renderByPatientReport(entries) {
         <td>${displayDate(entry.date)}</td>
         <td>${patient}</td>
         <td>${serviceLabel(entry)}</td>
-        <td>${paymentLabel(entry.paymentMethod)}</td>
-        <td>${money(netAmount(entry))}</td>
+        <td>${entryPaymentLabel(entry)}</td>
+        <td>${money(paidAmount(entry))}</td>
         <td>${money(entryCost(entry))}</td>
         <td>${money(profitAmount(entry))}</td>
         <td>${entryStatusLabel(entry.status)}</td>
@@ -5822,8 +5894,8 @@ function renderPerProcedureReport(entries) {
         <td>${entry.patient}</td>
         <td>${serviceLabel(entry)}</td>
         <td>${[doctor?.name, specialist?.name].filter(Boolean).join(" / ") || label.pendingAssignment}</td>
-        <td>${paymentLabel(entry.paymentMethod)}</td>
-        <td>${money(netAmount(entry))}</td>
+        <td>${entryPaymentLabel(entry)}</td>
+        <td>${money(paidAmount(entry))}</td>
         <td>${money(entryCost(entry))}</td>
         <td>${money(profitAmount(entry))}</td>
       </tr>
@@ -6067,7 +6139,7 @@ function renderAssignmentsReport(entries) {
     <tr>
       <td>${entry.patient}</td>
       <td>${serviceLabel(entry)}</td>
-      <td>${paymentLabel(entry.paymentMethod)}</td>
+      <td>${entryPaymentLabel(entry)}</td>
       <td>${entryStatusLabel(entry.status)}</td>
       <td>${entry.notes || "-"}</td>
     </tr>
@@ -6287,7 +6359,8 @@ function createReceiptForVisit(entries, patient, options = {}) {
     total: subtotal + taxAmount,
     buyerType: options.buyerType || "individual",
     buyerTaxNumber: options.buyerTaxNumber || "",
-    paymentMethod: options.paymentMethod || entries[0]?.paymentMethod || "cash",
+    paymentBreakdown: options.paymentBreakdown || cleanPaymentBreakdown(null, options.paymentMethod || entries[0]?.paymentMethod || "cash", subtotal + taxAmount),
+    paymentMethod: options.paymentMethod || paymentMethodFromBreakdown(options.paymentBreakdown, entries[0]?.paymentMethod || "cash"),
     reference: options.reference || "",
     notes: options.notes || "",
     status: state.integrations?.jofotara?.configured ? "ready" : "draft",
@@ -6305,6 +6378,51 @@ function renderPaymentQuickButtons() {
   });
 }
 
+function currentOperationLines() {
+  return pendingOperationLines.length
+    ? pendingOperationLines
+    : [operationLineFromForm()].filter(Boolean);
+}
+
+function visitNetForLines(lines = currentOperationLines()) {
+  return lines.reduce((sum, line) => sum + Math.max(numberValue(line.amount) - numberValue(line.discount), 0), 0);
+}
+
+function paymentBreakdownFromForm(lines = currentOperationLines()) {
+  if (!els.entryForm) return { cash: 0, card: 0, transfer: 0 };
+  const data = Object.fromEntries(new FormData(els.entryForm).entries());
+  const breakdown = {
+    cash: Math.max(numberValue(data.paidCash), 0),
+    card: Math.max(numberValue(data.paidCard), 0),
+    transfer: Math.max(numberValue(data.paidTransfer), 0)
+  };
+  const paid = PAYMENT_METHODS.reduce((sum, method) => sum + breakdown[method], 0);
+  if (paid > 0.009) return breakdown;
+  const method = PAYMENT_METHODS.includes(data.paymentMethod) ? data.paymentMethod : "cash";
+  return { cash: 0, card: 0, transfer: 0, [method]: visitNetForLines(lines) };
+}
+
+function allocatePaymentBreakdown(line, visitPayments, visitTotal) {
+  const lineTotal = Math.max(numberValue(line.amount) - numberValue(line.discount), 0);
+  if (!visitTotal) return { cash: 0, card: 0, transfer: 0 };
+  const ratio = lineTotal / visitTotal;
+  return Object.fromEntries(PAYMENT_METHODS.map(method => [method, numberValue(visitPayments[method]) * ratio]));
+}
+
+function fillPaymentTotal() {
+  if (!els.entryForm) return;
+  const method = PAYMENT_METHODS.includes(els.entryForm.elements.paymentMethod.value)
+    ? els.entryForm.elements.paymentMethod.value
+    : "cash";
+  const total = visitNetForLines();
+  els.entryForm.elements.paidCash.value = "";
+  els.entryForm.elements.paidCard.value = "";
+  els.entryForm.elements.paidTransfer.value = "";
+  const fieldByMethod = { cash: "paidCash", card: "paidCard", transfer: "paidTransfer" };
+  els.entryForm.elements[fieldByMethod[method]].value = total ? total.toFixed(2) : "";
+  updateEntryPreview();
+}
+
 function resetEntryFormDefaults() {
   if (!els.entryForm) return;
   els.entryForm.reset();
@@ -6312,6 +6430,9 @@ function resetEntryFormDefaults() {
   els.entryForm.elements.quantity.value = 1;
   els.entryForm.elements.discount.value = 0;
   els.entryForm.elements.paymentMethod.value = "cash";
+  els.entryForm.elements.paidCash.value = "";
+  els.entryForm.elements.paidCard.value = "";
+  els.entryForm.elements.paidTransfer.value = "";
   els.entryForm.elements.status.value = "completed";
   pendingOperationLines = [];
   const firstService = activeServices()[0];
@@ -6349,9 +6470,7 @@ function closeOperationModal({ restoreView = "" } = {}) {
 
 function updateEntryPreview() {
   if (!els.entryPreview || !els.entryForm) return;
-  const lines = pendingOperationLines.length
-    ? pendingOperationLines
-    : [operationLineFromForm()].filter(Boolean);
+  const lines = currentOperationLines();
   if (!lines.length) {
     els.entryPreview.textContent = "اختر خدمة وأضفها إلى الزيارة.";
     return;
@@ -6371,9 +6490,12 @@ function updateEntryPreview() {
     paymentMethod: data.paymentMethod || "cash"
   }, state.services));
   const net = previewEntries.reduce((sum, entry) => sum + netAmount(entry), 0);
+  const payments = paymentBreakdownFromForm(lines);
+  const paid = PAYMENT_METHODS.reduce((sum, method) => sum + numberValue(payments[method]), 0);
+  const unpaid = Math.max(net - paid, 0);
 
   if (!canViewSensitive()) {
-    els.entryPreview.textContent = `${lines.length} ${lines.length === 1 ? "عملية" : "عمليات"} في هذه الزيارة.`;
+    els.entryPreview.textContent = `${lines.length} ${lines.length === 1 ? "عملية" : "عمليات"} في هذه الزيارة. المدفوع ${money(paid)}.`;
     return;
   }
 
@@ -6383,6 +6505,7 @@ function updateEntryPreview() {
   els.entryPreview.innerHTML = `
     <span>${lines.length} ${lines.length === 1 ? "عملية" : "عمليات"}</span>
     <span>إجمالي الزيارة <strong>${money(net)}</strong></span>
+    <span>المدفوع <strong>${money(paid)}</strong>${unpaid ? ` | المتبقي ${money(unpaid)}` : ""}</span>
     <span>مستحقات الفريق <strong>${money(payoutTotal)}</strong></span>
   `;
 }
@@ -6879,7 +7002,7 @@ function renderReceiptDocument(receipt) {
       <div><span>المريض / المشتري</span><strong>${receipt.patient}</strong></div>
       <div><span>النوع</span><strong>${receipt.buyerType === "business" ? "شركة / جهة" : "فرد"}</strong></div>
       <div><span>الرقم الوطني / الضريبي</span><strong>${receipt.buyerTaxNumber || "-"}</strong></div>
-      <div><span>طريقة الدفع</span><strong>${paymentLabel(receipt.paymentMethod)}</strong></div>
+      <div><span>طريقة الدفع</span><strong>${receiptPaymentLabel(receipt)}</strong></div>
     </div>
     <table class="receipt-items">
       <thead><tr><th>#</th><th>الخدمة</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead>
@@ -7761,7 +7884,7 @@ function renderEntriesFocusTable() {
         <td>${specialist?.name || "-"}</td>
         <td><span class="status-pill ${statusClass(entry.status)}">${entryStatusLabel(entry.status)}</span></td>
         <td>${entry.quantity || 1}</td>
-        <td>${paymentLabel(entry.paymentMethod)}</td>
+        <td>${entryPaymentLabel(entry)}</td>
         ${showSensitive ? `<td>${money(numberValue(entry.amount))}</td>` : ""}
         ${showSensitive ? `<td>${money(numberValue(entry.discount))}</td>` : ""}
         ${showSensitive ? `<td><strong>${money(netAmount(entry))}</strong></td>` : ""}
@@ -8020,10 +8143,11 @@ if (els.reportToday) {
 if (els.printSelectedReport) {
   els.printSelectedReport.addEventListener("click", () => {
     if (!canUseFeature("print_reports")) return;
+    renderReports();
     document.body.classList.add("printing-report");
     document.body.classList.remove("printing-salary-slip");
     setView("reports");
-    window.print();
+    window.requestAnimationFrame(() => window.print());
   });
 }
 
@@ -8063,7 +8187,10 @@ els.entryForm.addEventListener("submit", event => {
     : data.status || "completed";
   const visitId = nextId("visit");
   const createdAt = new Date().toISOString();
+  const visitTotal = visitNetForLines(lines);
+  const visitPayments = paymentBreakdownFromForm(lines);
   const newEntries = lines.map(line => normalizeEntry({
+    ...line,
     id: nextId("entry"),
     visitId,
     date: state.settings.activeDate,
@@ -8078,7 +8205,8 @@ els.entryForm.addEventListener("submit", event => {
     amount: line.amount,
     cost: line.cost,
     discount: line.discount,
-    paymentMethod: data.paymentMethod,
+    paymentBreakdown: allocatePaymentBreakdown(line, visitPayments, visitTotal),
+    paymentMethod: paymentMethodFromBreakdown(visitPayments, data.paymentMethod),
     status,
     bookingId: data.bookingId || "",
     createdAt,
@@ -8090,7 +8218,8 @@ els.entryForm.addEventListener("submit", event => {
         buyerType: data.buyerType,
         buyerTaxNumber: data.buyerTaxNumber?.trim(),
         taxRate: data.taxRate,
-        paymentMethod: data.paymentMethod,
+        paymentBreakdown: visitPayments,
+        paymentMethod: paymentMethodFromBreakdown(visitPayments, data.paymentMethod),
         reference: data.receiptReference?.trim(),
         notes: data.notes?.trim()
       })
@@ -8207,6 +8336,9 @@ function fillEntryFromBooking(bookingId) {
   els.entryForm.elements.cost.value = service?.defaultCost || 0;
   els.entryForm.elements.discount.value = 0;
   els.entryForm.elements.paymentMethod.value = "cash";
+  els.entryForm.elements.paidCash.value = "";
+  els.entryForm.elements.paidCard.value = "";
+  els.entryForm.elements.paidTransfer.value = "";
   els.entryForm.elements.status.value = booking.doctorId || booking.specialistId ? "completed" : "pending_assignment";
   els.entryForm.elements.notes.value = booking.notes ? `من حجز ${booking.time}: ${booking.notes}` : `من حجز ${booking.time}`;
   pendingOperationLines.push({
@@ -8494,8 +8626,10 @@ document.addEventListener("click", async event => {
   const openOperationAction = event.target.closest("[data-open-operation-modal]");
   const closeOperationAction = event.target.closest("[data-close-operation-modal]");
   const paymentOptionAction = event.target.closest("[data-payment-option]");
+  const fillPaymentTotalAction = event.target.closest("[data-fill-payment-total]");
   const downloadClinicJsonAction = event.target.closest("[data-download-clinic-json]");
   const exportClinicCsvAction = event.target.closest("[data-export-clinic-csv]");
+  const exportReportXlsAction = event.target.closest("[data-export-report-xls]");
 
   if (openOperationAction) {
     openOperationModal();
@@ -8514,6 +8648,11 @@ document.addEventListener("click", async event => {
     return;
   }
 
+  if (fillPaymentTotalAction) {
+    fillPaymentTotal();
+    return;
+  }
+
   if (downloadClinicJsonAction) {
     await downloadClinicJson();
     return;
@@ -8521,6 +8660,11 @@ document.addEventListener("click", async event => {
 
   if (exportClinicCsvAction) {
     exportClinicCsvBundle();
+    return;
+  }
+
+  if (exportReportXlsAction) {
+    exportCurrentReportXls();
     return;
   }
 
@@ -9067,6 +9211,38 @@ function downloadCSV(rows, filename) {
   URL.revokeObjectURL(link.href);
 }
 
+function safeFilename(value) {
+  return String(value || "report").replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, "-").slice(0, 80);
+}
+
+function exportCurrentReportXls() {
+  if (!canUseFeature("export_reports")) return;
+  renderReports();
+  const title = selectedReportLabel();
+  const html = `
+    <!doctype html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: Arial, sans-serif; direction: ${currentLanguage() === "ar" ? "rtl" : "ltr"}; }
+          table { border-collapse: collapse; width: 100%; }
+          th, td { border: 1px solid #b7c8c1; padding: 8px; text-align: inherit; }
+          th { background: #e8f7f2; color: #065c43; }
+          h1, h2, h3 { color: #0f1923; }
+        </style>
+      </head>
+      <body>
+        <h1>${state.settings.clinicName}</h1>
+        <h2>${title}</h2>
+        <p>${reportRangeLabel()}</p>
+        ${els.reportPage?.innerHTML || ""}
+      </body>
+    </html>
+  `;
+  downloadBlob(new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" }), `riaaya-${safeFilename(title)}-${exportStamp()}.xls`);
+}
+
 function exportClinicCsvBundle() {
   if (!canManagePermissions()) return;
   const stamp = exportStamp();
@@ -9114,9 +9290,14 @@ function exportClinicCsvBundle() {
         doctor: getStaffMember(entry.doctorId)?.name || "",
         specialist: getStaffMember(entry.specialistId)?.name || "",
         quantity: entry.quantity || 1,
-        revenue: netAmount(entry),
+        charged: netAmount(entry),
+        paid: paidAmount(entry),
+        unpaid: Math.max(netAmount(entry) - paidAmount(entry), 0),
         discount: entry.discount,
-        paymentMethod: paymentLabel(entry.paymentMethod),
+        payment: entryPaymentLabel(entry),
+        cash: entryPaymentBreakdown(entry).cash,
+        card: entryPaymentBreakdown(entry).card,
+        transfer: entryPaymentBreakdown(entry).transfer,
         status: entry.status,
         notes: entry.notes
       }))
@@ -9146,6 +9327,7 @@ function exportClinicCsvBundle() {
         subtotal: receipt.subtotal,
         taxAmount: receipt.taxAmount,
         total: receipt.total,
+        payment: receiptPaymentLabel(receipt),
         status: receipt.status,
         reference: receipt.reference
       }))
@@ -9205,9 +9387,14 @@ function exportEntries() {
     doctor: getStaffMember(entry.doctorId)?.name || "",
     specialist: getStaffMember(entry.specialistId)?.name || "",
     quantity: entry.quantity || 1,
-    revenue: netAmount(entry),
+    charged: netAmount(entry),
+    paid: paidAmount(entry),
+    unpaid: Math.max(netAmount(entry) - paidAmount(entry), 0),
     cost: entryCost(entry),
-    payment: paymentLabel(entry.paymentMethod),
+    payment: entryPaymentLabel(entry),
+    cash: entryPaymentBreakdown(entry).cash,
+    card: entryPaymentBreakdown(entry).card,
+    transfer: entryPaymentBreakdown(entry).transfer,
     status: entryStatusLabel(entry.status),
     bookingId: entry.bookingId || "",
     payouts: entryPayouts(entry).map(row => `${row.member.name}: ${money(row.payout)} (${row.formula})`).join(" | ")

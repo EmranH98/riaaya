@@ -1693,6 +1693,10 @@ textarea {
   background: var(--ink-soft);
 }
 
+.progress-fill.pending {
+  background: var(--danger);
+}
+
 .salary-row,
 .close-row,
 .insight-card {
@@ -1842,6 +1846,36 @@ td {
   background: var(--teal-pale);
   color: var(--teal-dark);
   box-shadow: inset 0 0 0 1px var(--teal);
+}
+
+.payment-split-panel {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(190px, 1.15fr) repeat(3, minmax(120px, 0.75fr)) auto;
+  gap: 10px;
+  align-items: end;
+  border: 1px solid #dce7e3;
+  border-inline-start: 4px solid var(--gold);
+  border-radius: 10px;
+  background: #fffdf7;
+  padding: 12px;
+}
+
+.payment-split-heading strong,
+.payment-split-heading small {
+  display: block;
+}
+
+.payment-split-heading strong {
+  color: var(--ink);
+  font-weight: 900;
+}
+
+.payment-split-heading small {
+  margin-top: 2px;
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .operation-line-builder,
@@ -4057,6 +4091,7 @@ html[dir="ltr"] label {
   .storage-safety-grid,
   .operation-entry-form,
   .operation-line-composer,
+  .payment-split-panel,
   .operation-filter-form,
   .patient-form,
   .patient-filter-form,
@@ -4363,6 +4398,15 @@ html[dir="ltr"] label {
     display: block !important;
   }
 
+  body.printing-report .topbar,
+  body.printing-report .runtime-banner,
+  body.printing-report .clinic-strip,
+  body.printing-report .report-filter-form,
+  body.printing-report .report-visuals,
+  body.printing-report .report-pagination {
+    display: none !important;
+  }
+
 	  .panel {
 	    border: 0;
 	    padding: 0;
@@ -4390,16 +4434,25 @@ html[dir="ltr"] label {
     display: none !important;
   }
 
+  body.printing-report .full-report-panel > .panel-header {
+    display: none !important;
+  }
+
   body.printing-report .full-report-panel,
   body.printing-report .report-page {
     border: 0;
     box-shadow: none;
+    background: white;
   }
 
   body.printing-report .report-page {
     margin: 0;
     padding: 0;
     min-height: auto;
+  }
+
+  body.printing-report .report-page > * {
+    max-width: none;
   }
 
   body.printing-report .report-heading,

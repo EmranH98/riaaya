@@ -399,6 +399,25 @@
                 <button type="button" data-payment-option="card">فيزا</button>
                 <button type="button" data-payment-option="transfer">تحويل</button>
               </div>
+              <div class="payment-split-panel" data-payment-split-panel>
+                <div class="payment-split-heading">
+                  <strong>المدفوع من المريض</strong>
+                  <small>يمكن تقسيم نفس الزيارة بين كاش وفيزا وتحويل.</small>
+                </div>
+                <label>
+                  كاش
+                  <input name="paidCash" type="number" min="0" step="0.01" placeholder="0">
+                </label>
+                <label>
+                  فيزا
+                  <input name="paidCard" type="number" min="0" step="0.01" placeholder="0">
+                </label>
+                <label>
+                  تحويل
+                  <input name="paidTransfer" type="number" min="0" step="0.01" placeholder="0">
+                </label>
+                <button class="text-button" type="button" data-fill-payment-total>تعبئة كامل المبلغ</button>
+              </div>
               <label>
                 حالة العملية
                 <select name="status">
@@ -1441,6 +1460,7 @@
               <button class="focus-icon-button" type="button" data-open-table-focus="report" aria-label="عرض التقرير بملء الشاشة" title="عرض التقرير بملء الشاشة">
                 <span aria-hidden="true">⛶</span>
               </button>
+              <button class="text-button" type="button" data-export-report-xls data-sensitive>تصدير XLS</button>
               <button class="primary-button" type="button" data-print-selected-report data-sensitive>طباعة التقرير</button>
             </div>
           </div>
