@@ -3,6 +3,7 @@ backups/
 dist/
 .env
 .env.*
+!.env.example
 node_modules/
 *.sqlite
 *.sqlite-*

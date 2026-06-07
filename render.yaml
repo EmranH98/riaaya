@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: riaaya
+    runtime: docker
+    plan: starter
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /healthz
+    disk:
+      name: riaaya-data
+      mountPath: /data
+      sizeGB: 5
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4174
+      - key: RIAAYA_DB_PATH
+        value: /data/riaaya.sqlite
+      - key: RIAAYA_BACKUP_DIR
+        value: /data/backups
+      - key: RIAAYA_BACKUP_RETENTION
+        value: 30
+      - key: RIAAYA_OWNER_EMAIL
+        sync: false
+      - key: RIAAYA_OWNER_PASSWORD
+        sync: false
+      - key: RIAAYA_ENCRYPTION_KEY
+        sync: false
+      - key: ALLOWED_ORIGIN
+        sync: false

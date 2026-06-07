@@ -39,6 +39,8 @@ Development owner credentials are printed by the server. They are only defaults 
 
 ## Production Environment
 
+Copy `.env.example` and set real values on the host. Do not commit real secrets.
+
 ```bash
 NODE_ENV=production
 PORT=4174
@@ -69,7 +71,37 @@ JOFOTARA_ENABLE_SUBMISSION=false
 
 ## Deployment
 
-Use a Node host with persistent storage, such as a VPS, Fly.io volume, Railway volume, or Render persistent disk.
+Use a Node host with persistent storage, such as Render persistent disk, Railway volume, Fly.io volume, or a VPS.
+
+Do not use Vercel static hosting for the real SaaS backend. Vercel can serve the landing/demo pages, but registration, login, owner controls, clinic data, receipts, and reports require `server.mjs` plus the database.
+
+### Render Docker Launch
+
+The repository includes `Dockerfile` and `render.yaml` for a practical first production launch.
+
+1. Push the repository with the app files at the GitHub repository root.
+2. In Render, create a new Blueprint or Web Service from the repo.
+3. Use the Docker runtime.
+4. Keep the persistent disk mounted at `/data`.
+5. Set these secret environment variables in Render:
+   - `RIAAYA_OWNER_EMAIL`
+   - `RIAAYA_OWNER_PASSWORD`
+   - `RIAAYA_ENCRYPTION_KEY`
+   - `ALLOWED_ORIGIN`
+6. Deploy and wait for `/healthz` to return `200`.
+7. Open `/login` and sign in with the owner credentials you set.
+
+Before deploying, test the production settings locally:
+
+```bash
+NODE_ENV=production \
+RIAAYA_DB_PATH=/tmp/riaaya-prod-test.sqlite \
+RIAAYA_OWNER_EMAIL=owner@example.com \
+RIAAYA_OWNER_PASSWORD='ReplaceWithAStrong1!' \
+RIAAYA_ENCRYPTION_KEY='replace-with-a-long-random-secret-at-least-32' \
+ALLOWED_ORIGIN=https://example.com \
+npm run preflight:production
+```
 
 1. Set all production environment variables.
 2. Mount persistent storage at the path used by `RIAAYA_DB_PATH`.

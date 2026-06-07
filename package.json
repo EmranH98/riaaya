@@ -3,11 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=24.0.0"
+  },
   "scripts": {
     "start": "node server.mjs",
     "dev": "node server.mjs",
     "backup": "node scripts/backup-database.mjs",
     "build": "node scripts/build-static.mjs",
-    "check": "node --check lib/security.js && node --check lib/database.js && node --check api/communications.js && node --check api/auth.js && node --check api/clinic.js && node --check api/owner.js && node --check api/public.js && node --check auth.js && node --check owner.js && node --check app.js && node --check scripts/backup-database.mjs && node --check server.mjs"
+    "check": "node --check lib/security.js && node --check lib/database.js && node --check api/communications.js && node --check api/auth.js && node --check api/clinic.js && node --check api/owner.js && node --check api/public.js && node --check auth.js && node --check owner.js && node --check app.js && node --check scripts/backup-database.mjs && node --check scripts/preflight-production.mjs && node --check server.mjs",
+    "preflight:production": "node scripts/preflight-production.mjs"
   }
 }

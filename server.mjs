@@ -7,7 +7,7 @@ import authHandler from "./api/auth.js";
 import clinicHandler from "./api/clinic.js";
 import ownerHandler from "./api/owner.js";
 import publicHandler from "./api/public.js";
-import "./lib/database.js";
+import { db } from "./lib/database.js";
 
 const root = fileURLToPath(new URL(".", import.meta.url));
 const port = Number(process.env.PORT || 4174);
@@ -74,6 +74,28 @@ function safePath(pathname) {
   return resolved;
 }
 
+function sendHealth(res) {
+  try {
+    db.prepare("select 1 as ok").get();
+    res.writeHead(200, {
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store"
+    });
+    res.end(JSON.stringify({
+      ok: true,
+      service: "riaaya",
+      environment: process.env.NODE_ENV || "development",
+      timestamp: new Date().toISOString()
+    }));
+  } catch (error) {
+    res.writeHead(503, {
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store"
+    });
+    res.end(JSON.stringify({ ok: false, error: "database_unavailable" }));
+  }
+}
+
 const server = createServer(async (req, res) => {
   const url = new URL(req.url || "/", `http://${req.headers.host}`);
 
@@ -109,6 +131,11 @@ const server = createServer(async (req, res) => {
     return;
   }
 
+  if (url.pathname === "/healthz" || url.pathname === "/readyz") {
+    sendHealth(res);
+    return;
+  }
+
   if (url.pathname === "/api/communications") {
     if (!await attachBody(req, res)) return;
     await communicationsHandler(req, adaptResponse(res));
@@ -119,7 +146,11 @@ const server = createServer(async (req, res) => {
     url.pathname = "/app.html";
   }
 
-  if (url.pathname === "/login" || url.pathname === "/register") {
+  if (url.pathname === "/app") {
+    url.pathname = "/app.html";
+  }
+
+  if (url.pathname === "/login" || url.pathname === "/register" || url.pathname === "/trial") {
     url.pathname = "/auth.html";
   }
 
@@ -147,3 +178,14 @@ const server = createServer(async (req, res) => {
 server.listen(port, () => {
   console.log(`رعاية is running at http://localhost:${port}`);
 });
+
+function shutdown(signal) {
+  console.log(`${signal} received, shutting down رعاية`);
+  server.close(() => {
+    process.exit(0);
+  });
+  setTimeout(() => process.exit(1), 10000).unref();
+}
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));

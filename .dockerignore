@@ -1,0 +1,11 @@
+.env
+.git
+.DS_Store
+backups
+data
+dist
+node_modules
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.tar.gz
