@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=2026065">
+  <link rel="stylesheet" href="app.css?v=2026066">
 </head>
 <body>
   <div class="app-shell">
@@ -2234,6 +2234,46 @@
           <span class="more-nav-item-label">استيراد البيانات</span>
         </button>
       </div>
+    </div>
+  </div>
+
+  <!-- تكملة الدفع — Follow-up Payment Modal -->
+  <div class="followup-modal" id="followup-modal" role="dialog" aria-modal="true" aria-labelledby="followup-modal-title" hidden>
+    <div class="followup-dialog">
+      <div class="followup-dialog-header">
+        <div>
+          <p class="eyebrow" style="margin:0 0 2px;font-size:11px;color:var(--color-amber,#d97706);letter-spacing:.08em">تكملة الدفع</p>
+          <h3 id="followup-modal-title" style="margin:0;font-size:18px">إكمال الحساب</h3>
+        </div>
+        <button class="icon-button" type="button" data-close-followup aria-label="إغلاق" style="font-size:20px;padding:4px 10px">×</button>
+      </div>
+      <div class="followup-summary" data-followup-summary></div>
+      <form class="followup-form" data-followup-form novalidate>
+        <label class="followup-label">
+          مبلغ التكملة
+          <div class="followup-amount-row">
+            <input class="followup-amount-input" type="number" name="amount" min="0.01" step="0.01" placeholder="0.00" data-followup-amount required>
+            <span class="followup-currency">د.أ</span>
+          </div>
+          <small class="followup-remaining-hint" data-followup-remaining-hint></small>
+        </label>
+        <div class="followup-method-row">
+          <span class="followup-method-label">طريقة الدفع</span>
+          <div class="followup-chips">
+            <button type="button" class="payment-chip active" data-followup-method="cash">كاش</button>
+            <button type="button" class="payment-chip" data-followup-method="card">فيزا / بطاقة</button>
+            <button type="button" class="payment-chip" data-followup-method="transfer">تحويل بنكي</button>
+          </div>
+        </div>
+        <label class="followup-label">
+          ملاحظة (اختياري)
+          <input class="followup-note-input" type="text" name="note" placeholder="مثال: دفع باقي الجلسة" data-followup-note>
+        </label>
+        <div class="followup-actions">
+          <button type="button" class="followup-cancel-btn" data-close-followup>إلغاء</button>
+          <button type="button" class="followup-submit-btn" data-submit-followup>تأكيد التكملة ←</button>
+        </div>
+      </form>
     </div>
   </div>
 

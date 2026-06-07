@@ -1633,6 +1633,8 @@ let importSession = null;
 let pendingOperationLines = [];
 let communicationBackendStatus = null;
 let storageSafetyStatus = null;
+let currentFollowupId = null;
+let selectedFollowupMethod = "cash";
 
 const els = {
   viewButtons: document.querySelectorAll("[data-view-button]"),
@@ -1816,8 +1818,115 @@ const els = {
   logoutButton: document.querySelector("[data-logout-button]"),
   receiptModal: document.querySelector("[data-receipt-modal]"),
   receiptDocument: document.querySelector("[data-receipt-document]"),
-  submitOpenReceipt: document.querySelector("[data-submit-open-receipt]")
+  submitOpenReceipt: document.querySelector("[data-submit-open-receipt]"),
+  followupModal: document.getElementById("followup-modal"),
+  followupSummary: document.querySelector("[data-followup-summary]"),
+  followupAmount: document.querySelector("[data-followup-amount]"),
+  followupRemainingHint: document.querySelector("[data-followup-remaining-hint]"),
+  followupNote: document.querySelector("[data-followup-note]")
 };
+
+// ─── تكملة الدفع — Follow-up Payment ─────────────────────────────────────
+function openFollowupModal(entryId) {
+  const entry = state.entries.find(e => e.id === entryId);
+  if (!entry) return;
+  currentFollowupId = entryId;
+  selectedFollowupMethod = "cash";
+
+  const paid = paidAmount(entry);
+  const net = netAmount(entry);
+  const remaining = Math.max(net - paid, 0);
+
+  if (els.followupSummary) {
+    els.followupSummary.innerHTML = `
+      <div class="followup-patient-row">
+        <span class="followup-patient-name">${entry.patient}</span>
+        <span class="followup-service-name">${serviceLabel(entry)}</span>
+      </div>
+      <div class="followup-amounts-strip">
+        <div class="followup-kpi">
+          <span class="followup-kpi-label">قيمة الجلسة</span>
+          <strong class="followup-kpi-value">${money(net)}</strong>
+        </div>
+        <div class="followup-kpi followup-kpi--paid">
+          <span class="followup-kpi-label">المدفوع</span>
+          <strong class="followup-kpi-value">${money(paid)}</strong>
+        </div>
+        <div class="followup-kpi followup-kpi--remaining">
+          <span class="followup-kpi-label">المتبقي</span>
+          <strong class="followup-kpi-value">${money(remaining)}</strong>
+        </div>
+      </div>`;
+  }
+
+  if (els.followupAmount) {
+    els.followupAmount.value = remaining > 0 ? remaining.toFixed(2) : "";
+    els.followupAmount.max = remaining > 0 ? remaining.toFixed(2) : "";
+  }
+  if (els.followupRemainingHint) {
+    els.followupRemainingHint.textContent = `الحد الأقصى: ${money(remaining)}`;
+  }
+  if (els.followupNote) els.followupNote.value = "";
+
+  document.querySelectorAll("[data-followup-method]").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.followupMethod === "cash");
+  });
+
+  if (els.followupModal) {
+    els.followupModal.hidden = false;
+    requestAnimationFrame(() => els.followupModal.classList.add("open"));
+  }
+}
+
+function closeFollowupModal() {
+  if (!els.followupModal) return;
+  els.followupModal.classList.remove("open");
+  els.followupModal.addEventListener("transitionend", function hide() {
+    els.followupModal.hidden = true;
+    els.followupModal.removeEventListener("transitionend", hide);
+  }, { once: true });
+  currentFollowupId = null;
+}
+
+function submitFollowup() {
+  if (!currentFollowupId) return;
+  const entry = state.entries.find(e => e.id === currentFollowupId);
+  if (!entry) return;
+
+  const rawVal = parseFloat(els.followupAmount?.value || "0");
+  if (!rawVal || rawVal <= 0) {
+    alert("يرجى إدخال مبلغ صحيح أكبر من صفر.");
+    return;
+  }
+
+  const net = netAmount(entry);
+  const remaining = Math.max(net - paidAmount(entry), 0);
+  const amount = Math.min(rawVal, remaining > 0 ? remaining : rawVal);
+
+  const note = (els.followupNote?.value || "").trim();
+  const date = new Date().toISOString().slice(0, 10);
+  const methodLabels = { cash: "كاش", card: "فيزا", transfer: "تحويل" };
+  const methodLabel = methodLabels[selectedFollowupMethod] || selectedFollowupMethod;
+
+  if (!entry.paymentBreakdown) {
+    entry.paymentBreakdown = { cash: 0, card: 0, transfer: 0, insurance: 0 };
+  }
+  entry.paymentBreakdown[selectedFollowupMethod] =
+    (entry.paymentBreakdown[selectedFollowupMethod] || 0) + amount;
+
+  const newPaid = paidAmount(entry);
+  entry.status = newPaid >= net - 0.01 ? "completed" : "partial_payment";
+
+  const noteStamp = `تكملة ${date}: ${money(amount)} (${methodLabel})`;
+  const combined = [note ? `${noteStamp} — ${note}` : noteStamp];
+  if (entry.notes) combined.unshift(entry.notes);
+  entry.notes = combined.join(" | ");
+
+  saveState();
+  closeFollowupModal();
+  render();
+}
+// ──────────────────────────────────────────────────────────────────────────
 
 function saveState() {
   if (runtime.mode !== "live") {
@@ -4018,7 +4127,7 @@ function renderEntryTable(entries) {
         <td><span class="status-pill ${statusClass(entry.status)}">${entryStatusLabel(entry.status)}</span></td>
         ${showSensitive ? `<td>${money(paidAmount(entry))}</td>` : ""}
         ${showSensitive ? `<td><span class="formula-pill">${payoutText}</span></td>` : ""}
-        ${showSensitive ? `<td><div class="row-actions">${receipt && canViewReceipts() ? `<button class="text-button" type="button" data-open-receipt="${receipt.id}">إيصال</button>` : ""}${canDelete ? `<button class="icon-button danger" type="button" data-delete-entry="${entry.id}">حذف</button>` : ""}</div></td>` : ""}
+        ${showSensitive ? `<td><div class="row-actions">${entry.status === "partial_payment" ? `<button class="text-button followup-button" type="button" data-followup-entry="${entry.id}">تكملة الدفع</button>` : ""}${receipt && canViewReceipts() ? `<button class="text-button" type="button" data-open-receipt="${receipt.id}">إيصال</button>` : ""}${canDelete ? `<button class="icon-button danger" type="button" data-delete-entry="${entry.id}">حذف</button>` : ""}</div></td>` : ""}
       </tr>
     `;
   }).join("");
@@ -9175,6 +9284,10 @@ document.addEventListener("click", async event => {
   const printReceiptAction = event.target.closest("[data-print-receipt]");
   const tableFocusTrigger = event.target.closest("[data-open-table-focus]");
   const tableFocusClose = event.target.closest("[data-close-table-focus]");
+  const followupEntryId = event.target.closest("[data-followup-entry]")?.dataset.followupEntry;
+  const closeFollowupAction = event.target.closest("[data-close-followup]");
+  const submitFollowupAction = event.target.closest("[data-submit-followup]");
+  const followupMethodAction = event.target.closest("[data-followup-method]");
   const deleteEntryId = event.target.dataset.deleteEntry;
   const deleteStaffId = event.target.dataset.deleteStaff;
   const deleteServiceId = event.target.dataset.deleteService;
@@ -9223,6 +9336,30 @@ document.addEventListener("click", async event => {
 
   if (closeOperationAction || event.target === els.operationModal) {
     closeOperationModal();
+    return;
+  }
+
+  // تكملة الدفع — follow-up payment handlers
+  if (followupEntryId) {
+    openFollowupModal(followupEntryId);
+    return;
+  }
+
+  if (closeFollowupAction || event.target === els.followupModal) {
+    closeFollowupModal();
+    return;
+  }
+
+  if (submitFollowupAction) {
+    submitFollowup();
+    return;
+  }
+
+  if (followupMethodAction) {
+    selectedFollowupMethod = followupMethodAction.dataset.followupMethod;
+    document.querySelectorAll("[data-followup-method]").forEach(btn => {
+      btn.classList.toggle("active", btn.dataset.followupMethod === selectedFollowupMethod);
+    });
     return;
   }
 
