@@ -9,7 +9,7 @@ function setTab(name) {
 }
 
 tabs.forEach(tab => tab.addEventListener("click", () => setTab(tab.dataset.authTab)));
-if (location.pathname === "/register" || location.hash === "#register") setTab("register");
+if (location.pathname === "/register" || location.pathname === "/register.html" || location.hash === "#register") setTab("register");
 const expiredTrial = new URLSearchParams(location.search).get("expired") === "1";
 if (expiredTrial) {
   document.querySelector("[data-login-status]").textContent = "انتهت الفترة التجريبية لهذه العيادة. تواصل مع إدارة رعاية لتفعيل الاشتراك.";

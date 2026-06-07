@@ -22,6 +22,9 @@ await writeFile(
 await cp(join(root, "app.css"), join(distAssets, "riaaya-app.css"));
 await cp(join(root, "app.js"), join(distAssets, "riaaya-app.js"));
 await cp(join(root, "auth.html"), join(dist, "auth.html"));
+await cp(join(root, "auth.html"), join(dist, "login.html"));
+await cp(join(root, "auth.html"), join(dist, "register.html"));
+await cp(join(root, "auth.html"), join(dist, "trial.html"));
 await cp(join(root, "auth.css"), join(dist, "auth.css"));
 await cp(join(root, "auth.js"), join(dist, "auth.js"));
 await cp(join(root, "owner.html"), join(dist, "owner.html"));
