@@ -136,7 +136,7 @@
               <small data-daily-command-next-meta>الجدول فارغ لهذا الوقت</small>
             </article>
             <article class="daily-command-tile revenue" data-sensitive>
-              <span>الإيراد</span>
+              <span>المدفوع</span>
               <strong data-daily-command-revenue>0 د.أ</strong>
               <small data-daily-command-revenue-note>0 عملية</small>
             </article>
@@ -196,7 +196,7 @@
             <small data-dashboard-note="attention">مواعيد وتنبيهات تشغيلية</small>
           </article>
           <article class="command-kpi dark" data-sensitive>
-            <span>إيرادات اليوم</span>
+            <span>مدفوعات اليوم</span>
             <strong data-kpi="revenue">0 د.أ</strong>
             <small data-kpi-note="revenue">من 0 عملية</small>
           </article>
@@ -208,7 +208,7 @@
           <article class="command-kpi green" data-sensitive>
             <span>صافي اليوم</span>
             <strong data-dashboard-kpi="net">0 د.أ</strong>
-            <small data-dashboard-note="net">الإيراد بعد المصروفات</small>
+            <small data-dashboard-note="net">المدفوع بعد المصروفات</small>
           </article>
         </div>
 
@@ -217,7 +217,7 @@
             <div class="panel-header">
               <div>
                 <p class="eyebrow">النبض التشغيلي</p>
-                <h2>الحركة والإيراد خلال 14 يوماً</h2>
+                <h2>الحركة والمدفوعات خلال 14 يوماً</h2>
               </div>
               <div class="performance-total">
                 <span>إجمالي آخر 7 أيام</span>
@@ -340,7 +340,7 @@
                     <th>المريض</th>
                     <th>الخدمة</th>
                     <th>الدفع</th>
-                    <th data-sensitive>الصافي</th>
+                    <th data-sensitive>المدفوع</th>
                   </tr>
                 </thead>
                 <tbody data-recent-entries></tbody>
@@ -560,7 +560,7 @@
                     <th>الفريق</th>
                     <th>الدفع</th>
                     <th>الحالة</th>
-                    <th data-sensitive>الصافي</th>
+                    <th data-sensitive>المدفوع</th>
                     <th data-sensitive>المستحقات</th>
                     <th data-sensitive></th>
                   </tr>
@@ -752,6 +752,27 @@
             <span><i class="legend-dot arrived"></i>وصل</span>
             <span><i class="legend-dot completed"></i>مكتمل</span>
           </div>
+          <div class="schedule-column-controls" data-sensitive>
+            <form class="schedule-column-form" data-schedule-column-form>
+              <label>
+                عمود جديد
+                <input name="label" type="text" placeholder="laser for women, Doctor, Waiting..." required>
+              </label>
+              <button class="text-button" type="submit">إضافة عمود</button>
+            </form>
+            <label class="schedule-slot-control">
+              مدة الخانة
+              <select data-schedule-slot-minutes>
+                <option value="10">10 دقائق</option>
+                <option value="15">15 دقيقة</option>
+                <option value="20">20 دقيقة</option>
+                <option value="30">30 دقيقة</option>
+                <option value="45">45 دقيقة</option>
+                <option value="60">60 دقيقة</option>
+              </select>
+            </label>
+            <div class="schedule-column-list" data-schedule-column-list></div>
+          </div>
           <div class="booking-calendar-weekdays" data-booking-calendar-weekdays></div>
           <div class="booking-calendar-grid" data-booking-calendar></div>
         </article>
@@ -778,12 +799,16 @@
                 <select name="serviceId" data-booking-service-select required></select>
               </label>
               <label>
+                عمود التقويم
+                <select name="scheduleColumnId" data-booking-column-select required></select>
+              </label>
+              <label>
                 التاريخ
                 <input name="date" type="date" required>
               </label>
               <label>
                 الوقت
-                <input name="time" type="time" required>
+                <input name="time" type="time" step="900" required>
               </label>
               <label>
                 الحالة
@@ -1204,7 +1229,7 @@
           <article class="command-kpi green">
             <span>صافي الشهر</span>
             <strong data-expense-kpi="net">0 د.أ</strong>
-            <small>الإيرادات ناقص المصروفات</small>
+            <small>المدفوعات ناقص المصروفات</small>
           </article>
         </div>
 
@@ -1439,6 +1464,7 @@
             <div class="form-actions">
               <select data-report-select aria-label="اختيار التقرير">
                 <option value="universal">بحث شامل في العيادة</option>
+                <option value="profit">ربح العيادة</option>
                 <option value="reconciliation">مطابقة المرضى والمدفوعات</option>
                 <option value="byPatient">حسب المريض</option>
                 <option value="perProcedure">كل عملية</option>

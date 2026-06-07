@@ -2,6 +2,18 @@ const STORAGE_KEY = "riaayaMvpState";
 const LEADS_KEY = "riaayaLeads";
 const DEMO_HISTORY_VERSION = 8;
 const PAYMENT_METHODS = ["cash", "card", "transfer"];
+const DEFAULT_SCHEDULE_COLUMNS = [
+  { id: "laser-women", label: "laser for women" },
+  { id: "laser-women-2", label: "laser for women 2" },
+  { id: "facial-women", label: "Facial for women" },
+  { id: "doctor", label: "Doctor" },
+  { id: "laser-men", label: "laser for men" },
+  { id: "waiting", label: "Waiting" },
+  { id: "product", label: "product" },
+  { id: "facial-men", label: "facial for men" },
+  { id: "nutrition", label: "تغذية" },
+  { id: "notes", label: "Notes" }
+];
 const runtime = {
   mode: "trial",
   session: null,
@@ -1260,12 +1272,27 @@ function normalizeBooking(booking, services = seedServices) {
     phone: booking.phone || booking.mobile || "",
     serviceId: booking.serviceId || booking.service_id || service?.id || "",
     service: service?.name || booking.service || "خدمة",
+    scheduleColumnId: booking.scheduleColumnId || booking.schedule_column_id || "",
     doctorId: booking.doctorId || booking.doctor_id || "",
     specialistId: booking.specialistId || booking.staff_id || "",
     expectedAmount: asNumber(booking.expectedAmount ?? booking.expected_amount ?? service?.defaultPrice),
     status: booking.status || "scheduled",
     notes: booking.notes || booking.note || "",
     createdAt: booking.createdAt || booking.created_at || new Date().toISOString()
+  };
+}
+
+function normalizeScheduleColumn(column = {}, index = 0) {
+  const label = String(column.label || column.name || column.title || "").trim() || `Column ${index + 1}`;
+  const id = String(column.id || column.value || "")
+    .trim()
+    .replace(/[^a-zA-Z0-9_\-\u0600-\u06FF]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    || `schedule-column-${index + 1}`;
+  return {
+    id,
+    label,
+    active: column.active !== false
   };
 }
 
@@ -1358,10 +1385,12 @@ function createSeedState() {
       branch: "الفرع الرئيسي",
       reportDateFrom: today,
       reportDateTo: today,
+      scheduleSlotMinutes: 15,
       language: storageGet("riaayaLanguage") || "ar"
     },
     staff: seedStaff.map(normalizeStaffMember),
     services,
+    scheduleColumns: DEFAULT_SCHEDULE_COLUMNS.map(normalizeScheduleColumn),
     rules: seedRules.map(normalizeRule),
     suppliers,
     inventory,
@@ -1463,6 +1492,9 @@ function loadState() {
       settings: { ...seed.settings, ...saved.settings },
       staff: Array.isArray(saved.staff) ? saved.staff.map(normalizeStaffMember) : seed.staff,
       services,
+      scheduleColumns: Array.isArray(saved.scheduleColumns)
+        ? saved.scheduleColumns.map(normalizeScheduleColumn).filter(column => column.active !== false)
+        : seed.scheduleColumns,
       rules,
       suppliers,
       inventory,
@@ -1503,10 +1535,12 @@ function emptyClinicState(clinic = {}) {
       branch: "الفرع الرئيسي",
       reportDateFrom: today,
       reportDateTo: today,
+      scheduleSlotMinutes: 15,
       language: storageGet("riaayaLanguage") || "ar"
     },
     staff: [],
     services: [],
+    scheduleColumns: DEFAULT_SCHEDULE_COLUMNS.map(normalizeScheduleColumn),
     rules: [],
     suppliers: [],
     inventory: [],
@@ -1558,6 +1592,9 @@ function hydrateClinicState(saved, clinic, accounts) {
     settings: { ...base.settings, ...(source.settings || {}), clinicName: clinic.name || source.settings?.clinicName || base.settings.clinicName },
     staff: Array.isArray(source.staff) ? source.staff.map(normalizeStaffMember) : [],
     services,
+    scheduleColumns: Array.isArray(source.scheduleColumns)
+      ? source.scheduleColumns.map(normalizeScheduleColumn).filter(column => column.active !== false)
+      : base.scheduleColumns,
     rules: Array.isArray(source.rules) ? source.rules.map(normalizeRule) : [],
     suppliers: Array.isArray(source.suppliers) ? source.suppliers.map(normalizeSupplier) : [],
     inventory: Array.isArray(source.inventory) ? source.inventory.map(normalizeInventoryItem) : [],
@@ -1663,6 +1700,10 @@ const els = {
   bookingDoctorSelect: document.querySelector("[data-booking-doctor-select]"),
   bookingSpecialistSelect: document.querySelector("[data-booking-specialist-select]"),
   bookingServiceSelect: document.querySelector("[data-booking-service-select]"),
+  bookingColumnSelect: document.querySelector("[data-booking-column-select]"),
+  scheduleColumnForm: document.querySelector("[data-schedule-column-form]"),
+  scheduleColumnList: document.querySelector("[data-schedule-column-list]"),
+  scheduleSlotMinutes: document.querySelector("[data-schedule-slot-minutes]"),
   rulePersonSelect: document.querySelector("[data-rule-person-select]"),
   ruleServiceSelect: document.querySelector("[data-rule-service-select]"),
   inventorySupplierSelect: document.querySelector("[data-inventory-supplier-select]"),
@@ -2384,6 +2425,10 @@ function paidAmount(entry) {
   return PAYMENT_METHODS.reduce((sum, method) => sum + numberValue(breakdown[method]), 0);
 }
 
+function paymentTotal(breakdown = {}) {
+  return PAYMENT_METHODS.reduce((sum, method) => sum + numberValue(breakdown[method]), 0);
+}
+
 function entryPaymentLabel(entry) {
   const breakdown = entryPaymentBreakdown(entry);
   const activeMethods = PAYMENT_METHODS.filter(method => numberValue(breakdown[method]) > 0.009);
@@ -2411,7 +2456,7 @@ function entryCost(entry) {
 }
 
 function profitAmount(entry) {
-  return Math.max(netAmount(entry) - entryCost(entry), 0);
+  return Math.max(paidAmount(entry) - entryCost(entry), 0);
 }
 
 function isBillableEntry(entry) {
@@ -2428,7 +2473,7 @@ function calculateMemberPayout(entry, member) {
   const appliesTo = member.role === "doctor" ? "doctor" : "specialist";
   const rule = findRule(appliesTo, member.id, entry.serviceId);
   const quantity = Math.max(numberValue(entry.quantity) || 1, 1);
-  const gross = netAmount(entry);
+  const gross = paidAmount(entry);
   const profit = profitAmount(entry);
   const fallbackRate = numberValue(member.rate);
   const activeRule = rule || {
@@ -2594,7 +2639,7 @@ function specialistAssignmentRows(entries = activeEntries()) {
       return {
         member,
         operations: related.length,
-        revenue: related.reduce((sum, entry) => sum + netAmount(entry), 0),
+        revenue: related.reduce((sum, entry) => sum + paidAmount(entry), 0),
         payout: salaryEntryRows(entries, member).reduce((sum, row) => sum + row.payout.payout, 0)
       };
     })
@@ -2658,7 +2703,7 @@ function weeklySeries(days = 7) {
 }
 
 function averageTicket(totals) {
-  return totals.count ? totals.revenue / totals.count : 0;
+  return totals.count ? totals.paid / totals.count : 0;
 }
 
 function topServices(entries) {
@@ -2667,7 +2712,7 @@ function topServices(entries) {
     const name = serviceLabel(entry);
     const current = services.get(name) || { service: name, count: 0, revenue: 0 };
     current.count += 1;
-    current.revenue += netAmount(entry);
+    current.revenue += paidAmount(entry);
     services.set(name, current);
   });
   return [...services.values()].sort((a, b) => (
@@ -3202,6 +3247,8 @@ function renderStaffSelects() {
     }
   }
 
+  renderScheduleColumnControls();
+
   if (els.ruleServiceSelect) {
     els.ruleServiceSelect.innerHTML = [
       `<option value="">كل الخدمات</option>`,
@@ -3269,6 +3316,54 @@ function renderInventorySelects() {
   }
 }
 
+function scheduleColumnIdFromLabel(label) {
+  const base = String(label || "column")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\u0600-\u06FF]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    || "column";
+  let candidate = base;
+  let index = 2;
+  const existing = new Set(activeScheduleColumns().map(column => column.id));
+  while (existing.has(candidate)) {
+    candidate = `${base}-${index}`;
+    index += 1;
+  }
+  return candidate;
+}
+
+function renderScheduleColumnControls() {
+  const columns = activeScheduleColumns();
+  const slotMinutes = scheduleSlotMinutes();
+  if (els.bookingColumnSelect) {
+    const current = els.bookingColumnSelect.value;
+    els.bookingColumnSelect.innerHTML = columns
+      .map(column => `<option value="${column.id}">${column.label}</option>`)
+      .join("");
+    els.bookingColumnSelect.value = columns.some(column => column.id === current)
+      ? current
+      : columns[0]?.id || "";
+  }
+
+  if (els.scheduleColumnList) {
+    els.scheduleColumnList.innerHTML = columns.map(column => `
+      <span class="schedule-column-pill">
+        <span>${column.label}</span>
+        ${canViewSensitive() && columns.length > 1 ? `<button class="icon-button danger" type="button" data-delete-schedule-column="${column.id}" aria-label="حذف العمود">×</button>` : ""}
+      </span>
+    `).join("");
+  }
+
+  if (els.scheduleSlotMinutes) {
+    els.scheduleSlotMinutes.value = String(slotMinutes);
+  }
+
+  if (els.bookingForm?.elements.time) {
+    els.bookingForm.elements.time.step = String(slotMinutes * 60);
+  }
+}
+
 function renderKpis(entries, totals, diffs) {
   if (!canViewSensitive()) {
     document.querySelector('[data-kpi="revenue"]').textContent = "مخفي";
@@ -3280,8 +3375,8 @@ function renderKpis(entries, totals, diffs) {
     return;
   }
 
-  document.querySelector('[data-kpi="revenue"]').textContent = money(totals.revenue);
-  document.querySelector('[data-kpi-note="revenue"]').textContent = `من ${totals.count} عملية`;
+  document.querySelector('[data-kpi="revenue"]').textContent = money(totals.paid);
+  document.querySelector('[data-kpi-note="revenue"]').textContent = `مدفوع من ${totals.count} عملية${totals.unpaid ? ` | غير مدفوع ${money(totals.unpaid)}` : ""}`;
   document.querySelector('[data-kpi="cash"]').textContent = money(totals.cash);
   document.querySelector('[data-kpi="card"]').textContent = money(totals.card);
 
@@ -3315,14 +3410,14 @@ function renderDashboardSummary(entries, totals, diffs, weekEntries, weekTotals)
   }
 
   els.dashboardSummary.textContent = entries.length
-    ? `تم تسجيل ${totals.count} عملية اليوم بقيمة ${money(totals.revenue)}. إجمالي آخر 7 أيام ${money(weekTotals.revenue)} عبر ${weekEntries.length} عملية.`
+    ? `تم تسجيل ${totals.count} عملية اليوم بمدفوعات ${money(totals.paid)}. إجمالي آخر 7 أيام ${money(weekTotals.paid)} عبر ${weekEntries.length} عملية.`
     : `لا توجد عمليات لهذا التاريخ بعد. يعرض هذا القسم الإيرادات، طرق الدفع، النسب، وحالة الإغلاق بمجرد إدخال العمليات.`;
 
   els.closeChip.textContent = closeLabel;
   els.discountChip.textContent = `الخصومات ${money(totals.discount)}`;
   els.averageChip.textContent = `متوسط العملية ${money(avg)}`;
 
-  document.querySelector('[data-kpi="weekRevenue"]').textContent = money(weekTotals.revenue);
+  document.querySelector('[data-kpi="weekRevenue"]').textContent = money(weekTotals.paid);
   document.querySelector('[data-kpi-note="weekRevenue"]').textContent = `${weekEntries.length} عملية خلال آخر 7 أيام`;
 }
 
@@ -3535,7 +3630,7 @@ function renderSmartActions() {
 function renderDashboardCommandCenter(entries) {
   const bookings = activeBookings();
   const expenses = activeDateExpenses();
-  const revenue = entries.reduce((sum, entry) => sum + netAmount(entry), 0);
+  const revenue = entries.reduce((sum, entry) => sum + paidAmount(entry), 0);
   const expenseAmount = expenseTotal(expenses);
   const attention = bookings.filter(booking => ["scheduled", "no_show"].includes(booking.status)).length
     + unassignedEntries(entries).length
@@ -3585,8 +3680,8 @@ function renderDailyCommandCenter(entries, totals, diffs) {
   }
 
   if (revenueVisible) {
-    els.dailyCommandRevenue.textContent = money(totals.revenue);
-    els.dailyCommandRevenueNote.textContent = `${totals.count} ${totals.count === 1 ? "عملية" : "عمليات"} اليوم`;
+    els.dailyCommandRevenue.textContent = money(totals.paid);
+    els.dailyCommandRevenueNote.textContent = `${totals.count} ${totals.count === 1 ? "عملية" : "عمليات"} اليوم${totals.unpaid ? ` | غير مدفوع ${money(totals.unpaid)}` : ""}`;
     els.dailyCommandReconcileStatus.textContent = !diffs ? "بانتظار" : Math.abs(diffs.totalDiff) < 0.01 ? "✓ مطابق" : "فرق";
     els.dailyCommandReconcileNote.textContent = !diffs
       ? "لم يتم إغلاق اليوم بعد"
@@ -3606,19 +3701,19 @@ function renderDailyCommandCenter(entries, totals, diffs) {
 
 function renderWeekChart(series) {
   const showSensitive = canViewSensitive();
-  const maxValue = Math.max(...series.map(day => showSensitive ? day.totals.revenue : day.totals.count), 1);
+  const maxValue = Math.max(...series.map(day => showSensitive ? day.totals.paid : day.totals.count), 1);
   const formatter = new Intl.DateTimeFormat("ar-JO", { weekday: "short" });
   const activeDate = state.settings.activeDate;
   const totalCount = series.reduce((sum, day) => sum + day.totals.count, 0);
 
   els.weekCount.textContent = `${totalCount} عملية`;
   els.weekChart.innerHTML = series.map(day => {
-    const value = showSensitive ? day.totals.revenue : day.totals.count;
+    const value = showSensitive ? day.totals.paid : day.totals.count;
     const height = Math.max((value / maxValue) * 100, value ? 12 : 4);
     const label = formatter.format(new Date(`${day.date}T12:00:00`));
     return `
       <div class="chart-day ${day.date === activeDate ? "today" : ""}">
-        <div class="chart-value">${showSensitive ? money(day.totals.revenue).replace(" د.أ", "") : day.totals.count}</div>
+        <div class="chart-value">${showSensitive ? money(day.totals.paid).replace(" د.أ", "") : day.totals.count}</div>
         <div class="bar-track">
           <div class="bar-fill" style="--bar-height:${height}%"></div>
         </div>
@@ -3634,7 +3729,7 @@ function renderRevenueTrend(series = weeklySeries(14)) {
   const width = 780;
   const height = 230;
   const padding = { top: 28, right: 18, bottom: 38, left: 18 };
-  const values = series.map(day => showSensitive ? day.totals.revenue : day.totals.count);
+  const values = series.map(day => showSensitive ? day.totals.paid : day.totals.count);
   const maximum = Math.max(...values, 1);
   const usableWidth = width - padding.left - padding.right;
   const usableHeight = height - padding.top - padding.bottom;
@@ -3837,7 +3932,7 @@ function renderRecentEntries(entries) {
         <td>${entry.patient}</td>
         <td>${serviceLabel(entry)}</td>
         <td><span class="pill">${entryPaymentLabel(entry)}</span></td>
-        <td>${canViewSensitive() ? money(netAmount(entry)) : "مخفي"}</td>
+        <td>${canViewSensitive() ? money(paidAmount(entry)) : "مخفي"}</td>
       </tr>
   `).join("");
 }
@@ -3918,7 +4013,7 @@ function renderEntryTable(entries) {
         <td>${[doctor?.name, specialist?.name].filter(Boolean).join(" / ") || "بانتظار التعيين"}</td>
         <td><span class="pill">${entryPaymentLabel(entry)}</span></td>
         <td><span class="status-pill ${statusClass(entry.status)}">${entryStatusLabel(entry.status)}</span></td>
-        ${showSensitive ? `<td>${money(netAmount(entry))}</td>` : ""}
+        ${showSensitive ? `<td>${money(paidAmount(entry))}</td>` : ""}
         ${showSensitive ? `<td><span class="formula-pill">${payoutText}</span></td>` : ""}
         ${showSensitive ? `<td><div class="row-actions">${receipt && canViewReceipts() ? `<button class="text-button" type="button" data-open-receipt="${receipt.id}">إيصال</button>` : ""}${canDelete ? `<button class="icon-button danger" type="button" data-delete-entry="${entry.id}">حذف</button>` : ""}</div></td>` : ""}
       </tr>
@@ -4016,7 +4111,7 @@ function renderPatientFile() {
   const operations = patientEntries(patient);
   const bookings = patientBookings(patient);
   const receipts = patientReceipts(patient);
-  const totalPaid = operations.reduce((sum, entry) => sum + netAmount(entry), 0);
+  const totalPaid = operations.reduce((sum, entry) => sum + paidAmount(entry), 0);
   const lastActivity = patientLastActivity(patient);
   const canSeePhone = canUseFeature("see_mobile");
   const canEdit = canUseFeature("edit_patient_information");
@@ -4028,7 +4123,7 @@ function renderPatientFile() {
         <td>${serviceLabel(entry)}</td>
         <td>${entryStatusLabel(entry.status)}</td>
         <td>${entryPaymentLabel(entry)}</td>
-        <td>${canViewSensitive() ? money(netAmount(entry)) : "مخفي"}</td>
+        <td>${canViewSensitive() ? money(paidAmount(entry)) : "مخفي"}</td>
         <td>${receiptForEntry(entry.id) && canUseFeature("view_receipts") ? `<button class="text-button" type="button" data-open-receipt="${receiptForEntry(entry.id).id}">عرض</button>` : "-"}</td>
       </tr>
     `).join("")
@@ -4087,7 +4182,7 @@ function renderPatientFile() {
       <h3>سجل العمليات</h3>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>التاريخ</th><th>الخدمة</th><th>الحالة</th><th>الدفع</th><th>الصافي</th><th>الإيصال</th></tr></thead>
+          <thead><tr><th>التاريخ</th><th>الخدمة</th><th>الحالة</th><th>الدفع</th><th>المدفوع</th><th>الإيصال</th></tr></thead>
           <tbody>${operationRows}</tbody>
         </table>
       </div>
@@ -4411,7 +4506,7 @@ function renderExpenseKpis() {
     byGroup.set(name, (byGroup.get(name) || 0) + numberValue(expense.amount));
   });
   const top = [...byGroup.entries()].sort((a, b) => b[1] - a[1])[0];
-  const monthRevenue = monthEntries.reduce((sum, entry) => sum + netAmount(entry), 0);
+  const monthRevenue = monthEntries.reduce((sum, entry) => sum + paidAmount(entry), 0);
   const monthTotal = expenseTotal(monthExpenses);
   const values = {
     today: money(expenseTotal(activeDateExpenses())),
@@ -5096,8 +5191,22 @@ function displayTime(timeString) {
   });
 }
 
+function scheduleSlotMinutes() {
+  const value = Number(state.settings?.scheduleSlotMinutes);
+  return [10, 15, 20, 30, 45, 60].includes(value) ? value : 15;
+}
+
+function scheduleSlotForTime(timeString, stepMinutes = scheduleSlotMinutes()) {
+  const safeStep = [10, 15, 20, 30, 45, 60].includes(Number(stepMinutes)) ? Number(stepMinutes) : 15;
+  return timeFromMinutes(Math.floor(minutesFromTime(timeString) / safeStep) * safeStep);
+}
+
+function isTimeOnScheduleSlot(timeString, stepMinutes = scheduleSlotMinutes()) {
+  return minutesFromTime(timeString) % stepMinutes === 0;
+}
+
 function dayScheduleSlots(bookings) {
-  const stepMinutes = 15;
+  const stepMinutes = scheduleSlotMinutes();
   const openMinute = 8 * 60;
   const closeMinute = 18 * 60;
   const bookingMinutes = bookings.map(booking => minutesFromTime(booking.time));
@@ -5115,36 +5224,88 @@ function dayScheduleSlots(bookings) {
   return slots;
 }
 
-function bookingScheduleColumns() {
-  const isEnglish = currentLanguage() === "en";
-  const account = currentAccount();
-  const members = state.staff
-    .filter(member => ["doctor", "specialist"].includes(member.role))
-    .filter(member => !accountStaffScoped(account) || member.id === account.staffId)
-    .map(member => ({
-      id: member.id,
-      label: member.name,
-      role: roleLabel(member.role)
-    }));
+function activeScheduleColumns() {
+  const savedColumns = Array.isArray(state.scheduleColumns)
+    ? state.scheduleColumns.map(normalizeScheduleColumn).filter(column => column.active !== false)
+    : [];
+  const columns = savedColumns.length ? savedColumns : DEFAULT_SCHEDULE_COLUMNS.map(normalizeScheduleColumn);
+  state.scheduleColumns = columns;
+  return columns;
+}
 
-  return [
-    ...members,
-    {
-      id: "waiting",
-      label: isEnglish ? "Waiting" : "بانتظار التعيين",
-      role: isEnglish ? "Unassigned" : "غير معين"
-    }
-  ];
+function scheduleColumnLabel(columnId) {
+  return activeScheduleColumns().find(column => column.id === columnId)?.label || "";
+}
+
+function scheduleConflictMessage(conflict, stepMinutes = scheduleSlotMinutes()) {
+  const firstPatient = conflict.first?.patient || "مريض";
+  const secondPatient = conflict.second?.patient || "مريض آخر";
+  const columnName = scheduleColumnLabel(conflict.columnId) || "هذا العمود";
+  return `لا يمكن وجود حجزين في نفس خانة التقويم. ${columnName} عند ${displayTime(conflict.slot)} يحتوي ${firstPatient} و ${secondPatient}. مدة الخانة الحالية ${stepMinutes} دقيقة.`;
+}
+
+function bookingScheduleColumns() {
+  return activeScheduleColumns().map(column => ({
+    id: column.id,
+    label: column.label,
+    role: currentLanguage() === "en" ? "Calendar column" : "عمود تقويم"
+  }));
 }
 
 function bookingScheduleColumnId(booking, columns) {
-  const assignedId = booking.doctorId || booking.specialistId || "";
-  return columns.some(column => column.id === assignedId) ? assignedId : "waiting";
+  if (columns.some(column => column.id === booking.scheduleColumnId)) return booking.scheduleColumnId;
+  if (columns.some(column => column.id === "doctor") && booking.doctorId) return "doctor";
+  const text = normalizeSearchText(`${serviceLabel(booking)} ${booking.notes || ""}`);
+  const patient = getPatient(booking.patientId) || findPatientByName(booking.patient);
+  const isMale = patient?.gender === "male" || text.includes("men") || text.includes("رجال");
+  const isFemale = patient?.gender === "female" || text.includes("women") || text.includes("نساء");
+  if (text.includes("laser") || text.includes("ليزر")) {
+    const preferred = isMale ? "laser-men" : "laser-women";
+    if (columns.some(column => column.id === preferred)) return preferred;
+  }
+  if (text.includes("facial") || text.includes("عناية") || text.includes("بشرة")) {
+    const preferred = isMale ? "facial-men" : "facial-women";
+    if (columns.some(column => column.id === preferred)) return preferred;
+  }
+  if (text.includes("تغذية") || text.includes("nutrition")) {
+    if (columns.some(column => column.id === "nutrition")) return "nutrition";
+  }
+  if (columns.some(column => column.id === "waiting")) return "waiting";
+  return columns[0]?.id || "";
 }
 
 function scheduleSlotForBooking(booking) {
-  const stepMinutes = 15;
-  return timeFromMinutes(Math.round(minutesFromTime(booking.time) / stepMinutes) * stepMinutes);
+  return scheduleSlotForTime(booking.time);
+}
+
+function bookingSlotConflict(candidate, ignoreId = "", stepMinutes = scheduleSlotMinutes()) {
+  const columns = bookingScheduleColumns();
+  const candidateColumn = bookingScheduleColumnId(candidate, columns);
+  const candidateSlot = scheduleSlotForTime(candidate.time, stepMinutes);
+  return (state.bookings || []).find(booking => (
+    booking.id !== ignoreId
+    && booking.date === candidate.date
+    && !["cancelled", "no_show"].includes(booking.status)
+    && bookingScheduleColumnId(booking, columns) === candidateColumn
+    && scheduleSlotForTime(booking.time, stepMinutes) === candidateSlot
+  ));
+}
+
+function scheduleConflictForBookings(stepMinutes = scheduleSlotMinutes()) {
+  const columns = bookingScheduleColumns();
+  const seen = new Map();
+  for (const booking of (state.bookings || [])) {
+    if (["cancelled", "no_show"].includes(booking.status)) continue;
+    const columnId = bookingScheduleColumnId(booking, columns);
+    const slot = scheduleSlotForTime(booking.time, stepMinutes);
+    const key = `${booking.date}|${columnId}|${slot}`;
+    const first = seen.get(key);
+    if (first) {
+      return { first, second: booking, columnId, slot };
+    }
+    seen.set(key, booking);
+  }
+  return null;
 }
 
 function renderBookingDayCalendar() {
@@ -5178,7 +5339,7 @@ function renderBookingDayCalendar() {
         <div class="day-schedule-booking ${booking.status}">
           <strong>${booking.patient}</strong>
           <span>${booking.time} | ${serviceLabel(booking)}</span>
-          <small>${bookingStatusLabel(booking.status)}${canViewSensitive() ? ` | ${money(booking.expectedAmount)}` : ""}</small>
+          <small>${bookingStatusLabel(booking.status)}${booking.phone && canUseFeature("see_mobile") ? ` | ${booking.phone}` : ""}</small>
         </div>
       `).join("");
 
@@ -5198,6 +5359,7 @@ function renderBookingDayCalendar() {
   const summary = isEnglish
     ? `${bookings.length} bookings on ${displayDate(state.settings.activeDate)}`
     : `${bookings.length} حجز في ${displayDate(state.settings.activeDate)}`;
+  const slotMinutes = scheduleSlotMinutes();
   const empty = bookings.length
     ? ""
     : `<div class="day-schedule-empty">${isEnglish ? "No bookings are scheduled for this day yet." : "لا توجد حجوزات مجدولة لهذا اليوم بعد."}</div>`;
@@ -5208,7 +5370,7 @@ function renderBookingDayCalendar() {
         <strong>${isEnglish ? "Day Calendar" : "تقويم اليوم"}</strong>
         <span>${summary}</span>
       </div>
-      <span>${isEnglish ? "15-minute slots" : "خانات كل 15 دقيقة"}</span>
+      <span>${isEnglish ? `${slotMinutes}-minute slots` : `خانات كل ${slotMinutes} دقيقة`}</span>
     </div>
     ${empty}
     <div class="day-schedule-scroll">
@@ -5593,6 +5755,123 @@ function renderExpensesReport(expenses) {
   `;
 }
 
+function clinicProfitSummary(entries, expenses) {
+  const rows = billableEntries(entries);
+  const gross = rows.reduce((sum, entry) => sum + netAmount(entry), 0);
+  const collected = rows.reduce((sum, entry) => sum + paidAmount(entry), 0);
+  const unpaid = Math.max(gross - collected, 0);
+  const directCost = rows.reduce((sum, entry) => sum + entryCost(entry), 0);
+  const salaries = rows.reduce((sum, entry) => (
+    sum + entryPayouts(entry).reduce((total, row) => total + row.payout, 0)
+  ), 0);
+  const expensesTotal = expenseTotal(expenses);
+  const profit = collected - directCost - salaries - expensesTotal;
+  return { rows, gross, collected, unpaid, directCost, salaries, expensesTotal, profit };
+}
+
+function renderProfitReport(entries, expenses) {
+  const isEnglish = currentLanguage() === "en";
+  const label = isEnglish
+    ? {
+      title: "Clinic Profit Report",
+      subtitle: "Collected money minus operation costs, team payouts, and clinic expenses.",
+      gross: "Gross service value",
+      collected: "Collected / paid",
+      unpaid: "Unpaid",
+      directCost: "Operation cost",
+      salaries: "Team payouts",
+      expenses: "Expenses",
+      profit: "Clinic profit",
+      formula: "Profit formula",
+      explanation: "Collected - operation cost - salaries - expenses",
+      service: "Service",
+      operations: "Operations",
+      serviceGross: "Gross",
+      servicePaid: "Paid",
+      serviceCost: "Cost",
+      servicePayouts: "Payouts",
+      serviceProfit: "Profit",
+      empty: "No billable operations in this range."
+    }
+    : {
+      title: "تقرير ربح العيادة",
+      subtitle: "المدفوع فعلياً ناقص تكلفة العمليات ومستحقات الفريق ومصروفات العيادة.",
+      gross: "قيمة الخدمات",
+      collected: "المدفوع",
+      unpaid: "غير مدفوع",
+      directCost: "تكلفة العمليات",
+      salaries: "مستحقات الفريق",
+      expenses: "المصروفات",
+      profit: "ربح العيادة",
+      formula: "معادلة الربح",
+      explanation: "المدفوع - تكلفة العمليات - مستحقات الفريق - المصروفات",
+      service: "الخدمة",
+      operations: "العمليات",
+      serviceGross: "القيمة",
+      servicePaid: "المدفوع",
+      serviceCost: "التكلفة",
+      servicePayouts: "المستحقات",
+      serviceProfit: "الربح",
+      empty: "لا توجد عمليات قابلة للاحتساب ضمن هذا النطاق."
+    };
+  const summary = clinicProfitSummary(entries, expenses);
+  const byService = new Map();
+  summary.rows.forEach(entry => {
+    const key = serviceLabel(entry);
+    const current = byService.get(key) || { service: key, operations: 0, gross: 0, paid: 0, cost: 0, payouts: 0 };
+    current.operations += 1;
+    current.gross += netAmount(entry);
+    current.paid += paidAmount(entry);
+    current.cost += entryCost(entry);
+    current.payouts += entryPayouts(entry).reduce((sum, row) => sum + row.payout, 0);
+    byService.set(key, current);
+  });
+  const rows = [...byService.values()].sort((a, b) => (b.paid - b.cost - b.payouts) - (a.paid - a.cost - a.payouts));
+  const body = rows.length ? rows.map(row => `
+    <tr>
+      <td>${row.service}</td>
+      <td>${row.operations}</td>
+      <td>${money(row.gross)}</td>
+      <td><strong>${money(row.paid)}</strong></td>
+      <td>${money(row.cost)}</td>
+      <td>${money(row.payouts)}</td>
+      <td><strong>${money(row.paid - row.cost - row.payouts)}</strong></td>
+    </tr>
+  `).join("") : `<tr><td colspan="7">${label.empty}</td></tr>`;
+
+  return `
+    ${reportHeader(label.title, label.subtitle)}
+    ${reportKpis([
+      { label: label.gross, value: money(summary.gross), note: label.unpaid + " " + money(summary.unpaid) },
+      { label: label.collected, value: money(summary.collected), note: summary.rows.length + " " + label.operations },
+      { label: label.directCost, value: money(summary.directCost) },
+      { label: label.salaries, value: money(summary.salaries) },
+      { label: label.expenses, value: money(summary.expensesTotal) },
+      { label: label.profit, value: money(summary.profit), note: label.explanation }
+    ])}
+    <div class="profit-equation">
+      <strong>${label.formula}</strong>
+      <span>${money(summary.collected)} - ${money(summary.directCost)} - ${money(summary.salaries)} - ${money(summary.expensesTotal)} = ${money(summary.profit)}</span>
+    </div>
+    <div class="table-wrap report-table">
+      <table>
+        <thead>
+          <tr>
+            <th>${label.service}</th>
+            <th>${label.operations}</th>
+            <th>${label.serviceGross}</th>
+            <th>${label.servicePaid}</th>
+            <th>${label.serviceCost}</th>
+            <th>${label.servicePayouts}</th>
+            <th>${label.serviceProfit}</th>
+          </tr>
+        </thead>
+        <tbody>${body}</tbody>
+      </table>
+    </div>
+  `;
+}
+
 function renderPatientsReport(patients) {
   const isEnglish = currentLanguage() === "en";
   const body = patients.length ? patients.map(patient => `
@@ -5623,7 +5902,7 @@ function renderReportVisuals(entries, bookings, patients, universalItems, expens
   const serviceMap = new Map();
   entries.forEach(entry => {
     const key = serviceLabel(entry);
-    serviceMap.set(key, (serviceMap.get(key) || 0) + netAmount(entry));
+    serviceMap.set(key, (serviceMap.get(key) || 0) + paidAmount(entry));
   });
   bookings.forEach(booking => {
     const key = serviceLabel(booking);
@@ -5638,8 +5917,7 @@ function renderReportVisuals(entries, bookings, patients, universalItems, expens
   });
   const statuses = [...statusMap.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
   const maxStatus = Math.max(...statuses.map(([, value]) => value), 1);
-  const revenue = entries.reduce((sum, entry) => sum + netAmount(entry), 0);
-  const expensesTotal = expenseTotal(expenses);
+  const profitSummary = clinicProfitSummary(entries, expenses);
 
   const serviceBars = services.length ? services.map(([label, value]) => `
     <div class="report-bar-row">
@@ -5662,12 +5940,12 @@ function renderReportVisuals(entries, bookings, patients, universalItems, expens
       <div><span>العمليات</span><strong>${entries.length}</strong></div>
       <div><span>الحجوزات</span><strong>${bookings.length}</strong></div>
       <div><span>المرضى والزوار</span><strong>${patients.length}</strong></div>
-      <div><span>الإيراد</span><strong>${canViewSensitive() ? money(revenue) : "مخفي"}</strong></div>
-      <div><span>المصروفات</span><strong>${canViewSensitive() ? money(expensesTotal) : "مخفي"}</strong></div>
-      <div><span>الصافي</span><strong>${canViewSensitive() ? money(revenue - expensesTotal) : "مخفي"}</strong></div>
+      <div><span>المدفوع</span><strong>${canViewSensitive() ? money(profitSummary.collected) : "مخفي"}</strong></div>
+      <div><span>غير مدفوع</span><strong>${canViewSensitive() ? money(profitSummary.unpaid) : "مخفي"}</strong></div>
+      <div><span>ربح العيادة</span><strong>${canViewSensitive() ? money(profitSummary.profit) : "مخفي"}</strong></div>
     </div>
     <div class="report-chart-grid">
-      <div class="report-chart-block"><h3>الخدمات حسب الإيراد</h3>${serviceBars}</div>
+      <div class="report-chart-block"><h3>الخدمات حسب المدفوع</h3>${serviceBars}</div>
       <div class="report-chart-block"><h3>توزيع الحالات</h3>${statusBars}</div>
     </div>
   `;
@@ -5809,7 +6087,7 @@ function renderByPatientReport(entries) {
         <td>${entryStatusLabel(entry.status)}</td>
       </tr>
     `).join("");
-    const subtotal = patientEntries.reduce((sum, entry) => sum + netAmount(entry), 0);
+    const subtotal = patientEntries.reduce((sum, entry) => sum + paidAmount(entry), 0);
     const cost = patientEntries.reduce((sum, entry) => sum + entryCost(entry), 0);
     return `${rows}
       <tr class="subtotal-row">
@@ -5850,7 +6128,7 @@ function renderPerProcedureReport(entries) {
       title: "Per Procedure Report",
       subtitle: "A direct list of each procedure with payment, cost, profit, and linked team.",
       operationCount: "Operations",
-      netRevenue: "Net revenue",
+      netRevenue: "Collected",
       directCost: "Direct cost",
       profitBeforePayouts: "Profit before payouts",
       date: "Date",
@@ -5868,7 +6146,7 @@ function renderPerProcedureReport(entries) {
       title: "تقرير كل عملية",
       subtitle: "قائمة مباشرة لكل إجراء مع الدفع والتكلفة والربح والفريق المرتبط.",
       operationCount: "عدد العمليات",
-      netRevenue: "الإيراد الصافي",
+      netRevenue: "المدفوع",
       directCost: "الكلفة المباشرة",
       profitBeforePayouts: "الربح قبل المستحقات",
       date: "التاريخ",
@@ -5906,7 +6184,7 @@ function renderPerProcedureReport(entries) {
     ${reportHeader(label.title, label.subtitle)}
     ${reportKpis([
       { label: label.operationCount, value: rows.length },
-      { label: label.netRevenue, value: money(totals.revenue) },
+      { label: label.netRevenue, value: money(totals.paid) },
       { label: label.directCost, value: money(rows.reduce((sum, entry) => sum + entryCost(entry), 0)) },
       { label: label.profitBeforePayouts, value: money(rows.reduce((sum, entry) => sum + profitAmount(entry), 0)) }
     ])}
@@ -6215,7 +6493,7 @@ function renderReports() {
     : [];
   const universalItems = universalReportItems(from, to);
   const reportType = els.reportSelect.value || "reconciliation";
-  const financialReports = ["reconciliation", "byPatient", "perProcedure", "costs", "expenses"];
+  const financialReports = ["profit", "reconciliation", "byPatient", "perProcedure", "costs", "expenses"];
   if (!canViewSensitive() && financialReports.includes(reportType)) {
     els.reportVisuals.innerHTML = "";
     els.reportPagination.innerHTML = "";
@@ -6238,6 +6516,9 @@ function renderReports() {
   } else if (reportType === "expenses") {
     pagination = paginateItems(allExpenses, reportPage, pageSize);
     content = renderExpensesReport(pagination.items);
+  } else if (reportType === "profit") {
+    pagination = paginateItems(allEntries, 1, Math.max(allEntries.length, 1));
+    content = renderProfitReport(allEntries, allExpenses);
   } else if (reportType === "reconciliation") {
     pagination = paginateItems(allEntries, 1, Math.max(allEntries.length, 1));
     content = renderReconciliationReport(allEntries);
@@ -6472,6 +6753,7 @@ function updateEntryPreview() {
   if (!els.entryPreview || !els.entryForm) return;
   const lines = currentOperationLines();
   if (!lines.length) {
+    els.entryPreview.classList.remove("warning");
     els.entryPreview.textContent = "اختر خدمة وأضفها إلى الزيارة.";
     return;
   }
@@ -6491,11 +6773,15 @@ function updateEntryPreview() {
   }, state.services));
   const net = previewEntries.reduce((sum, entry) => sum + netAmount(entry), 0);
   const payments = paymentBreakdownFromForm(lines);
-  const paid = PAYMENT_METHODS.reduce((sum, method) => sum + numberValue(payments[method]), 0);
+  const paid = paymentTotal(payments);
   const unpaid = Math.max(net - paid, 0);
+  const overpaid = paid - net > 0.009;
+  els.entryPreview.classList.toggle("warning", overpaid);
 
   if (!canViewSensitive()) {
-    els.entryPreview.textContent = `${lines.length} ${lines.length === 1 ? "عملية" : "عمليات"} في هذه الزيارة. المدفوع ${money(paid)}.`;
+    els.entryPreview.textContent = overpaid
+      ? `المدفوع أعلى من قيمة الزيارة. عدّل الكاش أو الفيزا أو التحويل قبل الحفظ.`
+      : `${lines.length} ${lines.length === 1 ? "عملية" : "عمليات"} في هذه الزيارة. المدفوع ${money(paid)}.`;
     return;
   }
 
@@ -6504,8 +6790,9 @@ function updateEntryPreview() {
     .reduce((sum, row) => sum + row.payout, 0);
   els.entryPreview.innerHTML = `
     <span>${lines.length} ${lines.length === 1 ? "عملية" : "عمليات"}</span>
-    <span>إجمالي الزيارة <strong>${money(net)}</strong></span>
+    <span>قيمة الخدمات <strong>${money(net)}</strong></span>
     <span>المدفوع <strong>${money(paid)}</strong>${unpaid ? ` | المتبقي ${money(unpaid)}` : ""}</span>
+    ${overpaid ? `<span>تنبيه: المدفوع أعلى من قيمة الزيارة بـ <strong>${money(paid - net)}</strong></span>` : ""}
     <span>مستحقات الفريق <strong>${money(payoutTotal)}</strong></span>
   `;
 }
@@ -6656,7 +6943,7 @@ function roleDigestText(account, template = "role_daily") {
   if (template === "financial_close") {
     lines.push(`عمليات اليوم: ${ownEntries.length}`);
     lines.push(account.role === "admin" || account.canViewSensitive
-      ? `الإيراد: ${money(totals.revenue)}`
+      ? `المدفوع: ${money(totals.paid)}`
       : "التفاصيل المالية غير متاحة لهذا الدور");
     const reconciliation = activeReconciliation();
     const diffs = reconciliationDiffs(totals, reconciliation);
@@ -6669,7 +6956,7 @@ function roleDigestText(account, template = "role_daily") {
   lines.push(`وصل: ${dayBookings.filter(booking => booking.status === "arrived").length}`);
   lines.push(`العمليات: ${ownEntries.length}`);
   if (account.role === "admin" || account.canViewSensitive) {
-    lines.push(`الإيراد: ${money(totals.revenue)}`);
+    lines.push(`المدفوع: ${money(totals.paid)}`);
     lines.push(`فواتير JoFotara المعلقة: ${(state.receipts || []).filter(receipt => ["draft", "ready"].includes(receipt.status)).length}`);
   }
   if (account.role === "admin") {
@@ -7842,7 +8129,7 @@ function renderEntriesFocusTable() {
       payment: "Payment",
       price: "Price",
       discount: "Discount",
-      net: "Net",
+      net: "Paid",
       cost: "Cost",
       profit: "Profit",
       payouts: "Payouts",
@@ -7860,7 +8147,7 @@ function renderEntriesFocusTable() {
       payment: "الدفع",
       price: "السعر",
       discount: "الخصم",
-      net: "الصافي",
+      net: "المدفوع",
       cost: "التكلفة",
       profit: "الربح",
       payouts: "المستحقات",
@@ -7887,7 +8174,7 @@ function renderEntriesFocusTable() {
         <td>${entryPaymentLabel(entry)}</td>
         ${showSensitive ? `<td>${money(numberValue(entry.amount))}</td>` : ""}
         ${showSensitive ? `<td>${money(numberValue(entry.discount))}</td>` : ""}
-        ${showSensitive ? `<td><strong>${money(netAmount(entry))}</strong></td>` : ""}
+        ${showSensitive ? `<td><strong>${money(paidAmount(entry))}</strong></td>` : ""}
         ${showSensitive ? `<td>${money(entryCost(entry))}</td>` : ""}
         ${showSensitive ? `<td>${money(profitAmount(entry))}</td>` : ""}
         ${showSensitive ? `<td>${payoutText}</td>` : ""}
@@ -8062,6 +8349,13 @@ if (els.bookingForm) {
       const service = getService(els.bookingServiceSelect.value);
       if (service) {
         els.bookingForm.elements.expectedAmount.value = service.defaultPrice || "";
+        const suggestedColumn = bookingScheduleColumnId({
+          serviceId: service.id,
+          service: service.name,
+          patient: els.bookingForm.elements.patient.value,
+          notes: ""
+        }, bookingScheduleColumns());
+        if (suggestedColumn) els.bookingForm.elements.scheduleColumnId.value = suggestedColumn;
       }
     }
   });
@@ -8076,8 +8370,38 @@ if (els.bookingForm) {
       alert("هذا التاريخ خارج نطاق التقويم المسموح لهذا الحساب.");
       return;
     }
+    const stepMinutes = scheduleSlotMinutes();
+    if (!isTimeOnScheduleSlot(data.time, stepMinutes)) {
+      const nearestSlot = scheduleSlotForTime(data.time, stepMinutes);
+      alert(`اختر وقتاً على بداية خانة ${stepMinutes} دقيقة. مثال: ${displayTime(nearestSlot)} ثم ${displayTime(timeFromMinutes(minutesFromTime(nearestSlot) + stepMinutes))}.`);
+      return;
+    }
     const scopedMember = accountStaffScoped(account) ? getStaffMember(account.staffId) : null;
     const patient = ensurePatientFile(data.patient.trim(), data.phone.trim());
+    const pendingBooking = normalizeBooking({
+      id: "__pending_booking__",
+      date: data.date,
+      time: data.time,
+      patientId: patient.id,
+      patient: data.patient.trim(),
+      phone: data.phone.trim(),
+      serviceId: data.serviceId,
+      service: service?.name || "خدمة",
+      scheduleColumnId: data.scheduleColumnId,
+      doctorId: scopedMember?.role === "doctor" ? scopedMember.id : data.doctorId,
+      specialistId: scopedMember?.role === "specialist" ? scopedMember.id : data.specialistId,
+      expectedAmount: data.expectedAmount || service?.defaultPrice,
+      status: data.status,
+      notes: data.notes.trim()
+    }, state.services);
+    const conflict = ["cancelled", "no_show"].includes(pendingBooking.status)
+      ? null
+      : bookingSlotConflict(pendingBooking, pendingBooking.id);
+    if (conflict) {
+      const columnId = bookingScheduleColumnId(pendingBooking, bookingScheduleColumns());
+      alert(scheduleConflictMessage({ first: conflict, second: pendingBooking, columnId, slot: scheduleSlotForBooking(conflict) }));
+      return;
+    }
     state.bookings.push(normalizeBooking({
       id: nextId("booking"),
       date: data.date,
@@ -8087,6 +8411,7 @@ if (els.bookingForm) {
       phone: data.phone.trim(),
       serviceId: data.serviceId,
       service: service?.name || "خدمة",
+      scheduleColumnId: data.scheduleColumnId,
       doctorId: scopedMember?.role === "doctor" ? scopedMember.id : data.doctorId,
       specialistId: scopedMember?.role === "specialist" ? scopedMember.id : data.specialistId,
       expectedAmount: data.expectedAmount || service?.defaultPrice,
@@ -8098,8 +8423,46 @@ if (els.bookingForm) {
     els.bookingForm.elements.date.value = state.settings.activeDate;
     const selectedService = getService(els.bookingServiceSelect.value) || activeServices()[0];
     if (selectedService) els.bookingForm.elements.expectedAmount.value = selectedService.defaultPrice || "";
+    const firstColumn = activeScheduleColumns()[0];
+    if (firstColumn) els.bookingForm.elements.scheduleColumnId.value = firstColumn.id;
     saveState();
     render();
+  });
+}
+
+if (els.scheduleColumnForm) {
+  els.scheduleColumnForm.addEventListener("submit", event => {
+    event.preventDefault();
+    if (!canViewSensitive()) return;
+    const data = Object.fromEntries(new FormData(els.scheduleColumnForm).entries());
+    const label = String(data.label || "").trim();
+    if (!label) return;
+    state.scheduleColumns = [
+      ...activeScheduleColumns(),
+      normalizeScheduleColumn({ id: scheduleColumnIdFromLabel(label), label })
+    ];
+    els.scheduleColumnForm.reset();
+    saveState();
+    renderScheduleColumnControls();
+    renderBookingDayCalendar();
+  });
+}
+
+if (els.scheduleSlotMinutes) {
+  els.scheduleSlotMinutes.addEventListener("change", event => {
+    if (!canViewSensitive()) return;
+    const previous = scheduleSlotMinutes();
+    const next = Number(event.target.value) || 15;
+    const conflict = scheduleConflictForBookings(next);
+    if (conflict) {
+      event.target.value = String(previous);
+      alert(scheduleConflictMessage(conflict, next));
+      return;
+    }
+    state.settings.scheduleSlotMinutes = next;
+    saveState();
+    renderScheduleColumnControls();
+    renderBookingDayCalendar();
   });
 }
 
@@ -8189,6 +8552,11 @@ els.entryForm.addEventListener("submit", event => {
   const createdAt = new Date().toISOString();
   const visitTotal = visitNetForLines(lines);
   const visitPayments = paymentBreakdownFromForm(lines);
+  if (paymentTotal(visitPayments) - visitTotal > 0.009) {
+    alert("المدفوع أعلى من قيمة الزيارة. عدّل مبالغ الكاش أو الفيزا أو التحويل قبل الحفظ.");
+    updateEntryPreview();
+    return;
+  }
   const newEntries = lines.map(line => normalizeEntry({
     ...line,
     id: nextId("entry"),
@@ -8598,6 +8966,7 @@ document.addEventListener("click", async event => {
   const deleteSupplierId = event.target.dataset.deleteSupplier;
   const deleteInventoryId = event.target.dataset.deleteInventory;
   const deleteOrderId = event.target.dataset.deleteOrder;
+  const deleteScheduleColumnId = event.target.dataset.deleteScheduleColumn;
   const editExpenseId = event.target.dataset.editExpense;
   const deleteExpenseId = event.target.dataset.deleteExpense;
   const deleteExpenseSubgroupId = event.target.dataset.deleteExpenseSubgroup;
@@ -8781,6 +9150,22 @@ document.addEventListener("click", async event => {
     renderCommunications();
     renderNotificationCenters();
     if (runtime.openReceiptId === receipt.id) renderReceiptDocument(receipt);
+    return;
+  }
+
+  if (deleteScheduleColumnId) {
+    if (!canViewSensitive()) return;
+    const remaining = activeScheduleColumns().filter(column => column.id !== deleteScheduleColumnId);
+    if (!remaining.length) return;
+    const fallbackId = remaining.find(column => column.id === "waiting")?.id || remaining[0].id;
+    state.scheduleColumns = remaining;
+    state.bookings = state.bookings.map(booking => (
+      booking.scheduleColumnId === deleteScheduleColumnId
+        ? { ...booking, scheduleColumnId: fallbackId }
+        : booking
+    ));
+    saveState();
+    render();
     return;
   }
 
