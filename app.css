@@ -4463,6 +4463,526 @@ html[dir="ltr"] label {
   }
 }
 
+/* ═══════════════════════════════════════════════════════════
+   DASHBOARD REDESIGN — matches vision mockup exactly
+   All existing data-* bindings preserved, only visual layer changed
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── STAT CARDS (daily-command-grid tiles) ── */
+.daily-command-center {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.daily-command-top {
+  display: none; /* clinic name moved to topbar */
+}
+
+.daily-command-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.daily-command-tile {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px 16px 16px;
+  min-height: 116px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(28,25,23,0.04);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.daily-command-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(28,25,23,0.08);
+}
+
+/* coloured left stripe via pseudo */
+.daily-command-tile::before {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  width: 4px;
+  border-radius: 0 14px 14px 0;
+  background: var(--border);
+}
+
+.daily-command-tile.next::before  { background: var(--teal); }
+.daily-command-tile.revenue::before { background: var(--teal); }
+.daily-command-tile.reconcile::before { background: var(--gold); }
+.daily-command-tile.alerts::before  { background: #D97706; }
+
+/* Remove old border-top overrides */
+.daily-command-tile.revenue { border-top: none; }
+.daily-command-tile.reconcile { border-top: none; }
+.daily-command-tile.alerts { border-top: none; }
+
+.daily-command-tile span {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.daily-command-tile strong {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--ink);
+  font-family: "Cairo", sans-serif;
+  line-height: 1.1;
+}
+
+.daily-command-tile small {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  margin-top: auto;
+}
+
+/* "next" tile = dark green */
+.daily-command-tile.next {
+  background: var(--sidebar-bg);
+  border-color: var(--sidebar-bg);
+  color: white;
+}
+
+.daily-command-tile.next span {
+  color: rgba(255,255,255,0.5);
+}
+
+.daily-command-tile.next strong {
+  color: var(--gold);
+}
+
+.daily-command-tile.next button {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: white;
+  font-size: 16px;
+  font-weight: 800;
+  font-family: "Cairo", sans-serif;
+  text-align: inherit;
+  line-height: 1.3;
+}
+
+.daily-command-tile.next small {
+  color: rgba(255,255,255,0.45);
+}
+
+/* action row */
+.daily-command-actions {
+  display: flex;
+  gap: 10px;
+  padding-top: 4px;
+  flex-wrap: wrap;
+}
+
+/* ── COMMAND HERO = MID ROW (next appt + chart) ── */
+.command-hero {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.42fr) minmax(0, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+/* Left: next visitor card — big dark green */
+.next-visitor-card {
+  background: var(--sidebar-bg);
+  border-radius: 16px;
+  padding: 20px;
+  color: white;
+  border: none;
+  box-shadow: 0 8px 32px rgba(13,36,25,0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 220px;
+}
+
+.next-visitor-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.next-visitor-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.45);
+}
+
+.next-visitor-time {
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--gold);
+  margin-top: 0;
+}
+
+.next-visitor-name {
+  font-size: 22px;
+  font-weight: 800;
+  color: white;
+  display: block;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  text-align: inherit;
+  line-height: 1.2;
+}
+
+.next-visitor-card p {
+  font-size: 12px;
+  color: rgba(255,255,255,0.5);
+  margin: 2px 0;
+}
+
+.next-visitor-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+  flex-wrap: wrap;
+}
+
+.next-visitor-actions .dark-button,
+.next-visitor-actions .text-button,
+.next-visitor-actions .whatsapp-action {
+  border-radius: 10px;
+  font-size: 12px;
+  padding: 9px 14px;
+  border: 1px solid rgba(255,255,255,0.15);
+  font-weight: 700;
+}
+
+.next-visitor-actions .text-button {
+  background: rgba(255,255,255,0.10);
+  color: rgba(255,255,255,0.8);
+}
+
+.next-visitor-actions .dark-button {
+  background: var(--teal);
+  border-color: var(--teal);
+  color: white;
+}
+
+.next-visitor-actions .whatsapp-action {
+  background: rgba(37,211,102,0.15);
+  color: #25D166;
+  border-color: rgba(37,211,102,0.25);
+}
+
+/* Right: command hero copy = chart area */
+.command-hero-copy {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(28,25,23,0.04);
+  border-top: none;
+}
+
+.command-hero-copy .eyebrow {
+  font-size: 10px;
+  letter-spacing: .08em;
+  color: var(--ink-muted);
+}
+
+.command-hero-copy h2 {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+
+.command-hero-copy p:not(.eyebrow) {
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin: 0 0 12px;
+  line-height: 1.6;
+}
+
+.summary-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.metric-chip {
+  background: var(--teal-pale);
+  color: var(--teal);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: 999px;
+}
+
+/* ── KPI GRID — cleaner cards ── */
+.command-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.command-kpi {
+  border-radius: 12px;
+  min-height: 108px;
+}
+
+/* left stripe now on inline-end (RTL) */
+.command-kpi::after {
+  inset-inline-start: auto;
+  inset-inline-end: 0;
+  border-radius: 0 12px 12px 0;
+}
+
+/* ── ANALYTICS + WORK GRIDS ── */
+.command-analytics-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.command-work-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+/* ── DASHBOARD SCHEDULE = TIMELINE ── */
+.dashboard-appointment {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--surface);
+  position: relative;
+}
+
+.dashboard-appointment:last-child {
+  border-bottom: none;
+}
+
+.dashboard-appointment time {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  min-width: 44px;
+  font-family: "Cairo", sans-serif;
+}
+
+/* timeline dot */
+.dashboard-appointment::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--border);
+  flex-shrink: 0;
+  z-index: 1;
+}
+
+.dashboard-appointment[data-status="مكتملة"]::before,
+.dashboard-appointment[data-status="done"]::before { background: var(--status-done); }
+.dashboard-appointment[data-status="مؤكد"]::before,
+.dashboard-appointment[data-status="confirmed"]::before { background: var(--status-confirmed); }
+.dashboard-appointment[data-status="وصل"]::before { background: var(--status-arrived); }
+
+/* ── SMART ALERTS ── */
+.smart-action-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.smart-action {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.smart-action-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.smart-action-body strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+
+.smart-action-body p {
+  font-size: 12px;
+  color: var(--ink-soft);
+  margin: 0 0 6px;
+  line-height: 1.5;
+}
+
+.smart-action-link {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--teal);
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+/* ── MOBILE BOTTOM NAVIGATION ── */
+.mobile-bottom-nav {
+  display: none;
+}
+
+@media (max-width: 980px) {
+  .mobile-bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    inset-inline: 0;
+    z-index: 200;
+    background: rgba(255,255,255,0.96);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-top: 1px solid var(--border);
+    padding: 6px 0 max(8px, env(safe-area-inset-bottom));
+    justify-content: space-around;
+  }
+
+  .mob-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    flex: 1;
+    background: transparent;
+    border: 0;
+    padding: 4px 0;
+    cursor: pointer;
+    transition: color 0.15s;
+  }
+
+  .mob-tab-icon {
+    font-size: 22px;
+    line-height: 1;
+  }
+
+  .mob-tab-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--ink-muted);
+    font-family: "Tajawal", sans-serif;
+  }
+
+  .mob-tab.active .mob-tab-label {
+    color: var(--teal);
+    font-weight: 800;
+  }
+
+  /* Push workspace above bottom nav */
+  .workspace {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom));
+  }
+
+  /* Sync clicks with existing nav-item logic */
+  .sidebar .side-nav {
+    display: none; /* hide the horizontal scrolling nav on mobile */
+  }
+}
+
+/* ── MOBILE DASHBOARD LAYOUT ── */
+@media (max-width: 980px) {
+  .daily-command-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .command-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .next-visitor-card {
+    min-height: auto;
+  }
+
+  .command-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .command-analytics-grid,
+  .command-work-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* On mobile, sidebar becomes a slim topbar */
+  .sidebar {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    height: auto;
+    max-height: none;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+  }
+
+  .sidebar-card { display: none; }
+}
+
+@media (max-width: 620px) {
+  .daily-command-tile strong {
+    font-size: 22px;
+  }
+
+  .next-visitor-time {
+    font-size: 26px;
+  }
+
+  .next-visitor-name {
+    font-size: 18px;
+  }
+
+  .daily-command-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .command-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .daily-command-tile {
+    min-height: 96px;
+    padding: 14px 12px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════ */
+
 @media print {
   body {
     background: white;
