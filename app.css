@@ -5158,6 +5158,221 @@ html[dir="ltr"] label {
   }
 }
 
+/* ═══════════════════════════════════════════════════════════
+   PARTIAL PAYMENT STATUS — "دفع جزئي — تكملة حساب"
+   ═══════════════════════════════════════════════════════════ */
+
+.status-pill.partial {
+  background: #FEF3C0;
+  color: #92610A;
+  border: 1px solid #F5CC6A;
+  font-weight: 900;
+}
+
+/* Topbar h1: smaller — it's a sticky header not a page title */
+.topbar h1 {
+  font-size: clamp(16px, 1.8vw, 22px);
+  font-weight: 800;
+}
+
+.topbar .eyebrow {
+  font-size: 10px;
+  letter-spacing: .10em;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MOBILE MORE-NAV SHEET
+   Full-screen bottom sheet giving access to all 10+ sections
+   ═══════════════════════════════════════════════════════════ */
+
+/* 6th "More" tab icon — 6 dots in a 3×2 grid */
+.mob-more-dots {
+  display: inline-grid;
+  grid-template-columns: repeat(3, 5px);
+  grid-template-rows: repeat(2, 5px);
+  gap: 3px;
+  width: 22px;
+  height: 16px;
+  align-items: center;
+  justify-items: center;
+}
+
+.mob-more-dots::before {
+  content: '';
+  display: block;
+  width: 5px;
+  height: 5px;
+  background: currentColor;
+  border-radius: 50%;
+  box-shadow:
+    8px  0 0 currentColor,
+    16px 0 0 currentColor,
+    0    8px 0 currentColor,
+    8px  8px 0 currentColor,
+    16px 8px 0 currentColor;
+}
+
+/* Sheet backdrop */
+.more-nav-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: rgba(13,36,25,0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.more-nav-sheet[hidden] { display: none; }
+
+.more-nav-sheet.open { opacity: 1; }
+
+/* Sliding panel */
+.more-nav-panel {
+  background: var(--cream);
+  border-radius: 24px 24px 0 0;
+  padding: 12px 20px max(24px, env(safe-area-inset-bottom));
+  transform: translateY(60px);
+  opacity: 0;
+  transition: transform 0.30s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.30s ease;
+  box-shadow: 0 -16px 60px rgba(13,36,25,0.18);
+}
+
+.more-nav-sheet.open .more-nav-panel {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+/* Drag handle pill */
+.more-nav-handle {
+  width: 40px;
+  height: 4px;
+  background: var(--border);
+  border-radius: 99px;
+  margin: 0 auto 16px;
+}
+
+/* Header row */
+.more-nav-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 0 2px;
+}
+
+.more-nav-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--ink);
+  font-family: "Cairo", sans-serif;
+}
+
+.more-nav-close {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 99px;
+  background: var(--cream-card);
+  color: var(--ink-soft);
+  font-size: 14px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background 0.15s;
+  line-height: 1;
+}
+
+.more-nav-close:hover { background: var(--border); }
+
+/* 3-column item grid */
+.more-nav-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+/* Each nav item card */
+.more-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--white);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.12s;
+  font-family: "Tajawal", sans-serif;
+  min-height: 88px;
+  justify-content: center;
+}
+
+.more-nav-item:hover {
+  background: var(--teal-pale);
+  border-color: var(--teal);
+}
+
+.more-nav-item:active {
+  transform: scale(0.96);
+}
+
+.more-nav-item.active {
+  background: var(--teal-pale);
+  border-color: var(--teal);
+}
+
+/* Icon circle */
+.more-nav-icon {
+  font-size: 22px;
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  background: var(--cream);
+  border-radius: 14px;
+  transition: background 0.15s, box-shadow 0.15s;
+  line-height: 1;
+}
+
+.more-nav-item:hover .more-nav-icon,
+.more-nav-item.active .more-nav-icon {
+  background: var(--teal);
+  box-shadow: 0 6px 20px rgba(26,92,56,0.30);
+}
+
+/* Label */
+.more-nav-item-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-mid);
+  text-align: center;
+  line-height: 1.35;
+}
+
+.more-nav-item.active .more-nav-item-label {
+  color: var(--teal);
+  font-weight: 800;
+}
+
+/* "المزيد" tab: slightly different active color to distinguish from view tabs */
+.mob-tab-more.active .mob-tab-label,
+.mob-tab-more.active .mob-more-dots::before {
+  color: var(--teal);
+}
+
+/* Desktop: hide more-nav-sheet entirely */
+@media (min-width: 981px) {
+  .more-nav-sheet,
+  .mobile-bottom-nav { display: none !important; }
+}
+
 /* ═══════════════════════════════════════════════════════════ */
 
 @media print {

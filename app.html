@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=2026063">
+  <link rel="stylesheet" href="app.css?v=2026064">
 </head>
 <body>
   <div class="app-shell">
@@ -423,6 +423,7 @@
                 حالة العملية
                 <select name="status">
                   <option value="completed">مكتملة</option>
+                  <option value="partial_payment">دفع جزئي — تكملة حساب</option>
                   <option value="pending_assignment">بانتظار التعيين</option>
                   <option value="scheduled">محجوزة</option>
                   <option value="pending_payment">بانتظار الدفع</option>
@@ -2173,8 +2174,116 @@
       <span class="mob-tab-icon">✓</span>
       <span class="mob-tab-label">مطابقة</span>
     </button>
+    <button class="mob-tab mob-tab-more" type="button" data-more-nav-toggle aria-label="القائمة الكاملة" aria-expanded="false">
+      <span class="mob-tab-icon mob-more-dots"></span>
+      <span class="mob-tab-label">المزيد</span>
+    </button>
   </nav>
 
+  <!-- More nav bottom sheet — all secondary sections accessible from mobile -->
+  <div class="more-nav-sheet" id="more-nav-sheet" role="dialog" aria-modal="true" aria-label="القائمة الكاملة" hidden>
+    <div class="more-nav-panel">
+      <div class="more-nav-handle"></div>
+      <div class="more-nav-header">
+        <span class="more-nav-title">القائمة الكاملة</span>
+        <button class="more-nav-close" type="button" aria-label="إغلاق">✕</button>
+      </div>
+      <div class="more-nav-grid">
+        <button class="more-nav-item" type="button" data-view-button="reports">
+          <span class="more-nav-icon">📊</span>
+          <span class="more-nav-item-label">التقارير</span>
+        </button>
+        <button class="more-nav-item" type="button" data-view-button="expenses">
+          <span class="more-nav-icon">💳</span>
+          <span class="more-nav-item-label">المصروفات</span>
+        </button>
+        <button class="more-nav-item" type="button" data-view-button="salaries">
+          <span class="more-nav-icon">💰</span>
+          <span class="more-nav-item-label">الرواتب</span>
+        </button>
+        <button class="more-nav-item" type="button" data-view-button="staff">
+          <span class="more-nav-icon">👥</span>
+          <span class="more-nav-item-label">الموظفون والنسب</span>
+        </button>
+        <button class="more-nav-item" type="button" data-view-button="services">
+          <span class="more-nav-icon">⚙️</span>
+          <span class="more-nav-item-label">الخدمات والقواعد</span>
+        </button>
+        <button class="more-nav-item" type="button" data-view-button="inventory">
+          <span class="more-nav-icon">📦</span>
+          <span class="more-nav-item-label">المخزون والموردون</span>
+        </button>
+        <button class="more-nav-item" type="button" data-view-button="communications">
+          <span class="more-nav-icon">💬</span>
+          <span class="more-nav-item-label">التواصل والفوترة</span>
+        </button>
+        <button class="more-nav-item" type="button" data-view-button="accounts">
+          <span class="more-nav-icon">🔐</span>
+          <span class="more-nav-item-label">الحسابات والصلاحيات</span>
+        </button>
+        <button class="more-nav-item" type="button" data-view-button="imports">
+          <span class="more-nav-icon">📥</span>
+          <span class="more-nav-item-label">استيراد البيانات</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script src="app.js"></script>
+
+  <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
+  <script>
+  (function () {
+    var sheet = document.getElementById('more-nav-sheet');
+    var toggleBtn = document.querySelector('[data-more-nav-toggle]');
+    var closeBtn = sheet && sheet.querySelector('.more-nav-close');
+    var MORE_VIEWS = ['staff','services','inventory','expenses','salaries','reports','communications','accounts','imports','leads'];
+
+    function openSheet() {
+      if (!sheet) return;
+      sheet.hidden = false;
+      requestAnimationFrame(function () { sheet.classList.add('open'); });
+      if (toggleBtn) toggleBtn.setAttribute('aria-expanded', 'true');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeSheet() {
+      if (!sheet) return;
+      sheet.classList.remove('open');
+      if (toggleBtn) toggleBtn.setAttribute('aria-expanded', 'false');
+      document.body.style.overflow = '';
+      sheet.addEventListener('transitionend', function hide() {
+        sheet.hidden = true;
+        sheet.removeEventListener('transitionend', hide);
+      }, { once: true });
+    }
+
+    if (toggleBtn) toggleBtn.addEventListener('click', openSheet);
+    if (closeBtn)  closeBtn.addEventListener('click', closeSheet);
+    if (sheet) {
+      sheet.addEventListener('click', function (e) {
+        if (e.target === sheet) closeSheet();
+      });
+      sheet.querySelectorAll('[data-view-button]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          setTimeout(closeSheet, 80);
+        });
+      });
+    }
+
+    /* Highlight "المزيد" tab when a secondary view is active */
+    var observer = new MutationObserver(function () {
+      var active = document.querySelector('.view[style*="display: block"], .view.active');
+      if (!active) return;
+      var view = active.getAttribute('data-view') || '';
+      if (toggleBtn) toggleBtn.classList.toggle('active', MORE_VIEWS.includes(view));
+      /* also update more-nav-item active states */
+      if (sheet) sheet.querySelectorAll('[data-view-button]').forEach(function (b) {
+        b.classList.toggle('active', b.dataset.viewButton === view);
+      });
+    });
+    observer.observe(document.body, { attributes: true, attributeFilter: ['class'], subtree: true });
+  })();
+  </script>
 </body>
 </html>

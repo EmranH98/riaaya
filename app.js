@@ -2312,6 +2312,7 @@ function entryStatusLabel(status) {
   const labels = currentLanguage() === "en"
     ? {
       completed: "Completed",
+      partial_payment: "Partial — follow-up due",
       pending_assignment: "Pending assignment",
       scheduled: "Scheduled",
       pending_payment: "Pending payment",
@@ -2319,6 +2320,7 @@ function entryStatusLabel(status) {
     }
     : {
       completed: "مكتملة",
+      partial_payment: "دفع جزئي — تكملة حساب",
       pending_assignment: "بانتظار التعيين",
       scheduled: "محجوزة",
       pending_payment: "بانتظار الدفع",
@@ -2351,6 +2353,7 @@ function bookingStatusLabel(status) {
 function statusClass(status) {
   if (["completed", "confirmed", "arrived", "received", "paid", "approved"].includes(status)) return "good";
   if (["cancelled", "no_show"].includes(status)) return "bad";
+  if (status === "partial_payment") return "partial";
   return "warn";
 }
 
