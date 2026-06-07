@@ -24,8 +24,28 @@
   ],
   "rewrites": [
     {
+      "source": "/app",
+      "destination": "/app.html"
+    },
+    {
       "source": "/dashboard",
       "destination": "/app.html"
+    },
+    {
+      "source": "/login",
+      "destination": "/auth.html"
+    },
+    {
+      "source": "/register",
+      "destination": "/auth.html"
+    },
+    {
+      "source": "/trial",
+      "destination": "/auth.html"
+    },
+    {
+      "source": "/owner",
+      "destination": "/owner.html"
     }
   ]
 }
