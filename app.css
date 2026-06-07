@@ -4981,6 +4981,197 @@ html[dir="ltr"] label {
   }
 }
 
+/* ═══════════════════════════════════════════════════════════
+   UI POLISH PASS — topbar, banner, stat tiles, mobile
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── TOPBAR: sticky, clean, cream background ── */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--cream);
+  padding: 10px 0 14px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 18px;
+}
+
+/* Hide rarely-needed clutter from topbar */
+.language-switcher {
+  display: none;
+}
+
+/* Home link redundant inside app shell */
+.top-actions a.ghost-button[href="index.html"] {
+  display: none;
+}
+
+/* Compact account switcher pill */
+.account-switcher { min-width: 0; }
+.account-switcher select {
+  min-width: 140px;
+  padding: 7px 10px;
+  font-size: 13px;
+  border-radius: 10px;
+}
+
+/* Slim search bar */
+.global-search {
+  display: flex;
+  align-items: stretch;
+  flex: 1;
+  max-width: 240px;
+  min-width: 140px;
+}
+.global-search input {
+  flex: 1;
+  padding: 8px 12px;
+  font-size: 13px;
+  border-radius: 10px 0 0 10px;
+  border-inline-end: 0;
+}
+.global-search .dark-button {
+  border-radius: 0 10px 10px 0;
+  padding: 8px 14px;
+  font-size: 12px;
+  background: var(--teal);
+}
+
+/* Notification button: compact pill */
+.notification-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 7px 12px;
+  background: var(--white);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* Auth links: minimal sizing */
+.top-actions [data-login-link],
+.top-actions [data-logout-button] {
+  padding: 7px 14px;
+  font-size: 13px;
+}
+
+/* ── TRIAL BANNER: compact single-line strip ── */
+.runtime-banner {
+  border-radius: 10px;
+  padding: 10px 16px;
+  margin-bottom: 12px;
+  gap: 14px;
+}
+.runtime-banner strong { font-size: 13px; }
+.runtime-banner span  { font-size: 12px; }
+
+/* ── CLINIC STRIP: subtle card ── */
+.clinic-strip {
+  border: 1px solid var(--border) !important;
+  background: var(--white) !important;
+  box-shadow: none !important;
+  border-radius: 10px !important;
+  margin-bottom: 12px;
+}
+
+/* ── STAT TILE .next → clean white card ──
+   Dark green is ONLY used for the command-hero next-visitor card.
+   The stat tile at top is a compact summary. */
+.daily-command-tile.next {
+  background: var(--white) !important;
+  border-color: var(--border) !important;
+  color: var(--ink) !important;
+}
+.daily-command-tile.next span {
+  color: var(--ink-soft) !important;
+}
+.daily-command-tile.next strong {
+  color: var(--teal) !important;
+  font-size: 22px !important;
+}
+.daily-command-tile.next button {
+  color: var(--ink-mid) !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+}
+.daily-command-tile.next small {
+  color: var(--ink-muted) !important;
+}
+
+/* ── SIDEBAR: visible health-score widget at bottom ── */
+.sidebar-card {
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 12px;
+  padding: 14px 16px;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sidebar-card-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.45);
+}
+
+.sidebar-card-value {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--gold);
+  font-family: "Cairo", sans-serif;
+}
+
+.sidebar-health-bar {
+  height: 4px;
+  background: rgba(255,255,255,0.12);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.sidebar-health-bar-fill {
+  height: 100%;
+  background: var(--gold);
+  border-radius: 99px;
+  width: 86%;
+}
+
+/* ── MOBILE: workspace topbar → compact, top sidebar is the header ── */
+@media (max-width: 980px) {
+  /* Sidebar stays dark green on mobile = the app topbar */
+  .sidebar {
+    background: var(--sidebar-bg) !important;
+    border-bottom: none;
+    box-shadow: 0 4px 20px rgba(13,36,25,0.30);
+  }
+
+  /* Workspace topbar on mobile: hide title (shown in sidebar brand),
+     keep just the actions row compact */
+  .workspace .topbar {
+    padding: 6px 0 8px;
+    margin-bottom: 12px;
+    border-bottom: none;
+    background: transparent;
+    position: static; /* not sticky — sidebar handles that */
+  }
+
+  .workspace .topbar > div:first-child {
+    display: none; /* clinic title & eyebrow not needed — sidebar brand shows it */
+  }
+
+  /* On mobile hide the search + account switcher (space-constrained) */
+  .topbar .account-switcher,
+  .topbar .global-search {
+    display: none;
+  }
+}
+
 /* ═══════════════════════════════════════════════════════════ */
 
 @media print {

@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=2026061">
+  <link rel="stylesheet" href="app.css?v=2026062">
 </head>
 <body>
   <div class="app-shell">
@@ -40,9 +40,10 @@
       </nav>
 
       <div class="sidebar-card">
-        <span>الحالة</span>
-        <strong data-health-label>يتم التحديث</strong>
-        <small data-health-note>تتغير الحالة بعد كل عملية أو مطابقة.</small>
+        <span class="sidebar-card-label">صحة العيادة</span>
+        <strong class="sidebar-card-value" data-health-label>—</strong>
+        <div class="sidebar-health-bar"><div class="sidebar-health-bar-fill"></div></div>
+        <small data-health-note style="color:rgba(255,255,255,0.4);font-size:11px">تتغير بعد كل عملية أو مطابقة</small>
       </div>
     </aside>
 
