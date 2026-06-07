@@ -1,12 +1,14 @@
 :root {
-  --ink: #17212b;
-  --muted: #60717d;
-  --line: #dce7e3;
-  --teal: #087a6a;
-  --teal-soft: #e5f5f1;
-  --blue: #d9f1f7;
+  --ink: #1C1917;
+  --muted: #6B6358;
+  --line: #D6D0C6;
+  --teal: #1A5C38;
+  --teal-soft: #E6F2EC;
+  --blue: #C6DDD0;
   --coral: #ff765d;
-  --paper: #fbfcfa;
+  --paper: #F2EFE8;
+  --sidebar-bg: #0D2419;
+  --gold: #C49A5A;
 }
 
 * { box-sizing: border-box; }
@@ -36,7 +38,7 @@ select { font: inherit; }
   justify-content: space-between;
   gap: 36px;
   padding: 44px;
-  background: #17212b;
+  background: var(--sidebar-bg);
   color: white;
 }
 
@@ -62,11 +64,11 @@ select { font: inherit; }
   font-size: 20px;
 }
 
-.auth-brand small { color: #9fb1bf; }
+.auth-brand small { color: rgba(255,255,255,0.52); }
 
 .eyebrow {
   margin: 0 0 7px;
-  color: #49c8b3;
+  color: var(--gold);
   font-size: 12px;
   font-weight: 800;
 }
@@ -85,7 +87,7 @@ h1 {
 
 .auth-context > div > p:last-child {
   max-width: 560px;
-  color: #c2ced5;
+  color: rgba(255,255,255,0.65);
   line-height: 1.8;
 }
 
@@ -98,14 +100,14 @@ h1 {
 }
 
 .trust-list li {
-  border-inline-start: 3px solid #49c8b3;
+  border-inline-start: 3px solid var(--gold);
   padding-inline-start: 12px;
-  color: #d9e3e8;
+  color: rgba(255,255,255,0.80);
 }
 
 .trial-link {
   width: fit-content;
-  color: #80dfc3;
+  color: var(--gold);
   font-weight: 800;
 }
 
@@ -205,9 +207,11 @@ h1 {
   color: white;
   cursor: pointer;
   font-weight: 800;
+  border-radius: 10px;
+  transition: background 0.2s;
 }
 
-.primary-action:hover { background: #056457; }
+.primary-action:hover { background: #0D4228; }
 .primary-action:disabled { cursor: wait; opacity: 0.6; }
 
 .form-status {
