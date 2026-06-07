@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>رعاية | إدارة المنصة</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@500;700;800&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="owner.css">
+</head>
+<body>
+  <header class="owner-header">
+    <a href="index.html" class="owner-brand">
+      <img src="assets/riaaya-logo-mark.png" alt="">
+      <span><strong>RIAAYA</strong><small>Platform Control</small></span>
+    </a>
+    <div>
+      <span data-owner-name>Platform Owner</span>
+      <button type="button" data-owner-logout>تسجيل الخروج</button>
+    </div>
+  </header>
+
+  <main class="owner-main">
+    <section class="owner-title">
+      <div>
+        <p>إدارة المنصة</p>
+        <h1>العيادات والتجارب والنشاط</h1>
+      </div>
+      <label>
+        بحث
+        <input type="search" data-owner-search placeholder="اسم العيادة، المدينة، الخطة...">
+      </label>
+    </section>
+
+    <section class="owner-kpis">
+      <article><span>كل العيادات</span><strong data-owner-kpi="all">0</strong></article>
+      <article class="trial"><span>تجارب فعالة</span><strong data-owner-kpi="trial">0</strong></article>
+      <article class="active"><span>اشتراكات فعالة</span><strong data-owner-kpi="active">0</strong></article>
+      <article class="warning"><span>موقوفة</span><strong data-owner-kpi="suspended">0</strong></article>
+    </section>
+
+    <section class="owner-panel landing-panel">
+      <div class="panel-heading">
+        <div><p>الموقع العام</p><h2>تخصيص صفحة الهبوط</h2></div>
+        <span class="owner-hint">هذه الإعدادات تظهر للزوار قبل تسجيل الدخول</span>
+      </div>
+      <form class="landing-form" data-landing-settings-form>
+        <label>
+          لون الهوية
+          <input name="accentColor" type="color" value="#0a7c5c">
+        </label>
+        <label class="toggle-field">
+          <input name="announcementVisible" type="checkbox">
+          إظهار شريط الإعلان
+        </label>
+        <label class="toggle-field">
+          <input name="pricingVisible" type="checkbox">
+          إظهار الأسعار
+        </label>
+        <label class="toggle-field">
+          <input name="testimonialsVisible" type="checkbox">
+          إظهار آراء العملاء
+        </label>
+        <label class="toggle-field">
+          <input name="registrationEnabled" type="checkbox">
+          السماح بالتسجيل من الصفحة
+        </label>
+        <label>
+          نص الإعلان
+          <input name="announcement" type="text">
+        </label>
+        <label>
+          عنوان الشارة
+          <input name="heroBadge" type="text">
+        </label>
+        <label>
+          السطر الأول
+          <input name="heroLine1" type="text">
+        </label>
+        <label>
+          قبل الكلمة الملونة
+          <input name="heroLine2Prefix" type="text">
+        </label>
+        <label>
+          الكلمة الملونة
+          <input name="heroAccent" type="text">
+        </label>
+        <label>
+          قبل الكلمة الذهبية
+          <input name="heroLine3Prefix" type="text">
+        </label>
+        <label>
+          الكلمة الذهبية
+          <input name="heroGold" type="text">
+        </label>
+        <label class="wide-field">
+          وصف البطل
+          <textarea name="heroSubtitle" rows="3"></textarea>
+        </label>
+        <label>
+          زر التجربة
+          <input name="heroPrimaryCta" type="text">
+        </label>
+        <label>
+          نص الإثبات
+          <input name="heroProof" type="text">
+        </label>
+        <label>
+          عنوان المميزات
+          <input name="featuresTitle" type="text">
+        </label>
+        <label>
+          عنوان الأسعار
+          <input name="pricingTitle" type="text">
+        </label>
+        <label class="wide-field">
+          وصف المميزات
+          <textarea name="featuresDescription" rows="2"></textarea>
+        </label>
+        <label>
+          عنوان الدعوة
+          <input name="ctaTitle" type="text">
+        </label>
+        <label>
+          كلمة الدعوة الملونة
+          <input name="ctaAccent" type="text">
+        </label>
+        <label class="wide-field">
+          وصف الدعوة
+          <textarea name="ctaSubtitle" rows="2"></textarea>
+        </label>
+        <label>
+          نص زر التسجيل
+          <input name="formSubmitLabel" type="text">
+        </label>
+        <label>
+          نص رابط النموذج
+          <input name="demoLinkLabel" type="text">
+        </label>
+        <label class="wide-field">
+          نص الفوتر
+          <textarea name="footerText" rows="2"></textarea>
+        </label>
+        <label class="json-field">
+          الإحصائيات JSON
+          <textarea name="statsJson" rows="6" spellcheck="false"></textarea>
+        </label>
+        <label class="json-field">
+          المميزات JSON
+          <textarea name="featuresJson" rows="8" spellcheck="false"></textarea>
+        </label>
+        <label class="json-field">
+          الوحدات JSON
+          <textarea name="modulesJson" rows="8" spellcheck="false"></textarea>
+        </label>
+        <label class="json-field">
+          الخطط JSON
+          <textarea name="plansJson" rows="10" spellcheck="false"></textarea>
+        </label>
+        <label class="json-field">
+          آراء العملاء JSON
+          <textarea name="testimonialsJson" rows="8" spellcheck="false"></textarea>
+        </label>
+        <div class="landing-actions">
+          <button type="submit">حفظ صفحة الهبوط</button>
+          <a href="/" target="_blank" rel="noreferrer">معاينة الصفحة</a>
+          <span data-landing-settings-status></span>
+        </div>
+      </form>
+    </section>
+
+    <section class="owner-grid">
+      <article class="owner-panel">
+        <div class="panel-heading">
+          <div><p>الحسابات</p><h2>كل العيادات</h2></div>
+          <select data-owner-status-filter aria-label="تصفية الحالة">
+            <option value="">كل الحالات</option>
+            <option value="trial">تجربة</option>
+            <option value="active">فعالة</option>
+            <option value="suspended">موقوفة</option>
+            <option value="cancelled">ملغاة</option>
+          </select>
+        </div>
+        <div class="clinic-list" data-clinic-list></div>
+      </article>
+
+      <article class="owner-panel audit-panel">
+        <div class="panel-heading"><div><p>الأمان</p><h2>آخر النشاطات</h2></div></div>
+        <div class="audit-list" data-audit-list></div>
+      </article>
+    </section>
+  </main>
+  <script src="owner.js"></script>
+</body>
+</html>
