@@ -5474,142 +5474,385 @@ html[dir="ltr"] label {
 
 /* ═══════════════════════════════════════════════════════════ */
 
+/* ════════════════════════════════════════════════════════
+   Print document header & footer — screen hidden
+   ════════════════════════════════════════════════════════ */
+#print-doc-header,
+#print-doc-footer {
+  display: none;
+}
+
+/* ════════════════════════════════════════════════════════
+   Report tab bar
+   ════════════════════════════════════════════════════════ */
+.report-tab-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  padding: 16px 20px 0;
+  border-bottom: 2px solid #eee;
+  background: #fafaf8;
+  border-radius: 14px 14px 0 0;
+  overflow-x: auto;
+}
+.report-tab-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-bottom: 12px;
+}
+.report-tab-group-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #aaa;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  padding: 0 6px;
+  white-space: nowrap;
+}
+.report-tab {
+  padding: 6px 14px;
+  border: 1.5px solid #e4e4e4;
+  border-radius: 20px;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  color: #555;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+.report-tab:hover  { background: #f0fdf4; border-color: #6ee7b7; color: #065f46; }
+.report-tab.active {
+  background: var(--color-primary, #0a7c5c);
+  border-color: var(--color-primary, #0a7c5c);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(10,124,92,.25);
+}
+
+/* Compact toolbar below tabs */
+.report-toolbar-compact {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 20px;
+  background: #fff;
+  border-bottom: 1px solid #eee;
+}
+.report-toolbar-dates,
+.report-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ghost-chip {
+  padding: 5px 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #f5f5f5;
+  font-size: 12px;
+  font-weight: 600;
+  color: #555;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.ghost-chip:hover { background: #eaeaea; }
+.print-report-btn {
+  padding: 6px 16px;
+  border: none;
+  border-radius: 8px;
+  background: #1a1a1a;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.print-report-btn:hover { opacity: 0.85; }
+
+/* ════════════════════════════════════════════════════════
+   Inventory / Communications sub-nav
+   ════════════════════════════════════════════════════════ */
+.sub-nav {
+  display: flex;
+  gap: 4px;
+  padding: 0 0 16px;
+  border-bottom: 2px solid #eee;
+  margin-bottom: 20px;
+}
+.sub-nav-tab {
+  padding: 8px 18px;
+  border: 1.5px solid #e0e0e0;
+  border-radius: 10px;
+  background: #fafafa;
+  font-size: 13px;
+  font-weight: 600;
+  color: #555;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.sub-nav-tab:hover  { border-color: #b2dfdb; color: #00695c; background: #e0f2f1; }
+.sub-nav-tab.active {
+  background: var(--color-primary, #0a7c5c);
+  border-color: var(--color-primary, #0a7c5c);
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(10,124,92,.2);
+}
+
+/* ════════════════════════════════════════════════════════
+   PRINT — Proper A4 clinical document output
+   ════════════════════════════════════════════════════════ */
 @media print {
-  body {
+  /* ── Page setup ── */
+  @page {
+    size: A4 portrait;
+    margin: 18mm 15mm 22mm;
+  }
+
+  /* ── Hide everything by default ── */
+  body * { visibility: hidden; }
+
+  /* ── Show print document header ── */
+  #print-doc-header,
+  #print-doc-header * {
+    visibility: visible;
+    display: block !important;
+  }
+  #print-doc-header {
+    position: fixed;
+    top: 0;
+    right: 0;
+    left: 0;
     background: white;
+    padding: 0 0 6mm;
+    border-bottom: 2px solid #1a1a1a;
+    margin-bottom: 8mm;
   }
 
-  .sidebar,
-  .top-actions,
-  .clinic-strip,
-  .side-nav,
-  .ghost-button,
-  .text-button,
-  .focus-exit,
-  .focus-icon-button,
-  .table-focus-overlay,
-  .primary-button {
-    display: none !important;
+  /* ── Clinic letterhead top row ── */
+  .print-doc-top {
+    display: flex !important;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 3mm;
+  }
+  .print-doc-clinic-info {
+    display: flex !important;
+    flex-direction: column;
+    gap: 1mm;
+  }
+  .print-doc-clinic-name {
+    font-size: 13pt;
+    font-weight: 800;
+    color: #111;
+  }
+  .print-doc-clinic-sub {
+    font-size: 9pt;
+    color: #888;
+  }
+  .print-doc-brand {
+    font-size: 18pt;
+    font-weight: 900;
+    color: #0a7c5c;
+    letter-spacing: -0.5px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
-  .app-shell {
-    display: block;
+  /* ── Report title row ── */
+  .print-doc-title-row {
+    display: flex !important;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-top: 2mm;
   }
-
-  .workspace {
-    padding: 0;
-  }
-
-  .view {
-    display: none !important;
-  }
-
-  body.printing-payroll .view[data-view="salaries"],
-  body.printing-salary-slip .view[data-view="salaries"] {
-    display: block !important;
-  }
-
-  body.printing-report .view[data-view="salaries"],
-  body.printing-payroll .view[data-view="reports"],
-  body.printing-salary-slip .view[data-view="reports"] {
-    display: none !important;
-  }
-
-  body.printing-report .view[data-view="reports"] {
-    display: block !important;
-  }
-
-  body.printing-report .topbar,
-  body.printing-report .runtime-banner,
-  body.printing-report .clinic-strip,
-  body.printing-report .report-filter-form,
-  body.printing-report .report-visuals,
-  body.printing-report .report-pagination {
-    display: none !important;
-  }
-
-	  .panel {
-	    border: 0;
-	    padding: 0;
-	  }
-
-  body.printing-salary-slip .report-panel,
-  body.printing-salary-slip .salary-slip-actions {
-    display: none !important;
-  }
-
-  body.printing-salary-slip .salary-slip-panel {
-    display: block !important;
-  }
-
-  body.printing-salary-slip .salary-slip {
-    font-size: 12px;
-  }
-
-  body.printing-salary-slip .salary-slip-heading,
-  body.printing-salary-slip .salary-slip-stats div {
-    break-inside: avoid;
-  }
-
-  body.printing-report .report-toolbar {
-    display: none !important;
-  }
-
-  body.printing-report .full-report-panel > .panel-header {
-    display: none !important;
-  }
-
-  body.printing-report .full-report-panel,
-  body.printing-report .report-page {
-    border: 0;
-    box-shadow: none;
-    background: white;
-  }
-
-  body.printing-report .report-page {
+  .print-doc-title {
+    font-size: 16pt;
+    font-weight: 800;
+    color: #111;
     margin: 0;
-    padding: 0;
-    min-height: auto;
+  }
+  .print-doc-period {
+    font-size: 9pt;
+    color: #666;
+  }
+  .print-doc-rule { display: none !important; }
+
+  /* ── Footer — fixed so it appears on every page ── */
+  #print-doc-footer,
+  #print-doc-footer * { visibility: visible; }
+  #print-doc-footer {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    left: 0;
+    border-top: 1px solid #ddd;
+    background: white;
+    padding: 3mm 0 0;
+  }
+  .print-footer-inner {
+    display: flex !important;
+    justify-content: space-between;
+    font-size: 8pt;
+    color: #888;
+  }
+  .print-page-ref { color: #aaa; }
+
+  /* ── Show ONLY the reports view content ── */
+  body.printing-report .view[data-view="reports"],
+  body.printing-report .view[data-view="reports"] * {
+    visibility: visible;
+  }
+  body.printing-report .view[data-view="reports"] {
+    position: absolute;
+    top: 38mm;   /* below fixed header */
+    right: 0; left: 0;
   }
 
-  body.printing-report .report-page > * {
-    max-width: none;
+  /* ── Salary slip ── */
+  body.printing-salary-slip .view[data-view="salaries"],
+  body.printing-salary-slip .view[data-view="salaries"] * {
+    visibility: visible;
+  }
+  body.printing-salary-slip .view[data-view="salaries"] {
+    position: absolute; top: 0; right: 0; left: 0;
+  }
+  body.printing-salary-slip .report-panel { display: none !important; }
+  body.printing-salary-slip .salary-slip-panel { display: block !important; }
+  body.printing-salary-slip .salary-slip-actions { display: none !important; }
+
+  /* ── Payroll ── */
+  body.printing-payroll .view[data-view="salaries"],
+  body.printing-payroll .view[data-view="salaries"] * { visibility: visible; }
+  body.printing-payroll .view[data-view="salaries"] {
+    position: absolute; top: 0; right: 0; left: 0;
   }
 
-  body.printing-report .report-heading,
-  body.printing-report .report-kpis div,
-  body.printing-report .report-table {
-    break-inside: avoid;
-  }
-
-  body.printing-receipt > *:not(.receipt-modal) {
-    display: none !important;
-  }
-
+  /* ── Receipt ── */
+  body.printing-receipt .receipt-modal,
+  body.printing-receipt .receipt-modal * { visibility: visible; }
   body.printing-receipt .receipt-modal {
-    position: static;
-    display: block !important;
+    position: fixed;
+    inset: 0;
     overflow: visible;
     background: white;
     padding: 0;
+    display: block !important;
   }
-
   body.printing-receipt .receipt-dialog {
     width: 100%;
     box-shadow: none;
     background: white;
   }
+  body.printing-receipt .receipt-dialog-actions { display: none !important; }
+  body.printing-receipt .receipt-document { min-height: 0; margin: 0; padding: 18mm; }
 
-  body.printing-receipt .receipt-dialog-actions {
-    display: none;
+  /* ── Hide ALL chrome inside the report view ── */
+  body.printing-report .report-tab-bar,
+  body.printing-report .report-toolbar-compact,
+  body.printing-report .report-filter-form,
+  body.printing-report .report-visuals,
+  body.printing-report .report-pagination,
+  body.printing-report .report-toolbar,
+  body.printing-report .panel-header,
+  body.printing-report .runtime-banner,
+  body.printing-report .topbar,
+  body.printing-report .table-pagination,
+  body.printing-report .kpi-visuals-bar,
+  body.printing-report .report-chips-bar,
+  body.printing-report [data-export-report-xls],
+  body.printing-report [data-print-selected-report],
+  body.printing-report [data-open-table-focus] {
+    display: none !important;
+    visibility: hidden !important;
   }
 
-  body.printing-receipt .receipt-document {
-    min-height: 0;
+  /* ── Clean panel ── */
+  body.printing-report .full-report-panel,
+  body.printing-report .report-page {
+    border: none;
+    box-shadow: none;
+    background: white;
+    padding: 0;
     margin: 0;
-    padding: 18mm;
   }
-	}
+
+  /* ── KPI summary strip ── */
+  body.printing-report .report-kpis {
+    display: flex !important;
+    gap: 8mm;
+    margin-bottom: 6mm;
+    padding: 3mm 0;
+    border-bottom: 1px solid #ddd;
+  }
+  body.printing-report .report-kpis > div,
+  body.printing-report .report-kpi-tile {
+    flex: 1;
+    border: 1px solid #ddd;
+    border-radius: 4mm;
+    padding: 3mm 4mm;
+    break-inside: avoid;
+  }
+  body.printing-report .report-kpis span { font-size: 8pt; color: #888; display: block; }
+  body.printing-report .report-kpis strong { font-size: 13pt; font-weight: 800; color: #111; display: block; }
+
+  /* ── Tables — clean, professional ── */
+  body.printing-report table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-size: 9pt !important;
+    margin: 4mm 0;
+  }
+  body.printing-report thead tr {
+    background: #f0f0f0 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  body.printing-report th {
+    font-size: 8.5pt !important;
+    font-weight: 700 !important;
+    padding: 2.5mm 3mm !important;
+    border: 1px solid #999 !important;
+    text-align: right !important;
+    color: #222 !important;
+    background: #f0f0f0 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  body.printing-report td {
+    font-size: 9pt !important;
+    padding: 2mm 3mm !important;
+    border: 1px solid #ccc !important;
+    vertical-align: top;
+    color: #222 !important;
+  }
+  body.printing-report tbody tr:nth-child(even) td {
+    background: #f9f9f9 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  body.printing-report .status-pill,
+  body.printing-report .pill {
+    border: 1px solid #999 !important;
+    background: transparent !important;
+    color: #333 !important;
+    padding: 0 4px;
+    border-radius: 3px;
+    font-size: 8pt !important;
+  }
+  body.printing-report .balance-negative { color: #c00 !important; }
+  body.printing-report .balance-positive { color: #060 !important; }
+
+  /* Page breaks */
+  body.printing-report h3,
+  body.printing-report .report-section-title { break-after: avoid; }
+  body.printing-report tr { break-inside: avoid; }
+  body.printing-report thead { display: table-header-group; }
+  body.printing-report tfoot { display: table-footer-group; }
+}
 
 /* ════════════════════════════════════════════════════════
    تكملة الدفع — Follow-up Payment Modal

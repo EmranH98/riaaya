@@ -9097,12 +9097,56 @@ if (els.printSelectedReport) {
   els.printSelectedReport.addEventListener("click", () => {
     if (!canUseFeature("print_reports")) return;
     renderReports();
+    // Populate print document header
+    const pClinic   = document.querySelector("[data-print-clinic-name]");
+    const pTitle    = document.querySelector("[data-print-report-title]");
+    const pPeriod   = document.querySelector("[data-print-report-period]");
+    const pFClinic  = document.querySelector("[data-print-footer-clinic]");
+    const pFDate    = document.querySelector("[data-print-footer-date]");
+    const clinicName = state.settings?.clinicName || "رعاية";
+    if (pClinic)  pClinic.textContent  = clinicName;
+    if (pTitle)   pTitle.textContent   = selectedReportLabel();
+    if (pPeriod)  pPeriod.textContent  = reportDateRangeLabel();
+    if (pFClinic) pFClinic.textContent = clinicName;
+    if (pFDate)   pFDate.textContent   = `طُبع في: ${displayDate(new Date().toISOString().slice(0, 10))}`;
     document.body.classList.add("printing-report");
     document.body.classList.remove("printing-salary-slip");
     setView("reports");
     window.requestAnimationFrame(() => window.print());
   });
 }
+
+// ─── Report tab navigation ─────────────────────────────────────────────────
+document.querySelectorAll("[data-report-tab]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const val = btn.dataset.reportTab;
+    if (!val || !els.reportSelect) return;
+    els.reportSelect.value = val;
+    // Update active tab style
+    document.querySelectorAll("[data-report-tab]").forEach(b =>
+      b.classList.toggle("active", b.dataset.reportTab === val)
+    );
+    renderReports();
+  });
+});
+
+// ─── Inventory sub-nav tabs ────────────────────────────────────────────────
+(function initInventoryTabs() {
+  const tabs = document.querySelectorAll("[data-inventory-tab]");
+  if (!tabs.length) return;
+  function showInventoryTab(activeVal) {
+    tabs.forEach(t => t.classList.toggle("active", t.dataset.inventoryTab === activeVal));
+    // Show/hide sections: suppliers split, items split, orders article
+    document.querySelectorAll("[data-inventory-section]").forEach(el => {
+      el.style.display = el.dataset.inventorySection === activeVal ? "" : "none";
+    });
+  }
+  // Default: show items
+  showInventoryTab("items");
+  tabs.forEach(tab => {
+    tab.addEventListener("click", () => showInventoryTab(tab.dataset.inventoryTab));
+  });
+})();
 
 els.clinicForm.addEventListener("submit", event => {
   event.preventDefault();

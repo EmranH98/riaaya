@@ -8,9 +8,38 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=2026069">
+  <link rel="stylesheet" href="app.css?v=2026070">
 </head>
 <body>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       PRINT-ONLY DOCUMENT HEADER + FOOTER
+       Hidden on screen. Shown as clinic letterhead when printing.
+       ═══════════════════════════════════════════════════════════ -->
+  <div id="print-doc-header" aria-hidden="true">
+    <div class="print-doc-top">
+      <div class="print-doc-clinic-info">
+        <span class="print-doc-clinic-name" data-print-clinic-name>رعاية</span>
+        <span class="print-doc-clinic-sub" data-print-clinic-sub>نظام إدارة العيادات</span>
+      </div>
+      <div class="print-doc-brand">RIAAYA</div>
+    </div>
+    <div class="print-doc-title-row">
+      <h1 class="print-doc-title" data-print-report-title>التقرير</h1>
+      <span class="print-doc-period" data-print-report-period></span>
+    </div>
+    <div class="print-doc-rule"></div>
+  </div>
+
+  <div id="print-doc-footer" aria-hidden="true">
+    <div class="print-footer-inner">
+      <span data-print-footer-clinic></span>
+      <span data-print-footer-date></span>
+      <span class="print-page-ref">رعاية — نظام إدارة العيادات</span>
+    </div>
+  </div>
+  <!-- ════════════════════════════════════════════════════════ -->
+
   <div class="app-shell">
     <aside class="sidebar">
       <a class="brand" href="index.html" aria-label="العودة إلى الصفحة الرئيسية">
@@ -1001,6 +1030,13 @@
       </section>
 
       <section class="view" data-view="inventory">
+        <!-- Inventory sub-nav -->
+        <div class="sub-nav" role="tablist">
+          <button class="sub-nav-tab active" type="button" data-inventory-tab="items">📦 المخزون</button>
+          <button class="sub-nav-tab" type="button" data-inventory-tab="suppliers">🏭 الموردون</button>
+          <button class="sub-nav-tab" type="button" data-inventory-tab="orders">📋 الطلبات</button>
+        </div>
+
         <div class="kpi-grid inventory-kpis">
           <article class="kpi">
             <span>أصناف المخزون</span>
@@ -1024,7 +1060,7 @@
           </article>
         </div>
 
-        <div class="split-layout">
+        <div class="split-layout" data-inventory-section="suppliers">
           <article class="panel">
             <div class="panel-header">
               <div>
@@ -1068,7 +1104,7 @@
           </article>
         </div>
 
-        <div class="split-layout rules-layout">
+        <div class="split-layout rules-layout" data-inventory-section="items">
           <article class="panel">
             <div class="panel-header">
               <div>
@@ -1182,7 +1218,7 @@
           </article>
         </div>
 
-        <article class="panel">
+        <article class="panel" data-inventory-section="orders">
           <div class="panel-header">
             <div>
               <p class="eyebrow">من أين طلبنا؟</p>
@@ -1458,40 +1494,59 @@
 
       <section class="view" data-view="reports">
         <article class="panel full-report-panel">
-          <div class="panel-header report-toolbar">
-            <div>
-              <p class="eyebrow">مركز التقارير</p>
-              <h2>ابحث وحلّل أي جزء من عمل العيادة</h2>
+
+          <!-- Report type tab navigation -->
+          <div class="report-tab-bar" role="tablist" aria-label="نوع التقرير">
+            <div class="report-tab-group">
+              <span class="report-tab-group-label">تشغيلي</span>
+              <button class="report-tab active" type="button" data-report-tab="universal"     role="tab">🔍 بحث شامل</button>
+              <button class="report-tab"        type="button" data-report-tab="patientBalance" role="tab">⚖️ ميزان المريض</button>
+              <button class="report-tab"        type="button" data-report-tab="reconciliation" role="tab">✓ المطابقة</button>
+              <button class="report-tab"        type="button" data-report-tab="byPatient"      role="tab">👤 حسب المريض</button>
+              <button class="report-tab"        type="button" data-report-tab="perProcedure"   role="tab">📋 كل عملية</button>
             </div>
-            <div class="form-actions">
-              <select data-report-select aria-label="اختيار التقرير">
-                <option value="universal">بحث شامل في العيادة</option>
-                <option value="patientBalance">ميزان المريض — تكملة الحسابات</option>
-                <option value="retention">الاحتفاظ بالمرضى — LTV والتسرب</option>
-                <option value="profit">ربح العيادة</option>
-                <option value="reconciliation">مطابقة المرضى والمدفوعات</option>
-                <option value="byPatient">حسب المريض</option>
-                <option value="perProcedure">كل عملية</option>
-                <option value="bookings">الحجوزات والجدول</option>
-                <option value="patients">دليل المرضى والزوار</option>
-                <option value="expenses">المصروفات</option>
-                <option value="costs">قائمة التكاليف</option>
-                <option value="assignments">تعيين الأخصائيين</option>
-              </select>
-              <label class="compact-field">
-                من
-                <input type="date" data-report-date-from>
-              </label>
-              <label class="compact-field">
-                إلى
-                <input type="date" data-report-date-to>
-              </label>
-              <button class="text-button" type="button" data-report-today>اليوم</button>
-              <button class="focus-icon-button" type="button" data-open-table-focus="report" aria-label="عرض التقرير بملء الشاشة" title="عرض التقرير بملء الشاشة">
-                <span aria-hidden="true">⛶</span>
-              </button>
-              <button class="text-button" type="button" data-export-report-xls data-sensitive>تصدير XLS</button>
-              <button class="primary-button" type="button" data-print-selected-report data-sensitive>طباعة التقرير</button>
+            <div class="report-tab-group">
+              <span class="report-tab-group-label">مالي</span>
+              <button class="report-tab" type="button" data-report-tab="profit"    role="tab">💰 الربح</button>
+              <button class="report-tab" type="button" data-report-tab="expenses"  role="tab">💳 المصروفات</button>
+              <button class="report-tab" type="button" data-report-tab="costs"     role="tab">📦 التكاليف</button>
+            </div>
+            <div class="report-tab-group">
+              <span class="report-tab-group-label">تحليلات</span>
+              <button class="report-tab" type="button" data-report-tab="retention"    role="tab">📈 الاحتفاظ</button>
+              <button class="report-tab" type="button" data-report-tab="bookings"     role="tab">📅 الحجوزات</button>
+              <button class="report-tab" type="button" data-report-tab="patients"     role="tab">🗂 المرضى</button>
+              <button class="report-tab" type="button" data-report-tab="assignments"  role="tab">👥 التعيينات</button>
+            </div>
+          </div>
+
+          <!-- Hidden select kept for JS compatibility -->
+          <select data-report-select aria-label="اختيار التقرير" style="display:none">
+            <option value="universal">بحث شامل في العيادة</option>
+            <option value="patientBalance">ميزان المريض — تكملة الحسابات</option>
+            <option value="retention">الاحتفاظ بالمرضى — LTV والتسرب</option>
+            <option value="profit">ربح العيادة</option>
+            <option value="reconciliation">مطابقة المرضى والمدفوعات</option>
+            <option value="byPatient">حسب المريض</option>
+            <option value="perProcedure">كل عملية</option>
+            <option value="bookings">الحجوزات والجدول</option>
+            <option value="patients">دليل المرضى والزوار</option>
+            <option value="expenses">المصروفات</option>
+            <option value="costs">قائمة التكاليف</option>
+            <option value="assignments">تعيين الأخصائيين</option>
+          </select>
+
+          <!-- Compact toolbar: date range + actions only -->
+          <div class="report-toolbar-compact">
+            <div class="report-toolbar-dates">
+              <label class="compact-field">من <input type="date" data-report-date-from></label>
+              <label class="compact-field">إلى <input type="date" data-report-date-to></label>
+              <button class="ghost-chip" type="button" data-report-today>اليوم</button>
+            </div>
+            <div class="report-toolbar-actions">
+              <button class="focus-icon-button" type="button" data-open-table-focus="report" aria-label="عرض التقرير بملء الشاشة">⛶</button>
+              <button class="ghost-chip" type="button" data-export-report-xls data-sensitive>تصدير XLS</button>
+              <button class="print-report-btn" type="button" data-print-selected-report data-sensitive>🖨 طباعة</button>
             </div>
           </div>
           <form class="report-filter-form" data-report-filter-form>
