@@ -6401,3 +6401,126 @@ html[dir="ltr"] label {
 }
 .day-schedule-booking[draggable="true"] { cursor: grab; }
 .day-schedule-booking[draggable="true"]:active { cursor: grabbing; }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   SAFETY FEATURES — Save indicator, Confirm modal, Change password
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Save-status indicator ─────────────────────────────────────────────────── */
+.save-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.25s, transform 0.25s;
+  pointer-events: none;
+  border: 1px solid transparent;
+}
+.save-indicator:not([hidden]) {
+  opacity: 1;
+  transform: translateY(0);
+}
+.save-indicator--saving {
+  background: rgba(180,130,20,0.1);
+  border-color: rgba(180,130,20,0.3);
+  color: #7a5700;
+}
+.save-indicator--saved {
+  background: rgba(10,124,92,0.1);
+  border-color: rgba(10,124,92,0.3);
+  color: #0a7c5c;
+}
+.save-indicator--error {
+  background: rgba(200,30,30,0.1);
+  border-color: rgba(200,30,30,0.3);
+  color: #b00;
+}
+
+/* ── Confirm modal (safe-delete) ────────────────────────────────────────────── */
+.confirm-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.45);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+.confirm-modal:not([hidden]) {
+  opacity: 1;
+  pointer-events: all;
+}
+.confirm-dialog {
+  background: #fff;
+  border-radius: 16px;
+  padding: 28px 28px 22px;
+  max-width: 440px;
+  width: calc(100% - 40px);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.22);
+  transform: scale(0.94) translateY(8px);
+  transition: transform 0.22s cubic-bezier(.34,1.3,.64,1);
+  direction: rtl;
+}
+.confirm-modal:not([hidden]) .confirm-dialog {
+  transform: scale(1) translateY(0);
+}
+.confirm-dialog-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.confirm-dialog-icon {
+  font-size: 22px;
+  line-height: 1;
+}
+.confirm-dialog-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: #111;
+}
+.confirm-dialog-body {
+  margin: 0 0 22px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #444;
+}
+.confirm-dialog-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+/* ── Danger button ──────────────────────────────────────────────────────────── */
+.danger-button {
+  background: #c0392b;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 9px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s, box-shadow 0.18s;
+}
+.danger-button:hover { background: #a93226; box-shadow: 0 2px 8px rgba(176,0,0,0.2); }
+.danger-button:active { background: #922b21; }
+
+/* ── Change-password form hints ─────────────────────────────────────────────── */
+.change-password-hint {
+  font-size: 12px;
+  color: #777;
+  margin: -8px 0 14px;
+}

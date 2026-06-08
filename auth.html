@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@500;700;800&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="auth.css?v=2026061">
+  <link rel="stylesheet" href="auth.css?v=2026080">
 </head>
 <body>
   <main class="auth-shell">
@@ -31,6 +31,15 @@
     </section>
 
     <section class="auth-workspace">
+      <div id="session-expired-banner" class="auth-notice auth-notice--warn" hidden>
+        <span>⏱</span>
+        <span>انتهت جلستك. يرجى تسجيل الدخول مجدداً لحماية بياناتك.</span>
+      </div>
+      <script>
+        if (new URLSearchParams(location.search).get("expired") === "1") {
+          document.getElementById("session-expired-banner").removeAttribute("hidden");
+        }
+      </script>
       <div class="auth-tabs" role="tablist" aria-label="الدخول أو التسجيل">
         <button class="active" type="button" data-auth-tab="login">تسجيل الدخول</button>
         <button type="button" data-auth-tab="register">إنشاء حساب عيادة</button>

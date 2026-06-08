@@ -263,6 +263,48 @@ function register(req, res) {
   });
 }
 
+function changePassword(req, res) {
+  const auth = requireSession(req, res, { csrf: true });
+  if (!auth) return;
+
+  const oldPassword = String(req.body?.oldPassword || "");
+  const newPassword = String(req.body?.newPassword || "");
+
+  if (!oldPassword || !newPassword) {
+    sendJson(res, 400, { error: "missing_fields" });
+    return;
+  }
+  if (!validatePassword(newPassword)) {
+    sendJson(res, 400, { error: "weak_password" });
+    return;
+  }
+
+  const user = db.prepare("select * from users where id = ?").get(auth.user.id);
+  if (!user || !verifyPassword(oldPassword, user.password_hash)) {
+    sendJson(res, 401, { error: "invalid_old_password" });
+    return;
+  }
+
+  const updatedAt = nowIso();
+  db.prepare("update users set password_hash = ?, updated_at = ? where id = ?")
+    .run(hashPassword(newPassword), updatedAt, auth.user.id);
+
+  // Invalidate all other sessions for this user so old password can't be reused
+  db.prepare("delete from sessions where user_id = ? and token_hash != ?")
+    .run(auth.user.id, auth.session.tokenHash);
+
+  audit({
+    clinicId: auth.user.clinicId || null,
+    userId: auth.user.id,
+    action: "change_password",
+    entity: "user",
+    entityId: auth.user.id,
+    ipAddress: clientIp(req)
+  });
+
+  sendJson(res, 200, { ok: true });
+}
+
 function logout(req, res) {
   const auth = authenticateRequest(req);
   if (auth && req.headers["x-csrf-token"] === auth.session.csrfToken) {
@@ -297,6 +339,10 @@ export default async function authHandler(req, res, url) {
   }
   if (req.method === "POST" && url.pathname === "/api/auth/logout") {
     logout(req, res);
+    return;
+  }
+  if (req.method === "POST" && url.pathname === "/api/auth/change-password") {
+    changePassword(req, res);
     return;
   }
   sendJson(res, 404, { error: "auth_route_not_found" });

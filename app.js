@@ -1867,6 +1867,136 @@ function showToast(message, type = "success") {
 }
 // ──────────────────────────────────────────────────────────────────────────
 
+// ─── Safe-delete confirmation modal ───────────────────────────────────────
+// Returns a Promise<boolean>.  Replaces window.confirm() everywhere.
+function showConfirm(message, { title = "تأكيد الحذف", icon = "⚠️", okLabel = "تأكيد الحذف", okClass = "danger-button" } = {}) {
+  return new Promise(resolve => {
+    const modal  = document.getElementById("confirm-modal");
+    const titleEl = document.getElementById("confirm-modal-title");
+    const bodyEl  = document.getElementById("confirm-modal-body");
+    const iconEl  = document.getElementById("confirm-modal-icon");
+    const okBtn  = document.getElementById("confirm-modal-ok");
+    const cancelBtn = document.getElementById("confirm-modal-cancel");
+    if (!modal) { resolve(window.confirm(message)); return; }
+
+    titleEl.textContent = title;
+    bodyEl.textContent  = message;
+    iconEl.textContent  = icon;
+    okBtn.textContent   = okLabel;
+    okBtn.className     = okClass;
+
+    modal.removeAttribute("hidden");
+
+    function finish(result) {
+      modal.setAttribute("hidden", "");
+      okBtn.removeEventListener("click", onOk);
+      cancelBtn.removeEventListener("click", onCancel);
+      modal.removeEventListener("click", onBackdrop);
+      document.removeEventListener("keydown", onEsc);
+      resolve(result);
+    }
+    const onOk = () => finish(true);
+    const onCancel = () => finish(false);
+    const onBackdrop = e => { if (e.target === modal) finish(false); };
+    const onEsc = e => { if (e.key === "Escape") finish(false); };
+
+    okBtn.addEventListener("click", onOk);
+    cancelBtn.addEventListener("click", onCancel);
+    modal.addEventListener("click", onBackdrop);
+    document.addEventListener("keydown", onEsc);
+  });
+}
+
+// ─── Save-status indicator ────────────────────────────────────────────────
+let _saveIndicatorTimer = null;
+function setSaveIndicator(state) {
+  const el = document.querySelector("[data-save-indicator]");
+  if (!el) return;
+  clearTimeout(_saveIndicatorTimer);
+  el.removeAttribute("hidden");
+  el.className = `save-indicator save-indicator--${state}`;
+  if (state === "saving") {
+    el.textContent = "💾 جاري الحفظ...";
+  } else if (state === "saved") {
+    el.textContent = "✓ محفوظ";
+    _saveIndicatorTimer = setTimeout(() => el.setAttribute("hidden", ""), 2500);
+  } else if (state === "error") {
+    el.textContent = "⚠ فشل الحفظ";
+    _saveIndicatorTimer = setTimeout(() => el.setAttribute("hidden", ""), 5000);
+  }
+}
+
+// ─── Change-password modal ────────────────────────────────────────────────
+(function initChangePassword() {
+  const openBtn  = document.querySelector("[data-open-change-password]");
+  const modal    = document.getElementById("change-password-modal");
+  const cancelBtn = document.getElementById("change-password-cancel");
+  const form     = document.getElementById("change-password-form");
+  if (!modal || !form) return;
+
+  function openModal() { modal.removeAttribute("hidden"); form.reset(); }
+  function closeModal() { modal.setAttribute("hidden", ""); }
+
+  openBtn?.addEventListener("click", openModal);
+  cancelBtn?.addEventListener("click", closeModal);
+  modal.addEventListener("click", e => { if (e.target === modal) closeModal(); });
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape" && !modal.hasAttribute("hidden")) closeModal();
+  });
+
+  form.addEventListener("submit", async e => {
+    e.preventDefault();
+    if (runtime.mode !== "live") {
+      showToast("تغيير كلمة المرور متاح فقط في الحسابات الحقيقية", "error");
+      return;
+    }
+    const fd = new FormData(form);
+    const oldPassword = fd.get("oldPassword");
+    const newPassword = fd.get("newPassword");
+    const confirmPassword = fd.get("confirmPassword");
+
+    if (newPassword !== confirmPassword) {
+      showToast("كلمتا المرور غير متطابقتين", "error");
+      return;
+    }
+    if (newPassword.length < 12) {
+      showToast("كلمة المرور الجديدة يجب أن تكون 12 حرفاً على الأقل", "error");
+      return;
+    }
+
+    const submitBtn = form.querySelector("[type=submit]");
+    submitBtn.disabled = true;
+    submitBtn.textContent = "جاري الحفظ...";
+
+    try {
+      const response = await fetch("/api/auth/change-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-Token": runtime.csrfToken
+        },
+        body: JSON.stringify({ oldPassword, newPassword })
+      });
+      const result = await response.json().catch(() => ({}));
+      if (response.ok) {
+        closeModal();
+        showToast("✓ تم تغيير كلمة المرور بنجاح", "success");
+      } else if (response.status === 401) {
+        showToast("كلمة المرور الحالية غير صحيحة", "error");
+      } else {
+        showToast(result.error || "تعذر تغيير كلمة المرور", "error");
+      }
+    } catch {
+      showToast("خطأ في الاتصال بالخادم", "error");
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "حفظ كلمة المرور";
+    }
+  });
+})();
+
+// ──────────────────────────────────────────────────────────────────────────
+
 // ─── تكملة الدفع — Follow-up Payment ─────────────────────────────────────
 function openFollowupModal(entryId) {
   const entry = state.entries.find(e => e.id === entryId);
@@ -1983,6 +2113,7 @@ function saveState() {
   }
   if (!runtime.ready) return;
   runtime.savePending = true;
+  setSaveIndicator("saving");
   clearTimeout(runtime.saveTimer);
   runtime.saveTimer = setTimeout(flushLiveState, 350);
 }
@@ -2008,6 +2139,7 @@ async function saveStateImmediately() {
   runtime.savePending = false;
   if (!await waitForSaveIdle()) throw new Error("save_busy");
   runtime.saveInFlight = true;
+  setSaveIndicator("saving");
   try {
     const response = await fetch("/api/clinic-state", {
       method: "PUT",
@@ -2020,13 +2152,15 @@ async function saveStateImmediately() {
     const result = await response.json().catch(() => ({}));
     if (response.ok) {
       runtime.stateVersion = Number(result.stateVersion ?? runtime.stateVersion);
+      setSaveIndicator("saved");
       return true;
     }
-    if (response.status === 401) location.href = "/login";
+    if (response.status === 401) { location.href = "/login?expired=1"; return false; }
     if (response.status === 409) {
       alert("تم تحديث بيانات العيادة من مستخدم آخر. سنعيد تحميل أحدث نسخة لمنع فقدان البيانات.");
       location.reload();
     }
+    setSaveIndicator("error");
     throw new Error(result.error || "save_failed");
   } finally {
     runtime.saveInFlight = false;
@@ -2048,13 +2182,18 @@ async function flushLiveState() {
       body: JSON.stringify({ state, stateVersion: runtime.stateVersion })
     });
     const result = await response.json().catch(() => ({}));
-    if (response.ok) runtime.stateVersion = Number(result.stateVersion ?? runtime.stateVersion);
-    if (response.status === 401) location.href = "/login";
+    if (response.ok) {
+      runtime.stateVersion = Number(result.stateVersion ?? runtime.stateVersion);
+      setSaveIndicator("saved");
+    }
+    if (response.status === 401) { location.href = "/login?expired=1"; return; }
     if (response.status === 409) {
       alert("تم تحديث بيانات العيادة من مستخدم آخر. سنعيد تحميل أحدث نسخة لمنع فقدان البيانات.");
       location.reload();
     }
+    if (!response.ok) setSaveIndicator("error");
   } catch {
+    setSaveIndicator("error");
     // A later user action retries the save without blocking the current screen.
   } finally {
     runtime.saveInFlight = false;
@@ -9913,7 +10052,7 @@ document.addEventListener("click", async event => {
 
   if (deleteExpenseId) {
     if (!canUseFeature("delete_expense")) return;
-    if (!confirm("هل تريد حذف هذا المصروف؟")) return;
+    if (!await showConfirm("هل تريد حذف هذا المصروف؟")) return;
     state.expenses = (state.expenses || []).filter(expense => expense.id !== deleteExpenseId);
     saveState();
     render();
@@ -9923,7 +10062,7 @@ document.addEventListener("click", async event => {
   if (deleteExpenseSubgroupId && deleteExpenseGroupId) {
     if (!canUseFeature("manage_expense_categories")) return;
     const used = (state.expenses || []).some(expense => expense.subgroupId === deleteExpenseSubgroupId);
-    if (used && !confirm("هذه الفئة مستخدمة في مصروفات سابقة. هل تريد إخفاء الفئة من القائمة؟ لن تحذف المصروفات.")) return;
+    if (used && !await showConfirm("هذه الفئة مستخدمة في مصروفات سابقة. هل تريد إخفاء الفئة من القائمة؟ لن تحذف المصروفات.", { title: "إخفاء الفئة", icon: "📁", okLabel: "إخفاء", okClass: "danger-button" })) return;
     state.expenseGroups = (state.expenseGroups || []).map(group => {
       if (group.id !== deleteExpenseGroupId) return group;
       return { ...group, subgroups: group.subgroups.filter(subgroup => subgroup.id !== deleteExpenseSubgroupId) };
@@ -9966,7 +10105,7 @@ document.addEventListener("click", async event => {
 
   if (deletePatientId) {
     if (!canUseFeature("delete_patient")) return;
-    if (!confirm("هل تريد حذف ملف المريض أو الزائر؟ ستبقى العمليات والحجوزات محفوظة بدون رابط الملف.")) return;
+    if (!await showConfirm("هل تريد حذف ملف المريض أو الزائر؟ ستبقى العمليات والحجوزات محفوظة بدون رابط الملف.")) return;
     state.patients = state.patients.filter(patient => patient.id !== deletePatientId);
     state.entries = state.entries.map(entry => entry.patientId === deletePatientId ? { ...entry, patientId: "" } : entry);
     state.bookings = state.bookings.map(booking => booking.patientId === deletePatientId ? { ...booking, patientId: "" } : booking);
@@ -10025,7 +10164,7 @@ document.addEventListener("click", async event => {
     const isUsed = state.entries.some(entry => (
       entry.doctorId === deleteStaffId || entry.specialistId === deleteStaffId
     ));
-    if (isUsed && !confirm("هذا الموظف مرتبط بعمليات سابقة. هل تريد حذفه؟")) return;
+    if (isUsed && !await showConfirm("هذا الموظف مرتبط بعمليات سابقة. هل تريد حذفه؟")) return;
     state.staff = state.staff.filter(member => member.id !== deleteStaffId);
     saveState();
     render();
@@ -10034,7 +10173,7 @@ document.addEventListener("click", async event => {
   if (deleteServiceId) {
     if (!canViewSensitive()) return;
     const isUsed = state.entries.some(entry => entry.serviceId === deleteServiceId);
-    if (isUsed && !confirm("هذه الخدمة مرتبطة بعمليات سابقة. هل تريد حذفها؟")) return;
+    if (isUsed && !await showConfirm("هذه الخدمة مرتبطة بعمليات سابقة. هل تريد حذفها؟")) return;
     state.services = state.services.filter(service => service.id !== deleteServiceId);
     state.rules = state.rules.filter(rule => rule.serviceId !== deleteServiceId);
     saveState();
@@ -10051,7 +10190,7 @@ document.addEventListener("click", async event => {
   if (deleteSupplierId) {
     const isUsed = state.inventory.some(item => item.supplierId === deleteSupplierId)
       || state.purchaseOrders.some(order => order.supplierId === deleteSupplierId);
-    if (isUsed && !confirm("هذا المورد مرتبط بأصناف أو طلبات. هل تريد حذفه؟")) return;
+    if (isUsed && !await showConfirm("هذا المورد مرتبط بأصناف أو طلبات. هل تريد حذفه؟")) return;
     state.suppliers = state.suppliers.filter(supplier => supplier.id !== deleteSupplierId);
     state.inventory = state.inventory.map(item => (
       item.supplierId === deleteSupplierId ? { ...item, supplierId: "" } : item
@@ -10062,14 +10201,14 @@ document.addEventListener("click", async event => {
 
   if (deleteInventoryId) {
     const isUsed = state.purchaseOrders.some(order => order.itemId === deleteInventoryId);
-    if (isUsed && !confirm("هذا الصنف مرتبط بسجل طلبات. هل تريد حذفه من قائمة المخزون؟")) return;
+    if (isUsed && !await showConfirm("هذا الصنف مرتبط بسجل طلبات. هل تريد حذفه من قائمة المخزون؟")) return;
     state.inventory = state.inventory.filter(item => item.id !== deleteInventoryId);
     saveState();
     render();
   }
 
   if (deleteOrderId) {
-    if (!confirm("هل تريد حذف سجل الطلب؟ لن يتم تعديل كمية المخزون تلقائياً.")) return;
+    if (!await showConfirm("هل تريد حذف سجل الطلب؟ لن يتم تعديل كمية المخزون تلقائياً.")) return;
     state.purchaseOrders = state.purchaseOrders.filter(order => order.id !== deleteOrderId);
     saveState();
     render();
@@ -10077,7 +10216,7 @@ document.addEventListener("click", async event => {
 
   if (deleteBookingId) {
     if (!canUseFeature("delete_appointment")) return;
-    if (!confirm("هل تريد حذف هذا الحجز؟")) return;
+    if (!await showConfirm("هل تريد حذف هذا الحجز؟")) return;
     state.bookings = state.bookings.filter(booking => booking.id !== deleteBookingId);
     saveState();
     render();
@@ -10132,7 +10271,7 @@ document.addEventListener("click", async event => {
 
   if (deleteAccountId) {
     if (!canManagePermissions() || deleteAccountId === "account-admin" || deleteAccountId === state.currentAccountId) return;
-    if (!confirm("هل تريد حذف هذا المستخدم نهائياً؟")) return;
+    if (!await showConfirm("هل تريد حذف هذا المستخدم نهائياً؟", { title: "حذف المستخدم", okLabel: "حذف نهائي" })) return;
     if (runtime.mode === "live") {
       const response = await fetch(`/api/clinic-users/${encodeURIComponent(deleteAccountId)}`, {
         method: "DELETE",
@@ -10169,7 +10308,7 @@ document.addEventListener("click", async event => {
 
   if (deletePermissionId) {
     if (!canManagePermissions()) return;
-    if (!confirm("هل تريد حذف هذه الصلاحية من المستخدمين المرتبطين بها؟")) return;
+    if (!await showConfirm("هل تريد حذف هذه الصلاحية من المستخدمين المرتبطين بها؟", { title: "حذف الصلاحية" })) return;
     const updatedAccounts = state.accounts.map(account => {
       if (account.role === "admin") return account;
       return normalizeAccount({
@@ -10254,9 +10393,9 @@ document.addEventListener("keydown", event => {
   }
 });
 
-document.querySelector("[data-clear-entries]").addEventListener("click", () => {
+document.querySelector("[data-clear-entries]").addEventListener("click", async () => {
   if (!canViewSensitive()) return;
-  if (!confirm("سيتم مسح سجل التاريخ المحدد فقط. هل أنت متأكد؟")) return;
+  if (!await showConfirm("سيتم مسح سجل التاريخ المحدد فقط. هل أنت متأكد؟", { title: "مسح سجل اليوم", okLabel: "مسح السجل" })) return;
   state.entries = state.entries.filter(entry => entry.date !== state.settings.activeDate);
   delete state.reconciliations[state.settings.activeDate];
   saveState();
@@ -10351,8 +10490,9 @@ async function restoreClinicJson(file) {
   const clinicSource = runtime.session?.clinic || { name: importedState.settings?.clinicName || state.settings?.clinicName };
   const nextState = hydrateClinicState(importedState, clinicSource, accountSource || []);
   const summary = backupRestoreSummary(nextState);
-  const confirmed = confirm(
-    `سيتم استبدال بيانات العيادة الحالية ببيانات هذه النسخة.\n\n${summary}\n\nقبل المتابعة، تأكد أنك نزلت نسخة JSON من الوضع الحالي. هل تريد الاسترجاع الآن؟`
+  const confirmed = await showConfirm(
+    `سيتم استبدال بيانات العيادة الحالية ببيانات هذه النسخة.\n${summary}\nقبل المتابعة، تأكد أنك نزلت نسخة JSON من الوضع الحالي.`,
+    { title: "استرجاع نسخة احتياطية", icon: "♻️", okLabel: "استرجاع الآن" }
   );
   if (!confirmed) return;
 
@@ -10630,8 +10770,8 @@ document.querySelector("[data-restore-clinic-json]")?.addEventListener("change",
   if (file) await restoreClinicJson(file);
 });
 
-document.querySelector("[data-clear-leads]").addEventListener("click", () => {
-  if (!confirm("هل تريد مسح طلبات التجربة المحفوظة على هذا الجهاز؟")) return;
+document.querySelector("[data-clear-leads]").addEventListener("click", async () => {
+  if (!await showConfirm("هل تريد مسح طلبات التجربة المحفوظة على هذا الجهاز؟", { title: "مسح طلبات التجربة", okLabel: "مسح الطلبات" })) return;
   storageRemove(LEADS_KEY);
   render();
 });

@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=2026070">
+  <link rel="stylesheet" href="app.css?v=2026080">
 </head>
 <body>
 
@@ -111,6 +111,7 @@
               <div class="notification-list" data-notification-list></div>
             </div>
           </div>
+          <div class="save-indicator" data-save-indicator aria-live="polite" aria-label="حالة الحفظ" hidden></div>
           <a href="index.html" class="ghost-button">الصفحة الرئيسية</a>
           <a href="/login" class="ghost-button" data-login-link>دخول العيادات</a>
           <button class="ghost-button" type="button" data-logout-button hidden>تسجيل الخروج</button>
@@ -1630,8 +1631,9 @@
               <small data-storage-status-meta></small>
             </div>
             <div class="storage-actions">
-              <button class="dark-button" type="button" data-download-clinic-json>تنزيل نسخة JSON</button>
+              <button class="dark-button" type="button" data-download-clinic-json>⬇ تنزيل نسخة JSON</button>
               <button class="text-button" type="button" data-export-clinic-csv>تصدير CSV</button>
+              <button class="text-button" type="button" data-open-change-password>🔐 تغيير كلمة المرور</button>
               <button class="text-button danger" type="button" data-restore-clinic-json-action>استرجاع JSON</button>
               <input type="file" accept="application/json,.json" data-restore-clinic-json hidden>
             </div>
@@ -2346,6 +2348,49 @@
         <div class="followup-actions">
           <button type="button" class="followup-cancel-btn" data-close-followup>إلغاء</button>
           <button type="button" class="followup-submit-btn" data-submit-followup>تأكيد التكملة ←</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ─── Safe-delete confirmation modal ──────────────────────────────────── -->
+  <div class="confirm-modal" id="confirm-modal" role="alertdialog" aria-modal="true"
+       aria-labelledby="confirm-modal-title" aria-describedby="confirm-modal-body" hidden>
+    <div class="confirm-dialog">
+      <div class="confirm-dialog-header">
+        <span class="confirm-dialog-icon" id="confirm-modal-icon" aria-hidden="true">⚠️</span>
+        <h3 id="confirm-modal-title" class="confirm-dialog-title">تأكيد العملية</h3>
+      </div>
+      <p id="confirm-modal-body" class="confirm-dialog-body"></p>
+      <div class="confirm-dialog-actions">
+        <button class="ghost-button" type="button" id="confirm-modal-cancel">إلغاء</button>
+        <button class="danger-button" type="button" id="confirm-modal-ok">تأكيد الحذف</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Change-password modal ─────────────────────────────────────────── -->
+  <div class="confirm-modal" id="change-password-modal" role="dialog" aria-modal="true"
+       aria-labelledby="change-password-modal-title" hidden>
+    <div class="confirm-dialog" style="max-width:400px">
+      <div class="confirm-dialog-header">
+        <span class="confirm-dialog-icon" aria-hidden="true">🔐</span>
+        <h3 id="change-password-modal-title" class="confirm-dialog-title">تغيير كلمة المرور</h3>
+      </div>
+      <form id="change-password-form" class="practical-form" novalidate>
+        <label>كلمة المرور الحالية
+          <input type="password" name="oldPassword" autocomplete="current-password" required>
+        </label>
+        <label>كلمة المرور الجديدة
+          <input type="password" name="newPassword" autocomplete="new-password" minlength="12" required>
+        </label>
+        <label>تأكيد كلمة المرور الجديدة
+          <input type="password" name="confirmPassword" autocomplete="new-password" minlength="12" required>
+        </label>
+        <p class="change-password-hint">12 حرفاً على الأقل مع أرقام وحروف</p>
+        <div class="confirm-dialog-actions">
+          <button class="ghost-button" type="button" id="change-password-cancel">إلغاء</button>
+          <button class="dark-button" type="submit">حفظ كلمة المرور</button>
         </div>
       </form>
     </div>

@@ -12,6 +12,51 @@ import { db } from "./lib/database.js";
 const root = fileURLToPath(new URL(".", import.meta.url));
 const port = Number(process.env.PORT || 4174);
 
+// ── Simple in-memory rate limiter ──────────────────────────────────────────
+// Keeps a sliding window per IP. Evicts stale entries every 5 minutes so
+// memory stays bounded even on busy servers.
+const _rateBuckets = new Map();
+setInterval(() => {
+  const cutoff = Date.now() - 60_000;
+  for (const [key, bucket] of _rateBuckets) {
+    bucket.hits = bucket.hits.filter(t => t > cutoff);
+    if (!bucket.hits.length) _rateBuckets.delete(key);
+  }
+}, 5 * 60_000).unref();
+
+function getClientIp(req) {
+  return String(
+    req.headers["x-forwarded-for"]?.split(",")[0]?.trim()
+    || req.socket?.remoteAddress
+    || "unknown"
+  ).slice(0, 45);
+}
+
+/**
+ * Returns true and sends a 429 if the IP has exceeded maxHits in windowMs.
+ * @param {Request} req
+ * @param {Response} res
+ * @param {{ windowMs?: number, maxHits?: number }} opts
+ */
+function isRateLimited(req, res, { windowMs = 60_000, maxHits = 60 } = {}) {
+  const ip = getClientIp(req);
+  const now = Date.now();
+  const cutoff = now - windowMs;
+  let bucket = _rateBuckets.get(ip);
+  if (!bucket) { bucket = { hits: [] }; _rateBuckets.set(ip, bucket); }
+  bucket.hits = bucket.hits.filter(t => t > cutoff);
+  bucket.hits.push(now);
+  if (bucket.hits.length > maxHits) {
+    res.writeHead(429, {
+      "Content-Type": "application/json; charset=utf-8",
+      "Retry-After": Math.ceil(windowMs / 1000)
+    });
+    res.end(JSON.stringify({ error: "too_many_requests" }));
+    return true;
+  }
+  return false;
+}
+
 const types = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
@@ -109,6 +154,8 @@ const server = createServer(async (req, res) => {
   );
 
   if (url.pathname.startsWith("/api/auth/")) {
+    // Tighter limit for auth endpoints: 20 req/min per IP
+    if (isRateLimited(req, res, { windowMs: 60_000, maxHits: 20 })) return;
     if (!await attachBody(req, res)) return;
     await authHandler(req, adaptResponse(res), url);
     return;
@@ -121,18 +168,23 @@ const server = createServer(async (req, res) => {
     || url.pathname.startsWith("/api/clinic-users")
     || url.pathname === "/api/clinic-integrations"
   ) {
+    // Clinic API: 120 req/min — allows normal debounced saves
+    if (isRateLimited(req, res, { windowMs: 60_000, maxHits: 120 })) return;
     if (!await attachBody(req, res)) return;
     await clinicHandler(req, adaptResponse(res), url);
     return;
   }
 
   if (url.pathname.startsWith("/api/owner/")) {
+    if (isRateLimited(req, res, { windowMs: 60_000, maxHits: 60 })) return;
     if (!await attachBody(req, res)) return;
     await ownerHandler(req, adaptResponse(res), url);
     return;
   }
 
   if (url.pathname.startsWith("/api/public/")) {
+    // Public booking API: 30 req/min — stops online booking spam
+    if (isRateLimited(req, res, { windowMs: 60_000, maxHits: 30 })) return;
     await publicHandler(req, adaptResponse(res), url);
     return;
   }
