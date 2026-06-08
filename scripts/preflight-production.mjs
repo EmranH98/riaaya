@@ -2,6 +2,7 @@ import { access, mkdir, unlink, writeFile } from "node:fs/promises";
 import { constants } from "node:fs";
 import { dirname } from "node:path";
 import { validatePassword } from "../lib/security.js";
+import { storageReadiness } from "../lib/storage-policy.js";
 
 const required = [
   "RIAAYA_DB_PATH",
@@ -49,6 +50,7 @@ if (allowedOrigin && !allowedOrigin.startsWith("https://")) {
 }
 
 const databasePath = String(process.env.RIAAYA_DB_PATH || "");
+const backupPath = String(process.env.RIAAYA_BACKUP_DIR || "");
 if (databasePath) {
   const databaseDirectory = dirname(databasePath);
   const testPath = `${databaseDirectory}/.riaaya-write-test-${Date.now()}`;
@@ -60,6 +62,13 @@ if (databasePath) {
   } catch (error) {
     errors.push(`RIAAYA_DB_PATH directory is not writable: ${databaseDirectory}`);
   }
+}
+
+const readiness = storageReadiness({ databasePath, backupPath });
+if (readiness.deploymentMode === "preview") {
+  warnings.push("RIAAYA_DEPLOYMENT_MODE=preview is demo-only and must not be used for real patient data.");
+} else if (!readiness.safeForRealData) {
+  errors.push("Real patient data storage is not ready. Use a persistent /data database path plus durable backup directory, or a managed cloud database.");
 }
 
 warnings.forEach(message => console.warn(`Warning: ${message}`));

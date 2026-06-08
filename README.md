@@ -77,7 +77,7 @@ Do not use Vercel static hosting for the real SaaS backend. Vercel can serve the
 
 ### Render Free Preview
 
-The default `render.yaml` deploys a free Render preview service with `RIAAYA_DB_PATH=/tmp/riaaya.sqlite`.
+The default `render.yaml` deploys a free Render preview service with `RIAAYA_DEPLOYMENT_MODE=preview` and `RIAAYA_DB_PATH=/tmp/riaaya.sqlite`.
 
 This avoids payment, but it is not production storage. Free Render services can restart, spin down, redeploy, and lose local filesystem data. Use this only to test the online backend, login, registration, owner dashboard, permissions, and demo flows. Do not enter real patient data.
 
@@ -88,7 +88,7 @@ Email: preview-owner@riaaya.local
 Password: PreviewOwner1!
 ```
 
-Change to `render.production.yaml` and private Render environment variables before using Riaaya with real clinics.
+Change to `render.production.yaml`, `RIAAYA_DEPLOYMENT_MODE=production`, persistent storage, and private Render environment variables before using Riaaya with real clinics.
 
 ### Render Production Launch
 
@@ -106,11 +106,13 @@ The repository includes `Dockerfile` and `render.production.yaml` for a practica
 6. Deploy and wait for `/healthz` to return `200`.
 7. Open `/login` and sign in with the owner credentials you set.
 
-Before deploying, test the production settings locally:
+Before deploying, test the production settings on a host/container where `/data` is mounted:
 
 ```bash
 NODE_ENV=production \
-RIAAYA_DB_PATH=/tmp/riaaya-prod-test.sqlite \
+RIAAYA_DEPLOYMENT_MODE=production \
+RIAAYA_DB_PATH=/data/riaaya.sqlite \
+RIAAYA_BACKUP_DIR=/data/backups \
 RIAAYA_OWNER_EMAIL=owner@example.com \
 RIAAYA_OWNER_PASSWORD='ReplaceWithAStrong1!' \
 RIAAYA_ENCRYPTION_KEY='replace-with-a-long-random-secret-at-least-32' \

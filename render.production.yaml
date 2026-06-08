@@ -12,6 +12,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: RIAAYA_DEPLOYMENT_MODE
+        value: production
       - key: PORT
         value: 4174
       - key: RIAAYA_DB_PATH

@@ -7384,20 +7384,20 @@ function renderStorageSafety() {
 
   const localTrial = runtime.mode !== "live";
   const storage = storageSafetyStatus?.storage || {};
-  const safe = localTrial ? false : Boolean(storage.safeForPilot);
+  const safe = localTrial ? false : Boolean(storage.safeForRealData || storage.safeForPilot);
   const badgeClass = safe ? "good" : localTrial ? "warn" : "bad";
   const title = safe
-    ? "جاهز لتجربة عيادة واحدة بحذر"
+    ? "جاهز لتجربة عيادة حقيقية بحذر"
     : localTrial ? "هذه نسخة تجربة داخل المتصفح" : "التخزين يحتاج تأكيد قبل البيانات الحقيقية";
   const detail = storageSafetyStatus?.message || (localTrial
     ? "بيانات التجربة محفوظة على هذا المتصفح فقط. استخدم تنزيل JSON قبل أي تجربة مهمة."
     : "لم يتم فحص التخزين بعد.");
   const meta = localTrial
     ? "الوضع: Trial محلي | النسخ الاحتياطي: تنزيل يدوي"
-    : `الوضع: ${storage.mode || "غير معروف"} | المزود: ${storage.provider || "غير محدد"} | آخر فحص: ${storage.checkedAt ? new Date(storage.checkedAt).toLocaleString("ar-JO") : "بانتظار"}`;
+    : `النشر: ${storage.deploymentMode || "غير محدد"} | التخزين: ${storage.mode || "غير معروف"} | المزود: ${storage.provider || "غير محدد"} | آخر فحص: ${storage.checkedAt ? new Date(storage.checkedAt).toLocaleString("ar-JO") : "بانتظار"}`;
 
   els.storageStatusBadge.className = `status-pill ${badgeClass}`;
-  els.storageStatusBadge.textContent = safe ? "آمن للتجربة" : localTrial ? "تجربة فقط" : "غير مؤكد";
+  els.storageStatusBadge.textContent = safe ? "آمن للبيانات" : localTrial ? "تجربة فقط" : "غير آمن للبيانات";
   els.storageStatusTitle.textContent = title;
   els.storageStatusDetail.textContent = detail;
   els.storageStatusMeta.textContent = meta;

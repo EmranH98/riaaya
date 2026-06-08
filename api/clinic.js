@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { audit, databasePath, db, defaultClinicModules, nowIso, parseJson, publicClinic, publicUser } from "../lib/database.js";
 import { requireSession } from "./auth.js";
 import { clientIp, encryptSecret, hashPassword, normalizeEmail, safeText, validatePassword } from "../lib/security.js";
+import { storageReadiness } from "../lib/storage-policy.js";
 
 const USER_ROLES = new Set(["admin", "data_entry", "doctor", "specialist"]);
 const CALENDAR_SCOPES = new Set(["all", "today", "rolling", "working_days", "assigned"]);
@@ -16,14 +17,6 @@ function sendJson(res, statusCode, payload) {
   res.setHeader("Content-Type", "application/json; charset=utf-8");
   res.setHeader("Cache-Control", "no-store");
   res.end(JSON.stringify(payload));
-}
-
-function storageModeForPath(path = "") {
-  const value = String(path || "");
-  if (!value) return "unknown";
-  if (value.startsWith("/tmp/") || value.includes("/tmp/")) return "ephemeral";
-  if (value.includes("/data/") || value.startsWith("/var/") || value.includes("/mnt/")) return "persistent";
-  return process.env.NODE_ENV === "production" ? "unknown" : "local_development";
 }
 
 function jsonAttachment(res, filename, payload) {
@@ -354,36 +347,33 @@ function getState(req, res) {
 function getStorageStatus(req, res) {
   const auth = requireSession(req, res);
   if (!auth) return;
-  const mode = storageModeForPath(databasePath);
   const backupPath = process.env.RIAAYA_BACKUP_DIR || "";
-  const backupMode = storageModeForPath(backupPath);
-  const cloudBacked = process.env.RIAAYA_CLOUD_BACKED === "true";
-  const hasManagedDatabase = Boolean(process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.TURSO_DATABASE_URL);
-  const hasDurableSqlite = mode === "persistent" || mode === "local_development";
-  const hasBackupTarget = Boolean(backupPath && backupMode !== "ephemeral");
-  const safeForPilot = (cloudBacked || hasManagedDatabase || hasDurableSqlite) && (hasBackupTarget || hasManagedDatabase || cloudBacked);
+  const readiness = storageReadiness({ databasePath, backupPath });
+  const safeForPilot = readiness.safeForRealData;
   const admin = auth.user.role === "admin";
 
   sendJson(res, 200, {
     ok: true,
     storage: {
-      engine: hasManagedDatabase ? "managed_database" : "sqlite",
-      provider: process.env.RIAAYA_STORAGE_PROVIDER || (hasManagedDatabase ? "managed_cloud_database" : "server_sqlite"),
-      mode,
-      cloudBacked,
+      engine: readiness.managedDatabase ? "managed_database" : "sqlite",
+      provider: process.env.RIAAYA_STORAGE_PROVIDER || (readiness.managedDatabase ? "managed_cloud_database" : "server_sqlite"),
+      deploymentMode: readiness.deploymentMode,
+      mode: readiness.databaseMode,
+      cloudBacked: readiness.cloudBacked,
       safeForPilot,
-      demoOnly: mode === "ephemeral" && !hasManagedDatabase && !cloudBacked,
-      databaseLocation: admin ? databasePath : mode,
-      backupLocation: admin ? backupPath : backupMode,
-      backupRetentionDays: Number(process.env.RIAAYA_BACKUP_RETENTION_DAYS || 30),
+      safeForRealData: readiness.safeForRealData,
+      demoOnly: readiness.demoOnly || readiness.deploymentMode === "preview",
+      databaseLocation: admin ? databasePath : readiness.databaseMode,
+      backupLocation: admin ? backupPath : readiness.backupMode,
+      backupRetentionDays: Number(process.env.RIAAYA_BACKUP_RETENTION || process.env.RIAAYA_BACKUP_RETENTION_DAYS || 30),
       checkedAt: nowIso()
     },
     message: safeForPilot
-      ? "Clinic data has a durable storage path and an export/backup route for a careful pilot."
-      : "Do not rely on this environment for real clinic data until durable storage or a managed database is configured.",
+      ? "Clinic data has durable storage and a backup route for a careful real-clinic pilot."
+      : "Do not enter real patient data here. This environment is preview-only until durable storage and private production secrets are configured.",
     recommendations: safeForPilot
-      ? ["Download a clinic export before major edits.", "Keep Render backups or a managed database enabled during the pilot."]
-      : ["Use a managed free database for the first clinic pilot, or mount durable storage before entering real patient data.", "Export the clinic JSON at the end of every testing session."]
+      ? ["Download a clinic export before major edits.", "Keep Render disk snapshots or managed database backups enabled during the pilot."]
+      : ["Use Render persistent disk mounted at /data, or configure a managed cloud database before real patient data.", "Keep the public trial/demo separate from the real clinic account."]
   });
 }
 
@@ -414,12 +404,18 @@ function exportClinic(req, res) {
     limit 1000
   `).all(auth.user.clinicId);
   const state = parseJson(clinicRow.state_json, {});
+  const readiness = storageReadiness({
+    databasePath,
+    backupPath: process.env.RIAAYA_BACKUP_DIR || ""
+  });
   const payload = {
     exportedAt: nowIso(),
     formatVersion: 1,
     storage: {
-      engine: "sqlite",
-      mode: storageModeForPath(databasePath)
+      engine: readiness.managedDatabase ? "managed_database" : "sqlite",
+      deploymentMode: readiness.deploymentMode,
+      mode: readiness.databaseMode,
+      safeForRealData: readiness.safeForRealData
     },
     clinic: publicClinic(clinicRow),
     stateVersion: Number(clinicRow.state_version || 0),
