@@ -1826,6 +1826,24 @@ const els = {
   followupNote: document.querySelector("[data-followup-note]")
 };
 
+// ─── Allergy / Safety Alert ───────────────────────────────────────────────
+const ALLERGY_KEYWORDS = [
+  "حساسية", "تحسس", "حساس", "allergy", "allergic",
+  "لا يتحمل", "ممنوع", "تفاعل", "reaction", "intolerant"
+];
+function hasAllergyKeywords(notes) {
+  if (!notes) return false;
+  const lower = notes.toLowerCase();
+  return ALLERGY_KEYWORDS.some(kw => lower.includes(kw.toLowerCase()));
+}
+function allergySnippet(notes) {
+  if (!notes) return "";
+  const lines = notes.split(/[\n،,]/);
+  const hit = lines.find(l => ALLERGY_KEYWORDS.some(kw => l.toLowerCase().includes(kw.toLowerCase())));
+  return (hit || notes).trim().slice(0, 120);
+}
+// ──────────────────────────────────────────────────────────────────────────
+
 // ─── Toast Notification ───────────────────────────────────────────────────
 function showToast(message, type = "success") {
   const existing = document.querySelector(".app-toast");
@@ -4343,6 +4361,16 @@ function renderPatientFile() {
     `).join("")
     : `<div class="empty-state">${canUseFeature("view_receipts") ? "لا توجد إيصالات لهذا الملف." : "لا توجد صلاحية لعرض الإيصالات."}</div>`;
 
+  const allergyAlert = hasAllergyKeywords(patient.notes)
+    ? `<div class="allergy-alert" role="alert">
+        <span class="allergy-alert-icon">⚠️</span>
+        <div>
+          <strong>تنبيه حساسية / سلامة المريض</strong>
+          <p>${allergySnippet(patient.notes)}</p>
+        </div>
+      </div>`
+    : "";
+
   els.patientFile.innerHTML = `
     <div class="patient-file-header">
       <div>
@@ -4355,6 +4383,7 @@ function renderPatientFile() {
         ${canDelete ? `<button class="text-button danger" type="button" data-delete-patient="${patient.id}">حذف</button>` : ""}
       </div>
     </div>
+    ${allergyAlert}
     <div class="patient-file-kpis">
       <div><span>العمليات</span><strong>${operations.length}</strong></div>
       <div><span>الحجوزات</span><strong>${bookings.length}</strong></div>
@@ -5528,7 +5557,10 @@ function renderBookingDayCalendar() {
         .slice()
         .sort((a, b) => a.time.localeCompare(b.time));
       const bookingCards = slotBookings.map(booking => `
-        <div class="day-schedule-booking ${booking.status}">
+        <div class="day-schedule-booking ${booking.status}"
+             draggable="true"
+             data-drag-booking="${booking.id}">
+          <span class="drag-handle" aria-hidden="true">⠿</span>
           <strong>${booking.patient}</strong>
           <span>${booking.time} | ${serviceLabel(booking)}</span>
           <small>${bookingStatusLabel(booking.status)}${booking.phone && canUseFeature("see_mobile") ? ` | ${booking.phone}` : ""}</small>
@@ -5536,7 +5568,9 @@ function renderBookingDayCalendar() {
       `).join("");
 
       return `
-        <div class="day-schedule-cell day-schedule-slot ${slotBookings.length ? "filled" : ""}">
+        <div class="day-schedule-cell day-schedule-slot ${slotBookings.length ? "filled" : ""}"
+             data-drop-slot="${slot}"
+             data-drop-column="${column.id}">
           ${bookingCards}
         </div>
       `;
@@ -5641,6 +5675,7 @@ function renderBookingList() {
     const patient = getPatient(booking.patientId) || findPatientByName(booking.patient);
     const phone = booking.phone || patient?.phone || "";
     const canCopyReminder = canUseFeature("see_mobile") && phone;
+    const canSendSms     = canUseFeature("see_mobile") && phone && canUseFeature("send_sms_campaigns");
     return `
       <div class="staff-card booking-card">
         <div>
@@ -5652,7 +5687,8 @@ function renderBookingList() {
         <div class="row-actions">
           <span class="status-pill ${statusClass(booking.status)}">${bookingStatusLabel(booking.status)}</span>
           ${nextAction}
-          ${canCopyReminder ? `<button class="text-button whatsapp-copy-btn" type="button" data-copy-reminder="${booking.id}" title="نسخ رسالة تذكير واتساب">📋 تذكير</button>` : ""}
+          ${canCopyReminder ? `<button class="text-button whatsapp-copy-btn" type="button" data-copy-reminder="${booking.id}" title="نسخ رسالة تذكير واتساب">📋 واتساب</button>` : ""}
+          ${canSendSms ? `<button class="text-button sms-send-btn" type="button" data-send-sms="${booking.id}" title="إرسال SMS تذكير">📱 SMS</button>` : ""}
           ${canConvert ? `<button class="text-button" type="button" data-booking-to-entry="${booking.id}">تسجيل كعملية</button>` : ""}
           ${canUseFeature("delete_appointment") ? `<button class="icon-button danger" type="button" data-delete-booking="${booking.id}">حذف</button>` : ""}
         </div>
@@ -9513,6 +9549,7 @@ document.addEventListener("click", async event => {
   const printReceiptAction = event.target.closest("[data-print-receipt]");
   const tableFocusTrigger = event.target.closest("[data-open-table-focus]");
   const tableFocusClose = event.target.closest("[data-close-table-focus]");
+  const sendSmsId      = event.target.closest("[data-send-sms]")?.dataset.sendSms;
   const copyReminderId = event.target.closest("[data-copy-reminder]")?.dataset.copyReminder;
   const followupEntryId = event.target.closest("[data-followup-entry]")?.dataset.followupEntry;
   const closeFollowupAction = event.target.closest("[data-close-followup]");
@@ -9560,6 +9597,33 @@ document.addEventListener("click", async event => {
   const exportClinicCsvAction = event.target.closest("[data-export-clinic-csv]");
   const restoreClinicJsonAction = event.target.closest("[data-restore-clinic-json-action]");
   const exportReportXlsAction = event.target.closest("[data-export-report-xls]");
+
+  // ─ SMS send ────────────────────────────────────────────────────────────
+  if (sendSmsId) {
+    const booking = (state.bookings || []).find(b => b.id === sendSmsId);
+    if (booking) {
+      const patient  = getPatient(booking.patientId) || findPatientByName(booking.patient);
+      const phone    = booking.phone || patient?.phone || "";
+      const clinic   = state.settings?.clinicName || "العيادة";
+      const dateStr  = displayDate(booking.date);
+      const timeStr  = displayTime(booking.time);
+      const service  = serviceLabel(booking);
+      const message  = `مرحباً ${booking.patient}، نذكّركم بموعدكم في ${clinic} يوم ${dateStr} الساعة ${timeStr}. الخدمة: ${service}. نتطلع لرؤيتكم.`;
+      const btn = event.target.closest("[data-send-sms]");
+      if (btn) { btn.disabled = true; btn.textContent = "⏳ جاري الإرسال..."; }
+      sendCommunication({ channel: "sms", to: phone, message })
+        .then(result => {
+          const label = result.mode === "preview" ? "📱 SMS (معاينة)" : "📱 SMS";
+          showToast(`✓ تم إرسال SMS إلى ${booking.patient}`, "success");
+          if (btn) { btn.textContent = "✓ أُرسل"; setTimeout(() => { btn.textContent = label; btn.disabled = false; }, 3000); }
+        })
+        .catch(err => {
+          showToast("تعذّر إرسال SMS — تحقق من إعدادات المزوّد", "error");
+          if (btn) { btn.textContent = "📱 SMS"; btn.disabled = false; }
+        });
+    }
+    return;
+  }
 
   // ─ WhatsApp reminder copy ──────────────────────────────────────────────
   if (copyReminderId) {
@@ -10535,5 +10599,91 @@ document.querySelector("[data-print-payroll-report]")?.addEventListener("click",
   setView("salaries");
   window.print();
 });
+
+/* ─── Drag-drop day calendar ──────────────────────────────────────────────
+   Event delegation on the persistent container — survives re-renders.
+   ─────────────────────────────────────────────────────────────────────── */
+(function initDragDropCalendar() {
+  const container = els.bookingDayCalendar;
+  if (!container) return;
+
+  let draggingId  = null;
+  let lastOverSlot = null;
+
+  container.addEventListener("dragstart", e => {
+    const card = e.target.closest("[data-drag-booking]");
+    if (!card) return;
+    draggingId = card.dataset.dragBooking;
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", draggingId);
+    // brief delay so the ghost image renders before opacity change
+    requestAnimationFrame(() => card.classList.add("dragging"));
+  });
+
+  container.addEventListener("dragend", e => {
+    const card = e.target.closest("[data-drag-booking]");
+    if (card) card.classList.remove("dragging");
+    if (lastOverSlot) { lastOverSlot.classList.remove("drag-over"); lastOverSlot = null; }
+    draggingId = null;
+  });
+
+  container.addEventListener("dragover", e => {
+    const slot = e.target.closest("[data-drop-slot]");
+    if (!slot) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (lastOverSlot && lastOverSlot !== slot) lastOverSlot.classList.remove("drag-over");
+    slot.classList.add("drag-over");
+    lastOverSlot = slot;
+  });
+
+  container.addEventListener("dragleave", e => {
+    const slot = e.target.closest("[data-drop-slot]");
+    if (slot && !slot.contains(e.relatedTarget)) {
+      slot.classList.remove("drag-over");
+      if (lastOverSlot === slot) lastOverSlot = null;
+    }
+  });
+
+  container.addEventListener("drop", e => {
+    e.preventDefault();
+    const slotEl = e.target.closest("[data-drop-slot]");
+    if (!slotEl) return;
+    slotEl.classList.remove("drag-over");
+    lastOverSlot = null;
+
+    const id        = draggingId || e.dataTransfer.getData("text/plain");
+    const newTime   = slotEl.dataset.dropSlot;
+    const newColumn = slotEl.dataset.dropColumn;
+    draggingId = null;
+
+    if (!id || !newTime) return;
+    const booking = (state.bookings || []).find(b => b.id === id);
+    if (!booking) return;
+
+    /* Check for conflict after the hypothetical move */
+    const columns = bookingScheduleColumns();
+    const step    = scheduleSlotMinutes();
+    const snap    = scheduleSlotForTime(newTime, step);
+    const key     = `${booking.date}|${newColumn}|${snap}`;
+    const clash   = (state.bookings || []).find(b =>
+      b.id !== id &&
+      !["cancelled","no_show"].includes(b.status) &&
+      b.date === booking.date &&
+      bookingScheduleColumnId(b, columns) === newColumn &&
+      scheduleSlotForTime(b.time, step) === snap
+    );
+    if (clash) {
+      showToast(`تعارض: ${clash.patient} محجوز في ${displayTime(snap)} — اختر وقتاً آخر`, "error");
+      return;
+    }
+
+    booking.time = newTime;
+    booking.scheduleColumnId = newColumn;
+    saveState();
+    renderBookingDayCalendar();
+    showToast(`✓ نُقل موعد ${booking.patient} إلى ${displayTime(newTime)}`, "success");
+  });
+})();
 
 initializeApp();
