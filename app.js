@@ -1034,10 +1034,14 @@ function normalizeRule(rule) {
 }
 
 function normalizeStaffMember(member) {
+  const role = member.role === "staff" ? "specialist" : member.role || "specialist";
+  // Default model: doctors default to pct_net (from profit), specialists to pct_gross (from collected)
+  const defaultModel = role === "doctor" ? "pct_net" : "pct_gross";
   return {
     id: member.id || nextId("staff"),
     name: member.name || "عضو فريق",
-    role: member.role === "staff" ? "specialist" : member.role || "specialist",
+    role,
+    model: member.model || defaultModel,
     rate: asNumber(member.rate),
     baseSalary: asNumber(member.baseSalary ?? member.base_salary),
     deduction: asNumber(member.deduction ?? member.ss_deduction),
@@ -1257,7 +1261,10 @@ function normalizeEntry(entry, services = seedServices) {
     status,
     bookingId: entry.bookingId || entry.booking_id || "",
     createdAt: entry.createdAt || entry.created_at || new Date().toISOString(),
-    notes: entry.notes || entry.note || ""
+    notes: entry.notes || entry.note || "",
+    // doctorRate override: 0 means "use staff default". Positive value = per-visit override.
+    doctorRate: asNumber(entry.doctorRate ?? entry.doctor_rate),
+    doctorModel: entry.doctorModel || entry.doctor_model || ""
   };
 }
 
@@ -1689,6 +1696,20 @@ const els = {
   patientPagination: document.querySelector("[data-patient-pagination]"),
   patientFile: document.querySelector("[data-patient-file]"),
   staffForm: document.querySelector("[data-staff-form]"),
+  staffModelSelect: document.querySelector("[data-staff-model-select]"),
+  staffRateLabel: document.querySelector("[data-staff-rate-label]"),
+  staffModelHint: document.querySelector("[data-staff-model-hint]"),
+  staffRuleServiceSelect: document.querySelector("[data-staff-rule-service-select]"),
+  staffRuleModelSelect: document.querySelector("[data-staff-rule-model-select]"),
+  staffRuleValueInput: document.querySelector("[data-staff-rule-value]"),
+  staffPendingRules: document.querySelector("[data-staff-pending-rules]"),
+  doctorRateRow: document.querySelector("[data-doctor-rate-row]"),
+  doctorRateValue: document.querySelector("[data-doctor-rate-value]"),
+  doctorRateHint: document.querySelector("[data-doctor-rate-hint]"),
+  doctorRateOverride: document.querySelector("[data-doctor-rate-override]"),
+  doctorRateOverrideInput: document.querySelector("[data-doctor-rate-override-input]"),
+  doctorModelOverride: document.querySelector("[data-doctor-model-override]"),
+  paymentStatusToggle: document.querySelector("[data-payment-status-toggle]"),
   serviceForm: document.querySelector("[data-service-form]"),
   ruleForm: document.querySelector("[data-rule-form]"),
   supplierForm: document.querySelector("[data-supplier-form]"),
@@ -2825,57 +2846,68 @@ function calculateMemberPayout(entry, member) {
   const gross = paidAmount(entry);
   const profit = profitAmount(entry);
   const fallbackRate = numberValue(member.rate);
+
+  // Per-visit doctor rate override (set at operation entry time)
+  const hasVisitOverride = appliesTo === "doctor" && numberValue(entry.doctorRate) > 0;
+  const visitRate = hasVisitOverride ? numberValue(entry.doctorRate) : fallbackRate;
+  const visitModel = hasVisitOverride && entry.doctorModel ? entry.doctorModel : (member.model || "member_rate");
+
   const activeRule = rule || {
-    model: "member_rate",
-    value: fallbackRate,
-    name: "نسبة العضو الافتراضية"
+    model: hasVisitOverride ? visitModel : (member.model || "member_rate"),
+    value: visitRate,
+    name: hasVisitOverride ? "نسبة مخصوصة للزيارة" : "نسبة العضو الافتراضية"
   };
 
   if (activeRule.model === "member_rate") {
-    const base = appliesTo === "doctor" ? profit : gross;
+    // Use member's own model if defined, otherwise fall back to role-based default
+    const effectiveModel = member.model && member.model !== "member_rate" ? member.model : (appliesTo === "doctor" ? "pct_net" : "pct_gross");
+    const base = effectiveModel === "pct_net" ? profit : gross;
     const baseLabel = isEnglish
-      ? (appliesTo === "doctor" ? "profit" : "collected amount")
-      : (appliesTo === "doctor" ? "الربح" : "المقبوض");
-    const payout = base * (fallbackRate / 100);
+      ? (effectiveModel === "pct_net" ? "profit" : "collected amount")
+      : (effectiveModel === "pct_net" ? "الربح" : "المقبوض");
+    const payout = base * (visitRate / 100);
     return {
       member,
       payout,
       formula: isEnglish
-        ? `${fallbackRate}% of ${baseLabel} ${money(base)}`
-        : `${fallbackRate}% من ${baseLabel} ${money(base)}`
+        ? `${visitRate}% of ${baseLabel} ${money(base)}${hasVisitOverride ? " (visit override)" : ""}`
+        : `${visitRate}% من ${baseLabel} ${money(base)}${hasVisitOverride ? " (تعديل الزيارة)" : ""}`
     };
   }
 
   if (activeRule.model === "fixed") {
-    const payout = numberValue(activeRule.value) * quantity;
+    const fixedVal = numberValue(activeRule.value);
+    const payout = fixedVal * quantity;
     return {
       member,
       payout,
       formula: isEnglish
-        ? `${money(activeRule.value)} fixed × ${quantity}`
-        : `${money(activeRule.value)} ثابت × ${quantity}`
+        ? `${money(fixedVal)} fixed × ${quantity}`
+        : `${money(fixedVal)} ثابت × ${quantity}`
     };
   }
 
   if (activeRule.model === "pct_gross") {
-    const payout = gross * (numberValue(activeRule.value) / 100);
+    const rate = numberValue(activeRule.value);
+    const payout = gross * (rate / 100);
     return {
       member,
       payout,
       formula: isEnglish
-        ? `${activeRule.value}% of collected amount ${money(gross)}`
-        : `${activeRule.value}% من المقبوض ${money(gross)}`
+        ? `${rate}% of collected amount ${money(gross)}`
+        : `${rate}% من المقبوض ${money(gross)}`
     };
   }
 
   if (activeRule.model === "pct_net") {
-    const payout = profit * (numberValue(activeRule.value) / 100);
+    const rate = numberValue(activeRule.value);
+    const payout = profit * (rate / 100);
     return {
       member,
       payout,
       formula: isEnglish
-        ? `${activeRule.value}% of profit ${money(profit)}`
-        : `${activeRule.value}% من الربح ${money(profit)}`
+        ? `${rate}% of profit ${money(profit)}`
+        : `${rate}% من الربح ${money(profit)}`
     };
   }
 
@@ -3541,7 +3573,12 @@ function renderStaffSelects() {
     ? [scopedMember]
     : state.staff.filter(member => member.role === "specialist");
   const services = activeServices();
-  const staffOptionLabel = member => canViewSensitive() ? `${member.name} (${member.rate}%)` : member.name;
+  const staffOptionLabel = member => {
+    if (!canViewSensitive()) return member.name;
+    const rateStr = member.model === "fixed" ? money(member.rate) : `${member.rate}%`;
+    const modelStr = member.model === "pct_net" ? "من الربح" : member.model === "pct_gross" ? "من المقبوض" : member.model === "fixed" ? "ثابت" : "";
+    return `${member.name} (${rateStr}${modelStr ? " · " + modelStr : ""})`;
+  };
 
   const doctorOptions = doctors.map(member => (
     `<option value="${member.id}">${staffOptionLabel(member)}</option>`
@@ -4575,18 +4612,27 @@ function renderStaffList() {
     return;
   }
 
-  els.staffList.innerHTML = state.staff.map(member => `
-    <div class="staff-card">
-      <div>
-        <strong>${member.name}</strong>
-        <div class="staff-meta">
-          <span class="pill">${roleLabel(member.role)}</span>
-          ${canViewSensitive() ? `<span class="pill">${member.rate}%</span>` : ""}
+  els.staffList.innerHTML = state.staff.map(member => {
+    const memberRules = state.rules.filter(r => r.personId === member.id);
+    const rateDisplay = member.model === "fixed"
+      ? money(member.rate) + " ثابت"
+      : member.rate + "%";
+    const modelDisplay = ruleModelLabel(member.model || (member.role === "doctor" ? "pct_net" : "pct_gross"));
+    return `
+      <div class="staff-card">
+        <div>
+          <strong>${member.name}</strong>
+          <div class="staff-meta">
+            <span class="pill">${roleLabel(member.role)}</span>
+            ${member.phone ? `<span class="pill">${member.phone}</span>` : ""}
+            ${canViewSensitive() ? `<span class="pill sensitive-pill">${rateDisplay} · ${modelDisplay}</span>` : ""}
+            ${canViewSensitive() && memberRules.length ? `<span class="pill">+${memberRules.length} قاعدة خاصة</span>` : ""}
+          </div>
         </div>
+        ${canViewSensitive() ? `<button class="icon-button danger" type="button" data-delete-staff="${member.id}">حذف</button>` : ""}
       </div>
-      ${canViewSensitive() ? `<button class="icon-button danger" type="button" data-delete-staff="${member.id}">حذف</button>` : ""}
-    </div>
-  `).join("");
+    `;
+  }).join("");
 }
 
 function renderServiceList() {
@@ -7264,6 +7310,8 @@ function operationLineFromForm() {
   const quantity = Math.max(numberValue(data.quantity) || 1, 1);
   const unitPrice = numberValue(data.amount || service.defaultPrice);
   const amount = unitPrice * quantity;
+  // Cost: use the form's visible cost field if non-zero, else fall back to service default
+  const formCost = numberValue(data.cost);
   return {
     id: nextId("operation-line"),
     serviceId: service.id,
@@ -7271,7 +7319,7 @@ function operationLineFromForm() {
     quantity,
     unitPrice,
     amount,
-    cost: numberValue(service.defaultCost),
+    cost: formCost > 0 ? formCost : numberValue(service.defaultCost),
     discount: Math.min(numberValue(data.discount), amount)
   };
 }
@@ -7427,13 +7475,25 @@ function resetEntryFormDefaults() {
   els.entryForm.elements.paidCard.value = "";
   els.entryForm.elements.paidTransfer.value = "";
   els.entryForm.elements.status.value = "completed";
+  // Reset payment status toggle to "fully paid"
+  if (els.paymentStatusToggle) {
+    els.paymentStatusToggle.querySelectorAll("[data-pstatus]").forEach(b => {
+      b.classList.toggle("active", b.dataset.pstatus === "completed");
+    });
+  }
+  // Reset doctor rate row
+  if (els.doctorRateRow) els.doctorRateRow.hidden = true;
+  if (els.doctorRateOverride) els.doctorRateOverride.hidden = true;
+  if (els.doctorRateOverrideInput) els.doctorRateOverrideInput.value = "";
   pendingOperationLines = [];
   const firstService = activeServices()[0];
   if (firstService) {
     els.entryForm.elements.serviceId.value = firstService.id;
     els.entryForm.elements.amount.value = firstService.defaultPrice || "";
-    els.entryForm.elements.cost.value = firstService.defaultCost || 0;
+    const costInput = els.entryForm.querySelector("[data-cost-input]");
+    if (costInput) costInput.value = firstService.defaultCost || 0;
   }
+  renderStaffRuleServiceSelect();
   renderOperationLines();
   updateEntryPreview();
   renderPaymentQuickButtons();
@@ -8286,6 +8346,7 @@ function render() {
   renderEntryTable(entries);
   renderPatients();
   renderStaffList();
+  renderStaffRuleServiceSelect();
   renderServiceList();
   renderRuleList();
   renderInventoryKpis();
@@ -9054,6 +9115,55 @@ function closeTableFocus() {
   document.body.classList.remove("table-focus-open");
 }
 
+// ── Doctor rate row helpers ───────────────────────────────────────────────
+function updateDoctorRateRow() {
+  if (!els.doctorRateRow || !els.doctorSelect) return;
+  const doctorId = els.doctorSelect.value;
+  const doctor = getStaffMember(doctorId);
+  if (!doctor) {
+    els.doctorRateRow.hidden = true;
+    return;
+  }
+  els.doctorRateRow.hidden = false;
+  const rateDisplay = doctor.model === "fixed"
+    ? `${money(doctor.rate)} ثابت لكل عملية`
+    : `${doctor.rate}% · ${ruleModelLabel(doctor.model || "pct_net")}`;
+  if (els.doctorRateValue) els.doctorRateValue.textContent = rateDisplay;
+  if (els.doctorRateHint) els.doctorRateHint.textContent = MODEL_HINTS[doctor.model || "pct_net"] || "";
+  // Sync model override select to doctor's default model
+  if (els.doctorModelOverride) els.doctorModelOverride.value = doctor.model || "pct_net";
+}
+
+document.querySelector("[data-toggle-doctor-rate]")?.addEventListener("click", () => {
+  if (!els.doctorRateOverride) return;
+  const isHidden = els.doctorRateOverride.hidden;
+  els.doctorRateOverride.hidden = !isHidden;
+  // When showing, pre-fill with doctor's default rate
+  if (isHidden && els.doctorRateOverrideInput) {
+    const doctor = getStaffMember(els.doctorSelect?.value);
+    if (doctor && !els.doctorRateOverrideInput.value) {
+      els.doctorRateOverrideInput.value = doctor.rate;
+    }
+  }
+});
+
+// ── Payment status toggle ─────────────────────────────────────────────────
+function initPaymentStatusToggle() {
+  if (!els.paymentStatusToggle) return;
+  els.paymentStatusToggle.addEventListener("click", event => {
+    const btn = event.target.closest("[data-pstatus]");
+    if (!btn) return;
+    const status = btn.dataset.pstatus;
+    // Update hidden status input
+    if (els.entryForm?.elements.status) els.entryForm.elements.status.value = status;
+    // Update button states
+    els.paymentStatusToggle.querySelectorAll("[data-pstatus]").forEach(b => {
+      b.classList.toggle("active", b === btn);
+    });
+  });
+}
+initPaymentStatusToggle();
+
 if (els.entryForm) {
   els.entryForm.addEventListener("input", updateEntryPreview);
   els.entryForm.addEventListener("change", event => {
@@ -9061,8 +9171,15 @@ if (els.entryForm) {
       const service = getService(els.serviceSelect.value);
       if (service) {
         els.entryForm.elements.amount.value = service.defaultPrice || "";
-        els.entryForm.elements.cost.value = service.defaultCost || 0;
+        const costInput = els.entryForm.querySelector("[data-cost-input]");
+        if (costInput) costInput.value = service.defaultCost || 0;
       }
+    }
+    if (event.target === els.doctorSelect) {
+      updateDoctorRateRow();
+      // Reset override when doctor changes
+      if (els.doctorRateOverride) els.doctorRateOverride.hidden = true;
+      if (els.doctorRateOverrideInput) els.doctorRateOverrideInput.value = "";
     }
     updateEntryPreview();
     renderPaymentQuickButtons();
@@ -9318,9 +9435,15 @@ els.entryForm.addEventListener("submit", event => {
   const doctorId = scopedMember?.role === "doctor" ? scopedMember.id : data.doctorId;
   const specialistId = scopedMember?.role === "specialist" ? scopedMember.id : data.specialistId;
   const patient = ensurePatientFile(data.patient.trim());
-  const status = !doctorId && !specialistId && data.status === "completed"
-    ? "pending_assignment"
-    : data.status || "completed";
+  // statusExtra overrides the toggle status (for cancelled / pending_assignment / scheduled)
+  const statusExtra = data.statusExtra;
+  const baseStatus = data.status || "completed";
+  const status = statusExtra && statusExtra !== ""
+    ? statusExtra
+    : (!doctorId && !specialistId && baseStatus === "completed" ? "pending_assignment" : baseStatus);
+  // Doctor rate override for this visit
+  const doctorRateOverride = numberValue(data.doctorRateOverride);
+  const doctorModelOverride = data.doctorModelOverride || "";
   const visitId = nextId("visit");
   const createdAt = new Date().toISOString();
   const visitTotal = visitNetForLines(lines);
@@ -9341,6 +9464,8 @@ els.entryForm.addEventListener("submit", event => {
     service: line.service,
     doctorId,
     specialistId,
+    doctorRate: doctorRateOverride || 0,
+    doctorModel: doctorRateOverride > 0 ? doctorModelOverride : "",
     quantity: line.quantity,
     unitPrice: line.unitPrice,
     amount: line.amount,
@@ -9377,17 +9502,106 @@ els.entryForm.addEventListener("submit", event => {
   if (receipt) openReceipt(receipt.id);
 });
 
+// ── Staff commission model hint ────────────────────────────────────────────
+const MODEL_HINTS = {
+  pct_net:   "تُحتسب النسبة من صافي الربح = المقبوض − التكلفة",
+  pct_gross: "تُحتسب النسبة من كامل المبلغ المقبوض قبل خصم التكلفة",
+  fixed:     "مبلغ ثابت بالدينار لكل عملية بصرف النظر عن السعر"
+};
+function updateStaffModelHint() {
+  const model = els.staffModelSelect?.value;
+  if (els.staffModelHint) els.staffModelHint.textContent = MODEL_HINTS[model] || "";
+  if (els.staffRateLabel) {
+    const rateEl = els.staffRateLabel.querySelector("input");
+    els.staffRateLabel.firstChild.textContent = model === "fixed" ? "المبلغ الثابت (د.أ)" : "النسبة %";
+    if (rateEl) {
+      rateEl.max = model === "fixed" ? "" : "100";
+      rateEl.placeholder = model === "fixed" ? "25" : "50";
+    }
+  }
+}
+els.staffModelSelect?.addEventListener("change", updateStaffModelHint);
+updateStaffModelHint();
+
+// ── Per-service rule inline builder ───────────────────────────────────────
+let _staffPendingRules = [];
+
+function renderStaffPendingRules() {
+  if (!els.staffPendingRules) return;
+  if (!_staffPendingRules.length) {
+    els.staffPendingRules.innerHTML = "";
+    return;
+  }
+  els.staffPendingRules.innerHTML = _staffPendingRules.map((r, i) => `
+    <div class="pending-rule-row">
+      <span>${getService(r.serviceId)?.name || r.serviceId}</span>
+      <span>${ruleModelLabel(r.model)}</span>
+      <span>${r.model === "fixed" ? money(r.value) : r.value + "%"}</span>
+      <button type="button" class="icon-button danger" data-remove-pending-rule="${i}">×</button>
+    </div>
+  `).join("");
+}
+
+// Populate the staff rule service select from state.services
+function renderStaffRuleServiceSelect() {
+  if (!els.staffRuleServiceSelect) return;
+  const current = els.staffRuleServiceSelect.value;
+  els.staffRuleServiceSelect.innerHTML = `<option value="">— اختر الخدمة —</option>` +
+    activeServices().map(s => `<option value="${s.id}">${s.name}</option>`).join("");
+  if (current) els.staffRuleServiceSelect.value = current;
+}
+
+document.querySelector("[data-add-staff-service-rule]")?.addEventListener("click", () => {
+  const serviceId = els.staffRuleServiceSelect?.value;
+  const model = els.staffRuleModelSelect?.value || "pct_net";
+  const value = numberValue(els.staffRuleValueInput?.value);
+  if (!serviceId || value <= 0) { showToast("اختر الخدمة وأدخل القيمة أولاً", "warn"); return; }
+  _staffPendingRules.push({ serviceId, model, value });
+  if (els.staffRuleValueInput) els.staffRuleValueInput.value = "";
+  if (els.staffRuleServiceSelect) els.staffRuleServiceSelect.value = "";
+  renderStaffPendingRules();
+});
+
+els.staffPendingRules?.addEventListener("click", event => {
+  const btn = event.target.closest("[data-remove-pending-rule]");
+  if (!btn) return;
+  const idx = parseInt(btn.dataset.removePendingRule, 10);
+  _staffPendingRules.splice(idx, 1);
+  renderStaffPendingRules();
+});
+
 els.staffForm.addEventListener("submit", event => {
   event.preventDefault();
   if (!canViewSensitive()) return;
   const data = Object.fromEntries(new FormData(els.staffForm).entries());
-  state.staff.push({
-    id: nextId("staff"),
+  const memberId = nextId("staff");
+  const role = data.role || "specialist";
+  state.staff.push(normalizeStaffMember({
+    id: memberId,
     name: data.name.trim(),
-    role: data.role,
-    rate: numberValue(data.rate)
-  });
+    role,
+    model: data.model || (role === "doctor" ? "pct_net" : "pct_gross"),
+    rate: numberValue(data.rate),
+    phone: data.phone?.trim() || ""
+  }));
+  // Save any inline per-service rules
+  const appliesTo = role === "doctor" ? "doctor" : "specialist";
+  for (const rule of _staffPendingRules) {
+    state.rules.push({
+      id: nextId("rule"),
+      name: `${data.name.trim()} — ${getService(rule.serviceId)?.name || rule.serviceId}`,
+      appliesTo,
+      personId: memberId,
+      serviceId: rule.serviceId,
+      model: rule.model,
+      value: rule.value,
+      active: true
+    });
+  }
+  _staffPendingRules = [];
+  renderStaffPendingRules();
   els.staffForm.reset();
+  updateStaffModelHint();
   saveState();
   render();
 });

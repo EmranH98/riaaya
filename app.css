@@ -6524,3 +6524,122 @@ html[dir="ltr"] label {
   color: #777;
   margin: -8px 0 14px;
 }
+
+/* ── Staff form enhancements ─────────────────────────────────────────────────── */
+.form-section-divider {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #888;
+  border-top: 1px solid #e8e8e8;
+  padding-top: 14px;
+  margin-top: 6px;
+}
+.form-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.sensitive-pill { background: #fff7e6; color: #b8520a; }
+.staff-rules-expander {
+  border: 1px dashed #d8d8d8;
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+.staff-rules-expander summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: #444;
+  user-select: none;
+}
+.staff-rules-expander summary .eyebrow { font-weight: 400; color: #888; }
+.staff-service-rule-builder {
+  display: grid;
+  grid-template-columns: 2fr 1.2fr 0.8fr auto;
+  gap: 8px;
+  margin-top: 12px;
+  align-items: end;
+}
+.staff-service-rule-builder select,
+.staff-service-rule-builder input {
+  width: 100%;
+  font-size: 13px;
+  padding: 6px 8px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+}
+.pending-rule-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 13px;
+}
+.pending-rule-row span { flex: 1; }
+.pending-rule-row:last-child { border-bottom: none; }
+.staff-pending-rules { margin-top: 8px; }
+
+/* ── Doctor rate row in operation form ─────────────────────────────────────── */
+.doctor-rate-row {
+  background: #f8f4ff;
+  border: 1px solid #e0d4f7;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin: -4px 0 4px;
+}
+.doctor-rate-display {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+.doctor-rate-label { color: #666; font-weight: 600; }
+.doctor-rate-value { flex: 1; color: #5a3d99; font-weight: 700; }
+.doctor-rate-override { margin-top: 10px; }
+.doctor-rate-override-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+/* ── Payment status toggle ──────────────────────────────────────────────────── */
+.payment-status-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.payment-status-row > strong { font-size: 13px; color: #444; }
+.payment-status-toggle {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.payment-status-btn {
+  flex: 1;
+  min-width: 90px;
+  padding: 7px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1.5px solid #ddd;
+  border-radius: 8px;
+  background: #fff;
+  color: #555;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.payment-status-btn.active {
+  background: #1a1a2e;
+  border-color: #1a1a2e;
+  color: #fff;
+}
+.payment-status-btn[data-pstatus="partial_payment"].active {
+  background: #d4860a;
+  border-color: #d4860a;
+}
+.payment-status-btn[data-pstatus="pending_payment"].active {
+  background: #c0392b;
+  border-color: #c0392b;
+}

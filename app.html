@@ -403,7 +403,7 @@
             </div>
             <form class="entry-form operation-entry-form" data-entry-form>
               <input name="bookingId" type="hidden">
-              <input name="cost" type="hidden" value="0">
+              <input name="doctorRate" type="hidden" value="">
               <label class="operation-patient-field">
                 اسم المريض
                 <input name="patient" type="text" list="operation-patient-options" placeholder="ابحث بالاسم أو اكتب اسماً جديداً" required>
@@ -413,10 +413,39 @@
                 الطبيب
                 <select name="doctorId" data-doctor-select></select>
               </label>
+              <!-- Doctor rate row — shown when a doctor is selected -->
+              <div class="doctor-rate-row" data-doctor-rate-row hidden>
+                <div class="doctor-rate-display" data-doctor-rate-display>
+                  <span class="doctor-rate-label">نسبة الطبيب</span>
+                  <span class="doctor-rate-value" data-doctor-rate-value></span>
+                  <button type="button" class="text-button" data-toggle-doctor-rate>تعديل لهذه الزيارة</button>
+                </div>
+                <label class="doctor-rate-override" data-doctor-rate-override hidden>
+                  نسبة مخصوصة لهذه الزيارة
+                  <div class="doctor-rate-override-row">
+                    <input name="doctorRateOverride" type="number" min="0" step="0.01" placeholder="50" data-doctor-rate-override-input>
+                    <select name="doctorModelOverride" data-doctor-model-override>
+                      <option value="pct_net">من الربح</option>
+                      <option value="pct_gross">من المقبوض</option>
+                      <option value="fixed">ثابت</option>
+                    </select>
+                  </div>
+                  <small data-doctor-rate-hint></small>
+                </label>
+              </div>
               <label>
                 الأخصائي
                 <select name="specialistId" data-specialist-select></select>
               </label>
+              <!-- Payment status quick buttons -->
+              <div class="payment-status-row">
+                <strong>حالة الدفع</strong>
+                <div class="payment-status-toggle" data-payment-status-toggle>
+                  <button type="button" class="payment-status-btn active" data-pstatus="completed">مدفوع كاملاً</button>
+                  <button type="button" class="payment-status-btn" data-pstatus="partial_payment">دفع جزئي</button>
+                  <button type="button" class="payment-status-btn" data-pstatus="pending_payment">لم يُدفع بعد</button>
+                </div>
+              </div>
               <label>
                 طريقة الدفع
                 <select name="paymentMethod" required>
@@ -449,14 +478,14 @@
                 </label>
                 <button class="text-button" type="button" data-fill-payment-total>تعبئة كامل المبلغ</button>
               </div>
+              <!-- status is written by the payment-status toggle, hidden here -->
+              <input name="status" type="hidden" value="completed">
               <label>
-                حالة العملية
-                <select name="status">
-                  <option value="completed">مكتملة</option>
-                  <option value="partial_payment">دفع جزئي — تكملة حساب</option>
+                ملاحظات إضافية للحالة
+                <select name="statusExtra">
+                  <option value="">—</option>
                   <option value="pending_assignment">بانتظار التعيين</option>
                   <option value="scheduled">محجوزة</option>
-                  <option value="pending_payment">بانتظار الدفع</option>
                   <option value="cancelled">ملغاة</option>
                 </select>
               </label>
@@ -506,6 +535,10 @@
                   <label>
                     الخصم
                     <input name="discount" type="number" min="0" step="0.01" value="0">
+                  </label>
+                  <label data-sensitive>
+                    التكلفة
+                    <input name="cost" type="number" min="0" step="0.01" value="0" data-cost-input>
                   </label>
                   <button class="dark-button add-operation-line" type="button" data-add-operation-line>إضافة للقائمة</button>
                 </div>
@@ -888,6 +921,7 @@
       </section>
 
       <section class="view" data-view="staff">
+        <!-- Row 1: Add member + Current staff -->
         <div class="split-layout">
           <article class="panel">
             <div class="panel-header">
@@ -897,21 +931,60 @@
               </div>
             </div>
             <form class="staff-form" data-staff-form>
+              <!-- Basic info -->
+              <div class="form-section-divider">معلومات العضو</div>
               <label>
                 الاسم
                 <input name="name" type="text" placeholder="د. ليلى منصور" required>
               </label>
-              <label>
-                الدور
-                <select name="role" required>
-                  <option value="doctor">طبيب</option>
-                  <option value="specialist">أخصائي</option>
+              <div class="form-row-2">
+                <label>
+                  الدور
+                  <select name="role" data-staff-role-select required>
+                    <option value="doctor">طبيب</option>
+                    <option value="specialist">أخصائي</option>
+                  </select>
+                </label>
+                <label>
+                  الهاتف
+                  <input name="phone" type="tel" placeholder="079 000 0000">
+                </label>
+              </div>
+
+              <!-- Commission defaults -->
+              <div class="form-section-divider" data-sensitive>الاحتساب الافتراضي</div>
+              <label data-sensitive>
+                نموذج الاحتساب
+                <select name="model" data-staff-model-select>
+                  <option value="pct_net">نسبة من الربح — بعد خصم التكلفة</option>
+                  <option value="pct_gross">نسبة من المقبوض — قبل التكلفة</option>
+                  <option value="fixed">مبلغ ثابت لكل عملية</option>
                 </select>
               </label>
-              <label data-sensitive>
-                النسبة
-                <input name="rate" type="number" min="0" max="100" step="0.01" placeholder="50" required>
+              <label data-sensitive data-staff-rate-label>
+                النسبة %
+                <input name="rate" type="number" min="0" step="0.01" placeholder="50" required>
+                <small data-staff-model-hint>تُحتسب من صافي الربح بعد خصم تكلفة الخدمة</small>
               </label>
+
+              <!-- Inline per-service rule builder -->
+              <details class="staff-rules-expander" data-sensitive>
+                <summary>قواعد خاصة بخدمات بعينها <span class="eyebrow">(اختياري)</span></summary>
+                <div class="staff-service-rule-builder">
+                  <select data-staff-rule-service-select>
+                    <option value="">— اختر الخدمة —</option>
+                  </select>
+                  <select data-staff-rule-model-select>
+                    <option value="pct_net">من الربح</option>
+                    <option value="pct_gross">من المقبوض</option>
+                    <option value="fixed">مبلغ ثابت</option>
+                  </select>
+                  <input type="number" min="0" step="0.01" placeholder="50" data-staff-rule-value>
+                  <button type="button" class="ghost-button" data-add-staff-service-rule>إضافة</button>
+                </div>
+                <div class="staff-pending-rules" data-staff-pending-rules></div>
+              </details>
+
               <button class="primary-button form-submit" type="submit">إضافة الموظف</button>
             </form>
           </article>
@@ -926,52 +999,8 @@
             <div class="staff-list" data-staff-list></div>
           </article>
         </div>
-      </section>
 
-      <section class="view" data-view="services">
-        <div class="split-layout">
-          <article class="panel">
-            <div class="panel-header">
-              <div>
-                <p class="eyebrow">كتالوج الخدمات</p>
-                <h2>إضافة خدمة وتسعيرها</h2>
-              </div>
-            </div>
-            <form class="entry-form" data-service-form>
-              <label>
-                اسم الخدمة
-                <input name="name" type="text" placeholder="جلسة ليزر" required>
-              </label>
-              <label>
-                السعر الافتراضي
-                <input name="defaultPrice" type="number" min="0" step="0.01" placeholder="80" required>
-              </label>
-              <label data-sensitive>
-                التكلفة المباشرة
-                <input name="defaultCost" type="number" min="0" step="0.01" value="0">
-              </label>
-              <label>
-                الحالة
-                <select name="active">
-                  <option value="true">فعالة</option>
-                  <option value="false">متوقفة</option>
-                </select>
-              </label>
-              <button class="primary-button form-submit" type="submit">حفظ الخدمة</button>
-            </form>
-          </article>
-
-          <article class="panel">
-            <div class="panel-header">
-              <div>
-                <p class="eyebrow">الخدمات الحالية</p>
-                <h2>الخدمات المتاحة للعمليات</h2>
-              </div>
-            </div>
-            <div class="staff-list" data-service-list></div>
-          </article>
-        </div>
-
+        <!-- Row 2: Rules form + Rules list (moved here from services view) -->
         <div class="split-layout rules-layout" data-sensitive>
           <article class="panel">
             <div class="panel-header">
@@ -1028,6 +1057,52 @@
             <div class="staff-list" data-rule-list></div>
           </article>
         </div>
+      </section>
+
+      <section class="view" data-view="services">
+        <div class="split-layout">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">كتالوج الخدمات</p>
+                <h2>إضافة خدمة وتسعيرها</h2>
+              </div>
+            </div>
+            <form class="entry-form" data-service-form>
+              <label>
+                اسم الخدمة
+                <input name="name" type="text" placeholder="جلسة ليزر" required>
+              </label>
+              <label>
+                السعر الافتراضي
+                <input name="defaultPrice" type="number" min="0" step="0.01" placeholder="80" required>
+              </label>
+              <label data-sensitive>
+                التكلفة المباشرة
+                <input name="defaultCost" type="number" min="0" step="0.01" value="0">
+              </label>
+              <label>
+                الحالة
+                <select name="active">
+                  <option value="true">فعالة</option>
+                  <option value="false">متوقفة</option>
+                </select>
+              </label>
+              <button class="primary-button form-submit" type="submit">حفظ الخدمة</button>
+            </form>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">الخدمات الحالية</p>
+                <h2>الخدمات المتاحة للعمليات</h2>
+              </div>
+            </div>
+            <div class="staff-list" data-service-list></div>
+          </article>
+        </div>
+
       </section>
 
       <section class="view" data-view="inventory">
