@@ -3573,12 +3573,7 @@ function renderStaffSelects() {
     ? [scopedMember]
     : state.staff.filter(member => member.role === "specialist");
   const services = activeServices();
-  const staffOptionLabel = member => {
-    if (!canViewSensitive()) return member.name;
-    const rateStr = member.model === "fixed" ? money(member.rate) : `${member.rate}%`;
-    const modelStr = member.model === "pct_net" ? "من الربح" : member.model === "pct_gross" ? "من المقبوض" : member.model === "fixed" ? "ثابت" : "";
-    return `${member.name} (${rateStr}${modelStr ? " · " + modelStr : ""})`;
-  };
+  const staffOptionLabel = member => member.name;
 
   const doctorOptions = doctors.map(member => (
     `<option value="${member.id}">${staffOptionLabel(member)}</option>`
