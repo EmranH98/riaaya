@@ -34,6 +34,38 @@ function buildTimeSlots(start, end, gap) {
   return slots;
 }
 
+const ACTIVE_BOOKING_STATUSES = new Set(["scheduled", "confirmed", "arrived", "pending_confirmation"]);
+
+function bookingServiceKey(booking = {}) {
+  return String(booking.serviceId || booking.service || booking.serviceName || "__unassigned").trim() || "__unassigned";
+}
+
+function bookingActiveForPublicSlot(booking = {}) {
+  return ACTIVE_BOOKING_STATUSES.has(String(booking.status || "scheduled"));
+}
+
+function bookedSlotMap(bookings = []) {
+  return bookings
+    .filter(booking => bookingActiveForPublicSlot(booking) && booking.date && booking.time)
+    .reduce((map, booking) => {
+      const serviceKey = bookingServiceKey(booking);
+      map[serviceKey] = map[serviceKey] || {};
+      map[serviceKey][booking.date] = map[serviceKey][booking.date] || [];
+      if (!map[serviceKey][booking.date].includes(booking.time)) map[serviceKey][booking.date].push(booking.time);
+      return map;
+    }, {});
+}
+
+function slotUnavailable(bookings = [], candidate = {}) {
+  const candidateKey = bookingServiceKey(candidate);
+  return bookings.some(booking => (
+    bookingActiveForPublicSlot(booking)
+    && booking.date === candidate.date
+    && booking.time === candidate.time
+    && bookingServiceKey(booking) === candidateKey
+  ));
+}
+
 /* ── GET /api/public/clinic/:slug ─────────────────────────────────────── */
 function handleGetClinic(slug, res) {
   const row = db.prepare(
@@ -47,6 +79,7 @@ function handleGetClinic(slug, res) {
 
   const state = parseJson(row.state_json, {});
   const settings = state.settings || {};
+  const bookings = Array.isArray(state.bookings) ? state.bookings : [];
 
   const services = (state.services || [])
     .filter(s => s.active !== false)
@@ -61,6 +94,7 @@ function handleGetClinic(slug, res) {
     clinic: { name: row.name, slug: row.slug, city: row.city || "", phone: row.phone || "" },
     services,
     slots: buildTimeSlots(workStart, workEnd, slotGap),
+    bookedSlots: bookedSlotMap(bookings),
     workStart,
     workEnd,
     slotGap,
@@ -115,6 +149,12 @@ async function handleCreateBooking(req, slug, res) {
 
   const state    = parseJson(row.state_json, {});
   const bookings = Array.isArray(state.bookings) ? state.bookings : [];
+  const candidate = { date, time, serviceId, service: serviceName };
+
+  if (slotUnavailable(bookings, candidate)) {
+    sendJson(res, 409, { error: "slot_unavailable" });
+    return;
+  }
 
   bookings.push({
     id: bookingId, status: "pending_confirmation",

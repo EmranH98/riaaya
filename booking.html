@@ -190,6 +190,19 @@
     }
     .time-slot:hover { border-color: var(--green); background: var(--green-light); }
     .time-slot.selected { background: var(--green); border-color: var(--green); color: #fff; }
+    .time-slot.booked,
+    .time-slot:disabled {
+      cursor: not-allowed;
+      border-color: #e5e7eb;
+      background: #f3f4f6;
+      color: #9ca3af;
+    }
+    .time-slot small {
+      display: block;
+      font-size: 10px;
+      font-weight: 700;
+      color: inherit;
+    }
 
     /* ── Patient form ── */
     .form-grid { display: flex; flex-direction: column; gap: 14px; }
@@ -531,18 +544,25 @@
     }
     const grid = document.getElementById("time-grid");
     const slots = clinicData.slots || [];
+    const serviceKey = selectedService?.id || selectedService?.name || "__unassigned";
+    const booked = new Set((clinicData.bookedSlots?.[serviceKey]?.[selectedDate]) || []);
     if (!slots.length) {
       grid.innerHTML = '<p style="color:#999;font-size:14px">لا توجد أوقات متاحة.</p>';
       return;
     }
-    grid.innerHTML = slots.map(t => `
-      <button class="time-slot" onclick="selectTime('${t}',this)">${t}</button>
-    `).join("");
+    grid.innerHTML = slots.map(t => {
+      const unavailable = booked.has(t);
+      return `
+      <button class="time-slot${unavailable ? " booked" : ""}" onclick="selectTime('${t}',this)" ${unavailable ? "disabled" : ""}>
+        ${t}${unavailable ? "<small>محجوز</small>" : ""}
+      </button>`;
+    }).join("");
     selectedTime = null;
     document.getElementById("next-3").disabled = true;
   }
 
   window.selectTime = function(time, el) {
+    if (el.disabled) return;
     selectedTime = time;
     document.querySelectorAll(".time-slot").forEach(c => c.classList.remove("selected"));
     el.classList.add("selected");
@@ -608,6 +628,15 @@
         })
       });
       const data = await res.json();
+      if (res.status === 409 && data.error === "slot_unavailable") {
+        errEl.textContent = "هذا الموعد حُجز للتو. يرجى اختيار وقت آخر.";
+        errEl.style.display = "block";
+        await init();
+        goStep(3);
+        btn.disabled = false;
+        btn.textContent = "تأكيد الحجز ✓";
+        return;
+      }
       if (!res.ok || !data.ok) throw new Error(data.error || "server_error");
 
       document.getElementById("success-ref").textContent = data.reference;

@@ -7979,7 +7979,7 @@ function renderIntegrationSettings() {
 
 function renderCommunications() {
   /* Populate booking link */
-  const slug = runtime.clinic?.slug || "";
+  const slug = runtime.session?.clinic?.slug || "";
   const bookingUrl = slug ? `${location.origin}/book/${slug}` : "";
   const linkEl  = document.getElementById("booking-link-url");
   const copyBtn = document.getElementById("copy-booking-link");
