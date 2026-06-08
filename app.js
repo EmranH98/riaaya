@@ -1826,6 +1826,29 @@ const els = {
   followupNote: document.querySelector("[data-followup-note]")
 };
 
+// ─── Toast Notification ───────────────────────────────────────────────────
+function showToast(message, type = "success") {
+  const existing = document.querySelector(".app-toast");
+  if (existing) existing.remove();
+
+  const toast = document.createElement("div");
+  toast.className = `app-toast app-toast--${type}`;
+  toast.setAttribute("role", "status");
+  toast.setAttribute("aria-live", "polite");
+  toast.textContent = message;
+  document.body.appendChild(toast);
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => toast.classList.add("app-toast--visible"));
+  });
+
+  setTimeout(() => {
+    toast.classList.remove("app-toast--visible");
+    toast.addEventListener("transitionend", () => toast.remove(), { once: true });
+  }, 3000);
+}
+// ──────────────────────────────────────────────────────────────────────────
+
 // ─── تكملة الدفع — Follow-up Payment ─────────────────────────────────────
 function openFollowupModal(entryId) {
   const entry = state.entries.find(e => e.id === entryId);
@@ -1922,9 +1945,16 @@ function submitFollowup() {
   if (entry.notes) combined.unshift(entry.notes);
   entry.notes = combined.join(" | ");
 
+  const isNowComplete = entry.status === "completed";
   saveState();
   closeFollowupModal();
   render();
+  showToast(
+    isNowComplete
+      ? `✓ تم الدفع الكامل — ${entry.patient} | ${money(paidAmount(entry))}`
+      : `✓ تم تسجيل التكملة — المتبقي ${money(netAmount(entry) - paidAmount(entry))}`,
+    isNowComplete ? "success" : "partial"
+  );
 }
 // ──────────────────────────────────────────────────────────────────────────
 
@@ -4289,7 +4319,7 @@ function renderPatientFile() {
       <div><span>الفئة</span><strong>${patient.category || "-"}</strong></div>
       <div><span>موافقة الرسائل</span><strong>${patient.marketingConsent ? "فعالة" : "غير متوفرة"}</strong></div>
     </div>
-    ${patient.notes ? `<div class="patient-note"><strong>ملاحظات الملف</strong><p>${patient.notes}</p></div>` : ""}
+    ${patient.notes ? `<div class="patient-note"><strong>ملاحظات سريرية</strong><p style="white-space:pre-line">${patient.notes}</p></div>` : ""}
     <div class="patient-history-section">
       <h3>سجل العمليات</h3>
       <div class="table-wrap">
@@ -5524,17 +5554,21 @@ function renderBookingList() {
         ? `<button class="text-button" type="button" data-booking-status-id="${booking.id}" data-booking-status="arrived">وصل</button>`
         : "";
     const canConvert = !["completed", "cancelled", "no_show"].includes(booking.status);
+    const patient = getPatient(booking.patientId) || findPatientByName(booking.patient);
+    const phone = booking.phone || patient?.phone || "";
+    const canCopyReminder = canUseFeature("see_mobile") && phone;
     return `
       <div class="staff-card booking-card">
         <div>
           <strong>${booking.time} | ${booking.patient}</strong>
-          <p>${serviceLabel(booking)}${booking.phone && canUseFeature("see_mobile") ? ` | ${booking.phone}` : ""}</p>
+          <p>${serviceLabel(booking)}${phone && canUseFeature("see_mobile") ? ` | ${phone}` : ""}</p>
           <p>الفريق: ${[doctor?.name, specialist?.name].filter(Boolean).join(" / ") || "بانتظار التعيين"}${canViewSensitive() ? ` | المتوقع ${money(booking.expectedAmount)}` : ""}</p>
           ${booking.notes ? `<p>${booking.notes}</p>` : ""}
         </div>
         <div class="row-actions">
           <span class="status-pill ${statusClass(booking.status)}">${bookingStatusLabel(booking.status)}</span>
           ${nextAction}
+          ${canCopyReminder ? `<button class="text-button whatsapp-copy-btn" type="button" data-copy-reminder="${booking.id}" title="نسخ رسالة تذكير واتساب">📋 تذكير</button>` : ""}
           ${canConvert ? `<button class="text-button" type="button" data-booking-to-entry="${booking.id}">تسجيل كعملية</button>` : ""}
           ${canUseFeature("delete_appointment") ? `<button class="icon-button danger" type="button" data-delete-booking="${booking.id}">حذف</button>` : ""}
         </div>
@@ -5717,6 +5751,9 @@ function renderPatientBalanceReport(entries) {
   }).join("");
 
   return `
+    <div class="balance-report-toolbar no-print">
+      <button class="text-button balance-print-btn" type="button" data-print-balance-report>🖨 طباعة / PDF</button>
+    </div>
     ${reportHeader(L.title, L.subtitle)}
     ${reportKpis([
       { label: L.totalPaid,  value: money(totalPaid) },
@@ -9284,10 +9321,12 @@ document.addEventListener("click", async event => {
   const printReceiptAction = event.target.closest("[data-print-receipt]");
   const tableFocusTrigger = event.target.closest("[data-open-table-focus]");
   const tableFocusClose = event.target.closest("[data-close-table-focus]");
+  const copyReminderId = event.target.closest("[data-copy-reminder]")?.dataset.copyReminder;
   const followupEntryId = event.target.closest("[data-followup-entry]")?.dataset.followupEntry;
   const closeFollowupAction = event.target.closest("[data-close-followup]");
   const submitFollowupAction = event.target.closest("[data-submit-followup]");
   const followupMethodAction = event.target.closest("[data-followup-method]");
+  const printBalanceAction = event.target.closest("[data-print-balance-report]");
   const deleteEntryId = event.target.dataset.deleteEntry;
   const deleteStaffId = event.target.dataset.deleteStaff;
   const deleteServiceId = event.target.dataset.deleteService;
@@ -9328,6 +9367,36 @@ document.addEventListener("click", async event => {
   const downloadClinicJsonAction = event.target.closest("[data-download-clinic-json]");
   const exportClinicCsvAction = event.target.closest("[data-export-clinic-csv]");
   const exportReportXlsAction = event.target.closest("[data-export-report-xls]");
+
+  // ─ WhatsApp reminder copy ──────────────────────────────────────────────
+  if (copyReminderId) {
+    const booking = (state.bookings || []).find(b => b.id === copyReminderId);
+    if (booking) {
+      const patient = getPatient(booking.patientId) || findPatientByName(booking.patient);
+      const phone = booking.phone || patient?.phone || "";
+      const clinicName = state.settings?.clinicName || "العيادة";
+      const dateStr = displayDate(booking.date);
+      const timeStr = displayTime(booking.time);
+      const service = serviceLabel(booking);
+      const msg = `السلام عليكم ${booking.patient}،\n\nنذكّركم بموعدكم في ${clinicName}\nالتاريخ: ${dateStr}\nالوقت: ${timeStr}\nالخدمة: ${service}\n\nنتمنى لكم دوام الصحة والعافية 🌿\n\nللاستفسار أو التعديل على الموعد يُرجى التواصل معنا.`;
+      navigator.clipboard.writeText(msg).then(() => {
+        showToast("✓ تم نسخ رسالة التذكير — الصقها في واتساب", "success");
+        const btn = event.target.closest("[data-copy-reminder]");
+        if (btn) { btn.textContent = "✓ تم النسخ"; setTimeout(() => { btn.innerHTML = "📋 تذكير"; }, 2500); }
+      }).catch(() => {
+        showToast("تعذّر النسخ — انسخ الرسالة يدوياً", "error");
+      });
+    }
+    return;
+  }
+
+  // ─ Print patient balance report ────────────────────────────────────────
+  if (printBalanceAction) {
+    document.body.classList.add("printing-report");
+    document.body.classList.remove("printing-salary-slip");
+    window.requestAnimationFrame(() => window.print());
+    return;
+  }
 
   if (openOperationAction) {
     openOperationModal();
