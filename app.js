@@ -1969,6 +1969,53 @@ function saveState() {
   runtime.saveTimer = setTimeout(flushLiveState, 350);
 }
 
+function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function waitForSaveIdle() {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    if (!runtime.saveInFlight) return true;
+    await wait(150);
+  }
+  return !runtime.saveInFlight;
+}
+
+async function saveStateImmediately() {
+  if (runtime.mode !== "live") {
+    storageSet(STORAGE_KEY, JSON.stringify(state));
+    return true;
+  }
+  clearTimeout(runtime.saveTimer);
+  runtime.savePending = false;
+  if (!await waitForSaveIdle()) throw new Error("save_busy");
+  runtime.saveInFlight = true;
+  try {
+    const response = await fetch("/api/clinic-state", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-Token": runtime.csrfToken
+      },
+      body: JSON.stringify({ state, stateVersion: runtime.stateVersion })
+    });
+    const result = await response.json().catch(() => ({}));
+    if (response.ok) {
+      runtime.stateVersion = Number(result.stateVersion ?? runtime.stateVersion);
+      return true;
+    }
+    if (response.status === 401) location.href = "/login";
+    if (response.status === 409) {
+      alert("تم تحديث بيانات العيادة من مستخدم آخر. سنعيد تحميل أحدث نسخة لمنع فقدان البيانات.");
+      location.reload();
+    }
+    throw new Error(result.error || "save_failed");
+  } finally {
+    runtime.saveInFlight = false;
+    if (runtime.savePending) saveState();
+  }
+}
+
 async function flushLiveState() {
   if (runtime.saveInFlight || !runtime.savePending || runtime.mode !== "live") return;
   runtime.saveInFlight = true;
@@ -9366,6 +9413,7 @@ document.addEventListener("click", async event => {
   const fillPaymentTotalAction = event.target.closest("[data-fill-payment-total]");
   const downloadClinicJsonAction = event.target.closest("[data-download-clinic-json]");
   const exportClinicCsvAction = event.target.closest("[data-export-clinic-csv]");
+  const restoreClinicJsonAction = event.target.closest("[data-restore-clinic-json-action]");
   const exportReportXlsAction = event.target.closest("[data-export-report-xls]");
 
   // ─ WhatsApp reminder copy ──────────────────────────────────────────────
@@ -9451,6 +9499,11 @@ document.addEventListener("click", async event => {
 
   if (exportClinicCsvAction) {
     exportClinicCsvBundle();
+    return;
+  }
+
+  if (restoreClinicJsonAction) {
+    document.querySelector("[data-restore-clinic-json]")?.click();
     return;
   }
 
@@ -10000,6 +10053,77 @@ async function downloadClinicJson() {
   }
 }
 
+function extractClinicStateFromBackup(payload) {
+  if (!payload || typeof payload !== "object") return null;
+  const candidate = payload.state && typeof payload.state === "object" ? payload.state : payload;
+  const hasCoreCollections = ["patients", "entries", "bookings", "services", "staff"]
+    .some(key => Array.isArray(candidate[key]));
+  if (!candidate.settings || typeof candidate.settings !== "object" || !hasCoreCollections) return null;
+  return candidate;
+}
+
+function backupRestoreSummary(restoredState) {
+  return [
+    `المرضى والزوار: ${restoredState.patients?.length || 0}`,
+    `العمليات: ${restoredState.entries?.length || 0}`,
+    `الحجوزات: ${restoredState.bookings?.length || 0}`,
+    `الخدمات: ${restoredState.services?.length || 0}`,
+    `المصروفات: ${restoredState.expenses?.length || 0}`,
+    `المخزون: ${restoredState.inventory?.length || 0}`
+  ].join("\n");
+}
+
+async function restoreClinicJson(file) {
+  if (!canManagePermissions() || !file) return;
+  if (file.size > 5 * 1024 * 1024) {
+    alert("ملف النسخة كبير جداً. الحد الحالي 5MB.");
+    return;
+  }
+
+  let payload;
+  try {
+    payload = JSON.parse(await file.text());
+  } catch {
+    alert("ملف JSON غير صالح.");
+    return;
+  }
+
+  const importedState = extractClinicStateFromBackup(payload);
+  if (!importedState) {
+    alert("هذا الملف لا يبدو كنسخة رعاية صالحة.");
+    return;
+  }
+
+  const accountSource = runtime.mode === "live" ? state.accounts : importedState.accounts;
+  const clinicSource = runtime.session?.clinic || { name: importedState.settings?.clinicName || state.settings?.clinicName };
+  const nextState = hydrateClinicState(importedState, clinicSource, accountSource || []);
+  const summary = backupRestoreSummary(nextState);
+  const confirmed = confirm(
+    `سيتم استبدال بيانات العيادة الحالية ببيانات هذه النسخة.\n\n${summary}\n\nقبل المتابعة، تأكد أنك نزلت نسخة JSON من الوضع الحالي. هل تريد الاسترجاع الآن؟`
+  );
+  if (!confirmed) return;
+
+  const previousState = state;
+  const previousPatientId = selectedPatientId;
+  state = nextState;
+  selectedPatientId = state.patients?.[0]?.id || "";
+  operationPage = 1;
+  patientPage = 1;
+  reportPage = 1;
+  expensePage = 1;
+
+  try {
+    await saveStateImmediately();
+    render();
+    showToast("✓ تم استرجاع نسخة JSON وحفظها", "success");
+  } catch {
+    state = previousState;
+    selectedPatientId = previousPatientId;
+    render();
+    alert("تعذر حفظ النسخة المسترجعة. لم يتم تغيير البيانات.");
+  }
+}
+
 function csvValue(value) {
   return `"${String(value ?? "").replaceAll('"', '""')}"`;
 }
@@ -10247,6 +10371,11 @@ function exportInventory() {
 document.querySelector("[data-export-entries]")?.addEventListener("click", exportEntries);
 document.querySelector("[data-export-salaries]")?.addEventListener("click", exportSalaries);
 document.querySelector("[data-export-inventory]")?.addEventListener("click", exportInventory);
+document.querySelector("[data-restore-clinic-json]")?.addEventListener("change", async event => {
+  const file = event.target.files?.[0];
+  event.target.value = "";
+  if (file) await restoreClinicJson(file);
+});
 
 document.querySelector("[data-clear-leads]").addEventListener("click", () => {
   if (!confirm("هل تريد مسح طلبات التجربة المحفوظة على هذا الجهاز؟")) return;
