@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=2026067">
+  <link rel="stylesheet" href="app.css?v=2026068">
 </head>
 <body>
   <div class="app-shell">
@@ -1467,6 +1467,7 @@
               <select data-report-select aria-label="اختيار التقرير">
                 <option value="universal">بحث شامل في العيادة</option>
                 <option value="patientBalance">ميزان المريض — تكملة الحسابات</option>
+                <option value="retention">الاحتفاظ بالمرضى — LTV والتسرب</option>
                 <option value="profit">ربح العيادة</option>
                 <option value="reconciliation">مطابقة المرضى والمدفوعات</option>
                 <option value="byPatient">حسب المريض</option>
@@ -1983,6 +1984,22 @@
             <div class="campaign-list" data-campaign-list></div>
           </article>
         </div>
+
+        <!-- Online Booking Link -->
+        <article class="panel" style="margin-bottom:20px;border-right:4px solid #0a7c5c">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">رابط الحجز الإلكتروني</p>
+              <h2>صفحة الحجز الخاصة بعيادتك</h2>
+            </div>
+          </div>
+          <p style="font-size:14px;color:#555;margin-bottom:14px">شارك هذا الرابط مع مرضاك ليحجزوا مواعيدهم مباشرة. الحجوزات تظهر في قسم الحجوزات بانتظار تأكيدك.</p>
+          <div style="display:flex;align-items:center;gap:10px;background:#f0fdf4;border:1.5px solid #6ee7b7;border-radius:10px;padding:12px 16px">
+            <code id="booking-link-url" style="flex:1;font-size:14px;color:#065f46;direction:ltr;text-align:left;word-break:break-all"></code>
+            <button class="text-button" type="button" id="copy-booking-link" style="white-space:nowrap;color:#059669;font-weight:700">📋 نسخ</button>
+            <a id="open-booking-link" href="#" target="_blank" style="white-space:nowrap;font-size:13px;font-weight:600;color:#059669;text-decoration:none">فتح ↗</a>
+          </div>
+        </article>
 
         <div class="integration-grid">
           <article class="panel integration-card">

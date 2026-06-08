@@ -1,0 +1,635 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="احجز موعدك بسهولة">
+  <title>حجز موعد</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green: #0a7c5c;
+      --green-light: #e6f4f0;
+      --green-mid: #d1ece5;
+      --amber: #d97706;
+      --amber-light: #fef3c7;
+      --text: #111827;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --radius: 14px;
+      --font: 'Cairo', 'Tajawal', sans-serif;
+    }
+
+    body {
+      font-family: var(--font);
+      background: #f5f7f5;
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px 16px 60px;
+    }
+
+    /* ── Header ── */
+    .booking-header {
+      text-align: center;
+      margin-bottom: 28px;
+      width: 100%;
+      max-width: 520px;
+    }
+    .booking-brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 18px;
+      text-decoration: none;
+    }
+    .booking-brand strong { color: var(--green); font-size: 15px; }
+    .clinic-name {
+      font-size: clamp(22px, 5vw, 30px);
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    .clinic-meta {
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    /* ── Card ── */
+    .booking-card {
+      background: #fff;
+      border-radius: var(--radius);
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04);
+      width: 100%;
+      max-width: 520px;
+      overflow: hidden;
+    }
+
+    /* ── Progress bar ── */
+    .booking-progress {
+      display: flex;
+      padding: 0;
+    }
+    .step-indicator {
+      flex: 1;
+      height: 4px;
+      background: var(--border);
+      transition: background 0.3s;
+    }
+    .step-indicator.done { background: var(--green); }
+    .step-indicator.active { background: var(--amber); }
+
+    /* ── Steps ── */
+    .booking-step { display: none; padding: 24px 24px 28px; }
+    .booking-step.active { display: block; }
+
+    .step-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .step-subtitle {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+
+    /* ── Service cards ── */
+    .service-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 10px;
+    }
+    .service-card {
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 12px;
+      text-align: center;
+      cursor: pointer;
+      background: #fafafa;
+      transition: all 0.15s;
+      font-family: var(--font);
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .service-card:hover { border-color: var(--green); background: var(--green-light); }
+    .service-card.selected { border-color: var(--green); background: var(--green-light); color: var(--green); }
+    .service-icon { font-size: 22px; margin-bottom: 6px; display: block; }
+
+    /* ── Calendar ── */
+    .cal-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .cal-nav-btn {
+      background: none;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      width: 36px; height: 36px;
+      font-size: 16px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s;
+    }
+    .cal-nav-btn:hover { background: var(--green-light); }
+    .cal-month { font-weight: 700; font-size: 15px; }
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+    .cal-day-header {
+      text-align: center;
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 600;
+      padding-bottom: 6px;
+    }
+    .cal-day {
+      aspect-ratio: 1;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      border: none;
+      background: none;
+      font-family: var(--font);
+    }
+    .cal-day:hover:not(:disabled) { background: var(--green-light); color: var(--green); }
+    .cal-day.selected { background: var(--green); color: #fff; }
+    .cal-day.today { color: var(--green); font-weight: 800; }
+    .cal-day:disabled { color: #ccc; cursor: not-allowed; }
+    .cal-day.empty { pointer-events: none; }
+
+    /* ── Time slots ── */
+    .time-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+      gap: 8px;
+    }
+    .time-slot {
+      padding: 10px 8px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      text-align: center;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      background: #fafafa;
+      transition: all 0.15s;
+      font-family: var(--font);
+    }
+    .time-slot:hover { border-color: var(--green); background: var(--green-light); }
+    .time-slot.selected { background: var(--green); border-color: var(--green); color: #fff; }
+
+    /* ── Patient form ── */
+    .form-grid { display: flex; flex-direction: column; gap: 14px; }
+    .form-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #374151;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .form-input {
+      border: 1.5px solid #d1d5db;
+      border-radius: 10px;
+      padding: 11px 14px;
+      font-size: 15px;
+      font-family: var(--font);
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.15s;
+      width: 100%;
+    }
+    .form-input:focus { border-color: var(--green); }
+
+    /* ── Summary bar ── */
+    .booking-summary {
+      background: var(--green-mid);
+      border-radius: 10px;
+      padding: 12px 16px;
+      margin-bottom: 18px;
+      font-size: 13px;
+      color: #065f46;
+      font-weight: 600;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .booking-summary span { display: flex; align-items: center; gap: 5px; }
+
+    /* ── Navigation buttons ── */
+    .step-nav {
+      display: flex;
+      gap: 10px;
+      margin-top: 24px;
+      justify-content: space-between;
+    }
+    .btn-back {
+      padding: 11px 20px;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      background: #f9fafb;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: var(--font);
+      color: #374151;
+      transition: background 0.15s;
+    }
+    .btn-back:hover { background: #f3f4f6; }
+    .btn-next {
+      flex: 1;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 10px;
+      background: var(--green);
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: var(--font);
+      transition: opacity 0.15s, transform 0.1s;
+      box-shadow: 0 3px 12px rgba(10,124,92,0.3);
+    }
+    .btn-next:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn-next:active { transform: translateY(0); }
+    .btn-next:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    /* ── Success screen ── */
+    .success-screen {
+      text-align: center;
+      padding: 40px 24px;
+    }
+    .success-icon { font-size: 56px; margin-bottom: 16px; }
+    .success-title { font-size: 22px; font-weight: 800; margin-bottom: 8px; color: var(--green); }
+    .success-body { font-size: 14px; color: var(--muted); line-height: 1.7; }
+    .success-ref {
+      display: inline-block;
+      margin-top: 16px;
+      padding: 10px 24px;
+      background: var(--green-light);
+      border-radius: 10px;
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--green);
+      letter-spacing: 0.05em;
+    }
+    .success-note {
+      margin-top: 14px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    /* ── Error / loading ── */
+    .booking-loader {
+      text-align: center;
+      padding: 60px 24px;
+      color: var(--muted);
+      font-size: 15px;
+    }
+    .booking-error {
+      background: #fef2f2;
+      border: 1px solid #fca5a5;
+      border-radius: 10px;
+      padding: 12px 16px;
+      color: #991b1b;
+      font-size: 13px;
+      margin-top: 12px;
+    }
+
+    /* ── Footer ── */
+    .booking-footer {
+      margin-top: 28px;
+      text-align: center;
+      font-size: 12px;
+      color: #9ca3af;
+    }
+    .booking-footer a { color: var(--green); text-decoration: none; }
+
+    @media (max-width: 480px) {
+      body { padding: 16px 12px 48px; }
+      .booking-step { padding: 20px 18px 24px; }
+      .service-grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header class="booking-header">
+  <a class="booking-brand" href="/">
+    <strong>RIAAYA</strong>
+    <span>رعاية</span>
+  </a>
+  <h1 class="clinic-name" id="clinic-name">جاري التحميل...</h1>
+  <p class="clinic-meta" id="clinic-meta"></p>
+</header>
+
+<div class="booking-card" id="booking-card">
+  <div class="booking-progress" id="progress-bar">
+    <div class="step-indicator active" id="prog-1"></div>
+    <div class="step-indicator" id="prog-2"></div>
+    <div class="step-indicator" id="prog-3"></div>
+    <div class="step-indicator" id="prog-4"></div>
+  </div>
+
+  <!-- Step 1: Service -->
+  <div class="booking-step active" id="step-1">
+    <p class="step-title">اختر الخدمة</p>
+    <p class="step-subtitle">ما الخدمة التي تودّ الحجز لها؟</p>
+    <div class="service-grid" id="service-grid">
+      <div class="booking-loader">جاري تحميل الخدمات...</div>
+    </div>
+    <div class="step-nav">
+      <button class="btn-next" id="next-1" onclick="goStep(2)" disabled>التالي ←</button>
+    </div>
+  </div>
+
+  <!-- Step 2: Date -->
+  <div class="booking-step" id="step-2">
+    <p class="step-title">اختر التاريخ</p>
+    <p class="step-subtitle">اختر يوم موعدك المناسب</p>
+    <div class="cal-nav">
+      <button class="cal-nav-btn" onclick="changeMonth(-1)">›</button>
+      <span class="cal-month" id="cal-month-label"></span>
+      <button class="cal-nav-btn" onclick="changeMonth(1)">‹</button>
+    </div>
+    <div class="cal-grid" id="cal-grid"></div>
+    <div class="step-nav">
+      <button class="btn-back" onclick="goStep(1)">← رجوع</button>
+      <button class="btn-next" id="next-2" onclick="goStep(3)" disabled>التالي ←</button>
+    </div>
+  </div>
+
+  <!-- Step 3: Time -->
+  <div class="booking-step" id="step-3">
+    <p class="step-title">اختر الوقت</p>
+    <p class="step-subtitle">المواعيد المتاحة ليوم <span id="selected-date-label"></span></p>
+    <div class="time-grid" id="time-grid"></div>
+    <div class="step-nav">
+      <button class="btn-back" onclick="goStep(2)">← رجوع</button>
+      <button class="btn-next" id="next-3" onclick="goStep(4)" disabled>التالي ←</button>
+    </div>
+  </div>
+
+  <!-- Step 4: Patient info -->
+  <div class="booking-step" id="step-4">
+    <p class="step-title">بياناتك</p>
+    <p class="step-subtitle">ندخل معلوماتك لتأكيد الحجز</p>
+    <div class="booking-summary" id="booking-summary"></div>
+    <div class="form-grid">
+      <label class="form-label">
+        الاسم الكامل *
+        <input class="form-input" id="inp-name" type="text" placeholder="سارة أحمد" autocomplete="name" required>
+      </label>
+      <label class="form-label">
+        رقم الهاتف *
+        <input class="form-input" id="inp-phone" type="tel" placeholder="07XXXXXXXX" autocomplete="tel" required>
+      </label>
+      <label class="form-label">
+        ملاحظة (اختياري)
+        <input class="form-input" id="inp-notes" type="text" placeholder="أي معلومات إضافية للعيادة">
+      </label>
+    </div>
+    <div id="submit-error" class="booking-error" style="display:none"></div>
+    <div class="step-nav">
+      <button class="btn-back" onclick="goStep(3)">← رجوع</button>
+      <button class="btn-next" id="submit-btn" onclick="submitBooking()">تأكيد الحجز ✓</button>
+    </div>
+  </div>
+
+  <!-- Success -->
+  <div class="booking-step" id="step-success">
+    <div class="success-screen">
+      <div class="success-icon">✅</div>
+      <h2 class="success-title">تم إرسال طلب الحجز!</h2>
+      <p class="success-body">شكراً لك. سيتواصل معك فريق العيادة لتأكيد موعدك في أقرب وقت ممكن.</p>
+      <div class="success-ref" id="success-ref">RIA-XXXXXX</div>
+      <p class="success-note">احتفظ برقم المرجع للاستفسار عن موعدك.</p>
+    </div>
+  </div>
+</div>
+
+<footer class="booking-footer">
+  يعمل بواسطة <a href="/" target="_blank">رعاية — Riaaya</a> | منصة إدارة العيادات
+</footer>
+
+<script>
+(function () {
+  /* ── State ── */
+  const slug = location.pathname.replace(/^\/book\//i, "").replace(/\/$/, "");
+  let clinicData = null;
+  let selectedService = null;
+  let selectedDate = null;   // "YYYY-MM-DD"
+  let selectedTime = null;
+  let calYear, calMonth;
+
+  const today = new Date();
+  calYear = today.getFullYear();
+  calMonth = today.getMonth();
+
+  /* ── Init ── */
+  async function init() {
+    try {
+      const res = await fetch(`/api/public/clinic/${slug}`);
+      if (!res.ok) throw new Error("not_found");
+      clinicData = await res.json();
+
+      document.getElementById("clinic-name").textContent = clinicData.clinic.name;
+      document.getElementById("clinic-meta").textContent =
+        [clinicData.clinic.city, clinicData.clinic.phone].filter(Boolean).join(" | ");
+      document.title = `حجز موعد — ${clinicData.clinic.name}`;
+
+      renderServices();
+      renderCalendar();
+    } catch {
+      document.getElementById("booking-card").innerHTML =
+        '<div class="booking-loader"><p style="font-size:32px;margin-bottom:12px">🏥</p><p>هذه الصفحة غير موجودة أو العيادة غير متاحة حالياً.</p></div>';
+      document.getElementById("clinic-name").textContent = "العيادة غير موجودة";
+    }
+  }
+
+  /* ── Services ── */
+  function renderServices() {
+    const icons = ["💉","🦷","💊","🩺","✨","🌿","👁","🦴","❤️","🩹"];
+    const grid = document.getElementById("service-grid");
+    if (!clinicData.services.length) {
+      grid.innerHTML = '<p style="color:#999;font-size:14px">لا توجد خدمات متاحة حالياً.</p>';
+      return;
+    }
+    grid.innerHTML = clinicData.services.map((s, i) => `
+      <button class="service-card" onclick="selectService('${s.id}','${s.name.replace(/'/g,"&#39;")}',this)">
+        <span class="service-icon">${icons[i % icons.length]}</span>
+        ${s.name}
+      </button>
+    `).join("");
+  }
+
+  window.selectService = function(id, name, el) {
+    selectedService = { id, name };
+    document.querySelectorAll(".service-card").forEach(c => c.classList.remove("selected"));
+    el.classList.add("selected");
+    document.getElementById("next-1").disabled = false;
+  };
+
+  /* ── Calendar ── */
+  window.changeMonth = function(dir) {
+    calMonth += dir;
+    if (calMonth > 11) { calMonth = 0; calYear++; }
+    if (calMonth < 0)  { calMonth = 11; calYear--; }
+    renderCalendar();
+  };
+
+  function renderCalendar() {
+    const monthNames = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
+    document.getElementById("cal-month-label").textContent = `${monthNames[calMonth]} ${calYear}`;
+    const grid = document.getElementById("cal-grid");
+    const dayNames = ["ح","ن","ث","ر","خ","ج","س"];
+    const headers = dayNames.map(d => `<span class="cal-day-header">${d}</span>`).join("");
+
+    const firstDay = new Date(calYear, calMonth, 1).getDay();
+    const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+    const todayStr = toDateStr(today);
+
+    let cells = Array(firstDay).fill('<span class="cal-day empty"></span>');
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${calYear}-${String(calMonth+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+      const isPast = dateStr < todayStr;
+      const isSelected = dateStr === selectedDate;
+      const isToday = dateStr === todayStr;
+      cells.push(`<button class="cal-day${isSelected?" selected":""}${isToday&&!isSelected?" today":""}"
+        onclick="selectDate('${dateStr}',this)" ${isPast?"disabled":""} >${d}</button>`);
+    }
+    grid.innerHTML = headers + cells.join("");
+  }
+
+  window.selectDate = function(dateStr, el) {
+    selectedDate = dateStr;
+    document.querySelectorAll(".cal-day").forEach(c => c.classList.remove("selected"));
+    el.classList.add("selected");
+    document.getElementById("next-2").disabled = false;
+    renderTimeSlots();
+  };
+
+  /* ── Time slots ── */
+  function renderTimeSlots() {
+    const label = document.getElementById("selected-date-label");
+    if (selectedDate) {
+      const [y,m,d] = selectedDate.split("-");
+      label.textContent = `${d}/${m}/${y}`;
+    }
+    const grid = document.getElementById("time-grid");
+    const slots = clinicData.slots || [];
+    if (!slots.length) {
+      grid.innerHTML = '<p style="color:#999;font-size:14px">لا توجد أوقات متاحة.</p>';
+      return;
+    }
+    grid.innerHTML = slots.map(t => `
+      <button class="time-slot" onclick="selectTime('${t}',this)">${t}</button>
+    `).join("");
+    selectedTime = null;
+    document.getElementById("next-3").disabled = true;
+  }
+
+  window.selectTime = function(time, el) {
+    selectedTime = time;
+    document.querySelectorAll(".time-slot").forEach(c => c.classList.remove("selected"));
+    el.classList.add("selected");
+    document.getElementById("next-3").disabled = false;
+  };
+
+  /* ── Step navigation ── */
+  window.goStep = function(n) {
+    document.querySelectorAll(".booking-step").forEach(s => s.classList.remove("active"));
+    document.getElementById(`step-${n}`).classList.add("active");
+    updateProgress(n);
+
+    if (n === 3) renderTimeSlots();
+    if (n === 4) renderSummary();
+  };
+
+  function updateProgress(step) {
+    for (let i = 1; i <= 4; i++) {
+      const el = document.getElementById(`prog-${i}`);
+      if (!el) continue;
+      el.className = "step-indicator" + (i < step ? " done" : i === step ? " active" : "");
+    }
+  }
+
+  function renderSummary() {
+    document.getElementById("booking-summary").innerHTML = `
+      <span>🩺 ${selectedService?.name || "—"}</span>
+      <span>📅 ${selectedDate || "—"}</span>
+      <span>⏰ ${selectedTime || "—"}</span>
+    `;
+  }
+
+  /* ── Submit ── */
+  window.submitBooking = async function() {
+    const name  = document.getElementById("inp-name").value.trim();
+    const phone = document.getElementById("inp-phone").value.trim();
+    const notes = document.getElementById("inp-notes").value.trim();
+    const errEl = document.getElementById("submit-error");
+
+    errEl.style.display = "none";
+    if (!name || !phone) {
+      errEl.textContent = "يرجى إدخال الاسم الكامل ورقم الهاتف.";
+      errEl.style.display = "block";
+      return;
+    }
+
+    const btn = document.getElementById("submit-btn");
+    btn.disabled = true;
+    btn.textContent = "جاري الإرسال...";
+
+    try {
+      const res = await fetch(`/api/public/clinic/${slug}/booking`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          patient: name,
+          phone,
+          serviceId:   selectedService?.id   || "",
+          serviceName: selectedService?.name  || "",
+          date: selectedDate,
+          time: selectedTime,
+          notes,
+        })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || "server_error");
+
+      document.getElementById("success-ref").textContent = data.reference;
+      document.querySelectorAll(".booking-step").forEach(s => s.classList.remove("active"));
+      document.getElementById("step-success").classList.add("active");
+      document.getElementById("progress-bar").innerHTML =
+        '<div class="step-indicator done" style="flex:1"></div>';
+    } catch (err) {
+      errEl.textContent = "حدث خطأ أثناء الإرسال. يرجى المحاولة مجدداً.";
+      errEl.style.display = "block";
+      btn.disabled = false;
+      btn.textContent = "تأكيد الحجز ✓";
+    }
+  };
+
+  /* ── Helpers ── */
+  function toDateStr(d) {
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>

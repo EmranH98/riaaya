@@ -148,6 +148,11 @@ const server = createServer(async (req, res) => {
     return;
   }
 
+  /* Public clinic booking pages: /book/:slug → booking.html */
+  if (/^\/book\/[a-z0-9-]+$/i.test(url.pathname)) {
+    url.pathname = "/booking.html";
+  }
+
   if (url.pathname === "/dashboard") {
     url.pathname = "/app.html";
   }

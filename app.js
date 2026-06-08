@@ -2523,7 +2523,8 @@ function bookingStatusLabel(status) {
       arrived: "Arrived",
       completed: "Completed",
       no_show: "No show",
-      cancelled: "Cancelled"
+      cancelled: "Cancelled",
+      pending_confirmation: "Online — Pending"
     }
     : {
       scheduled: "محجوز",
@@ -2531,7 +2532,8 @@ function bookingStatusLabel(status) {
       arrived: "وصل",
       completed: "تمت العملية",
       no_show: "لم يحضر",
-      cancelled: "ملغي"
+      cancelled: "ملغي",
+      pending_confirmation: "حجز إلكتروني — بانتظار التأكيد"
     };
   return labels[status] || status || labels.scheduled;
 }
@@ -2540,6 +2542,7 @@ function statusClass(status) {
   if (["completed", "confirmed", "arrived", "received", "paid", "approved"].includes(status)) return "good";
   if (["cancelled", "no_show"].includes(status)) return "bad";
   if (status === "partial_payment") return "partial";
+  if (status === "pending_confirmation") return "pending-online";
   return "warn";
 }
 
@@ -5586,9 +5589,43 @@ function renderBookingKpis() {
 
 function renderBookingList() {
   if (!els.bookingList) return;
+
+  /* Pending online bookings (all dates, shown as inbox at top) */
+  const allBookings = state.bookings || [];
+  const pendingOnline = allBookings.filter(b => b.status === "pending_confirmation");
+  const pendingHtml = pendingOnline.length
+    ? `<div class="pending-online-section">
+        <div class="pending-online-header">
+          <span class="pending-online-badge">${pendingOnline.length}</span>
+          حجوزات إلكترونية بانتظار التأكيد
+        </div>
+        ${pendingOnline.map(b => `
+          <div class="staff-card pending-online-card">
+            <div>
+              <strong>${b.time} | ${b.patient}</strong>
+              <p>${b.service || "—"} | ${b.date}</p>
+              ${b.phone && canUseFeature("see_mobile") ? `<p>📞 ${b.phone}</p>` : ""}
+              ${b.notes ? `<p style="color:#666;font-size:12px">${b.notes}</p>` : ""}
+              ${b.reference ? `<p style="font-size:11px;color:#999">Ref: ${b.reference}</p>` : ""}
+            </div>
+            <div class="row-actions">
+              ${canUseFeature("change_appointment_status") ? `
+                <button class="text-button" type="button" data-booking-status-id="${b.id}" data-booking-status="scheduled">✓ تأكيد</button>
+                <button class="icon-button danger" type="button" data-booking-status-id="${b.id}" data-booking-status="cancelled">رفض</button>
+              ` : ""}
+            </div>
+          </div>
+        `).join("")}
+      </div>`
+    : "";
+
   const bookings = activeBookings();
-  if (!bookings.length) {
+  if (!bookings.length && !pendingOnline.length) {
     els.bookingList.innerHTML = `<div class="empty-state">لا توجد حجوزات لهذا التاريخ بعد.</div>`;
+    return;
+  }
+  if (!bookings.length) {
+    els.bookingList.innerHTML = pendingHtml;
     return;
   }
 
@@ -5622,6 +5659,7 @@ function renderBookingList() {
       </div>
     `;
   }).join("");
+  els.bookingList.innerHTML = pendingHtml + els.bookingList.innerHTML;
 }
 
 /* ─── PATIENT BALANCE REPORT ─────────────────────────────────────────────── */
@@ -6877,6 +6915,93 @@ function renderReportDateControls() {
   els.reportDateTo.value = range.to;
 }
 
+/* ─── RETENTION / LTV / CHURN REPORT ─────────────────────────────────────── */
+function renderRetentionReport(entries, patients) {
+  const today = new Date();
+  const todayStr = today.toISOString().slice(0, 10);
+  const CHURN_DAYS = 90;
+
+  /* Per-patient aggregation */
+  const map = new Map();
+  entries.forEach(entry => {
+    const name = entry.patient || "غير محدد";
+    const cur = map.get(name) || { name, paid: 0, visits: 0, firstDate: entry.date, lastDate: entry.date };
+    cur.paid      += paidAmount(entry);
+    cur.visits    += 1;
+    if (entry.date && entry.date < cur.firstDate) cur.firstDate = entry.date;
+    if (entry.date && entry.date > cur.lastDate)  cur.lastDate  = entry.date;
+    map.set(name, cur);
+  });
+
+  const rows = [...map.values()].map(r => {
+    const ltv      = r.paid;
+    const avgVisit = r.visits > 0 ? r.paid / r.visits : 0;
+    const daysSince = r.lastDate
+      ? Math.floor((today - new Date(r.lastDate + "T12:00:00")) / 86400000)
+      : 999;
+    const isChurned = daysSince >= CHURN_DAYS && r.visits > 0;
+    const isReturned = r.visits > 1;
+    return { ...r, ltv, avgVisit, daysSince, isChurned, isReturned };
+  });
+
+  const totalPatients  = rows.length;
+  const returned       = rows.filter(r => r.isReturned).length;
+  const retentionRate  = totalPatients ? Math.round((returned / totalPatients) * 100) : 0;
+  const churned        = rows.filter(r => r.isChurned).length;
+  const churnRate      = totalPatients ? Math.round((churned / totalPatients) * 100) : 0;
+  const avgLtv         = totalPatients ? rows.reduce((s, r) => s + r.ltv, 0) / totalPatients : 0;
+  const topPatients    = [...rows].sort((a, b) => b.ltv - a.ltv).slice(0, 10);
+  const churnList      = rows.filter(r => r.isChurned).sort((a, b) => b.daysSince - a.daysSince).slice(0, 10);
+
+  return `
+    ${reportHeader("الاحتفاظ بالمرضى — LTV والتسرب", "تحليل قيمة كل مريض على المدى البعيد، نسبة العائدين، والمرضى المعرضين للتسرب.")}
+    ${reportKpis([
+      { label: "معدل الاحتفاظ",  value: `${retentionRate}%`,     note: `${returned} من ${totalPatients} عادوا للعيادة` },
+      { label: "معدل التسرب",    value: `${churnRate}%`,          note: `${churned} مريض لم يزور منذ +${CHURN_DAYS} يوم` },
+      { label: "متوسط LTV",      value: money(avgLtv),             note: "متوسط الإيراد لكل مريض" },
+      { label: "إجمالي المرضى",  value: totalPatients },
+    ])}
+    <div class="report-two-col">
+      <div class="retention-section">
+        <h4 class="retention-title">🏆 أعلى 10 مرضى بقيمة مدى الحياة (LTV)</h4>
+        <table class="patient-balance-table">
+          <thead><tr><th>المريض</th><th>LTV</th><th>الزيارات</th><th>متوسط الزيارة</th><th>آخر زيارة</th></tr></thead>
+          <tbody>
+            ${topPatients.map(r => `
+              <tr>
+                <td><strong>${r.name}</strong></td>
+                <td class="balance-positive"><strong>${money(r.ltv)}</strong></td>
+                <td>${r.visits}</td>
+                <td>${money(r.avgVisit)}</td>
+                <td>${r.lastDate || "—"}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+      <div class="retention-section">
+        <h4 class="retention-title">⚠️ مرضى معرضون للتسرب (لم يزوروا +${CHURN_DAYS} يوم)</h4>
+        ${churnList.length ? `
+          <table class="patient-balance-table">
+            <thead><tr><th>المريض</th><th>آخر زيارة</th><th>منذ</th><th>LTV</th></tr></thead>
+            <tbody>
+              ${churnList.map(r => `
+                <tr class="balance-row balance-row--underpaid">
+                  <td><strong>${r.name}</strong></td>
+                  <td>${r.lastDate || "—"}</td>
+                  <td><span class="remaining-badge">${r.daysSince} يوم</span></td>
+                  <td>${money(r.ltv)}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        ` : `<div class="empty-state" style="padding:24px 0">لا يوجد مرضى في خطر التسرب حالياً. 🎉</div>`}
+      </div>
+    </div>
+  `;
+}
+/* ──────────────────────────────────────────────────────────────────────────── */
+
 function renderReports() {
   if (!els.reportPage || !els.reportSelect) return;
   const { from, to } = reportDateRange();
@@ -6895,7 +7020,7 @@ function renderReports() {
     : [];
   const universalItems = universalReportItems(from, to);
   const reportType = els.reportSelect.value || "reconciliation";
-  const financialReports = ["profit", "reconciliation", "patientBalance", "byPatient", "perProcedure", "costs", "expenses"];
+  const financialReports = ["profit", "reconciliation", "patientBalance", "byPatient", "perProcedure", "costs", "expenses", "retention"];
   if (!canViewSensitive() && financialReports.includes(reportType)) {
     els.reportVisuals.innerHTML = "";
     els.reportPagination.innerHTML = "";
@@ -6913,6 +7038,9 @@ function renderReports() {
   if (reportType === "patientBalance") {
     pagination = paginateItems(allEntries, 1, Math.max(allEntries.length, 1));
     content = renderPatientBalanceReport(pagination.items);
+  } else if (reportType === "retention") {
+    pagination = paginateItems(allEntries, 1, Math.max(allEntries.length, 1));
+    content = renderRetentionReport(allEntries, allPatients);
   } else if (reportType === "universal") {
     pagination = paginateItems(universalItems, reportPage, pageSize);
     content = renderUniversalReport(pagination.items);
@@ -7814,6 +7942,23 @@ function renderIntegrationSettings() {
 }
 
 function renderCommunications() {
+  /* Populate booking link */
+  const slug = runtime.clinic?.slug || "";
+  const bookingUrl = slug ? `${location.origin}/book/${slug}` : "";
+  const linkEl  = document.getElementById("booking-link-url");
+  const copyBtn = document.getElementById("copy-booking-link");
+  const openBtn = document.getElementById("open-booking-link");
+  if (linkEl)  linkEl.textContent = bookingUrl || "سجّل الدخول لرؤية رابط العيادة";
+  if (openBtn) { openBtn.href = bookingUrl; openBtn.style.pointerEvents = bookingUrl ? "" : "none"; }
+  if (copyBtn && bookingUrl) {
+    copyBtn.onclick = () => {
+      navigator.clipboard.writeText(bookingUrl).then(() => {
+        copyBtn.textContent = "✓ تم النسخ";
+        setTimeout(() => { copyBtn.textContent = "📋 نسخ"; }, 2500);
+      });
+    };
+  }
+
   renderDigestAccounts();
   renderDigestPreview();
   renderDigestRules();
