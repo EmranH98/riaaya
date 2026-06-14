@@ -3908,6 +3908,9 @@ function operationalNotifications() {
   const scheduled = bookings.filter(booking => booking.status === "scheduled");
   const noShows = bookings.filter(booking => booking.status === "no_show");
   const pendingPayments = activeEntries().filter(entry => entry.status === "pending_payment");
+  // All entries across all dates where payment is incomplete
+  const allEntries = state.entries || [];
+  const partialPayments = allEntries.filter(entry => entry.status === "partial_payment");
   const draftReceipts = (state.receipts || []).filter(receipt => ["draft", "ready"].includes(receipt.status));
   const notifications = [];
   const nextBooking = nextVisitorBooking();
@@ -3937,6 +3940,16 @@ function operationalNotifications() {
       title: `${noShows.length} لم يحضروا`,
       body: "أرسل متابعة أو اعرض موعداً بديلاً.",
       view: "communications"
+    });
+  }
+  if (partialPayments.length) {
+    const names = [...new Set(partialPayments.map(e => e.patient))].slice(0, 4);
+    notifications.push({
+      id: "partial-payments-outstanding",
+      severity: "warning",
+      title: `${partialPayments.length} ${partialPayments.length === 1 ? "مريض" : "مرضى"} بحساب غير مكتمل`,
+      body: names.join("، ") + (partialPayments.length > 4 ? ` وآخرون…` : ""),
+      view: "entries"
     });
   }
   if (pendingPayments.length) {
@@ -4396,7 +4409,11 @@ function renderEntryTable(entries) {
         <td><span class="status-pill ${statusClass(entry.status)}">${entryStatusLabel(entry.status)}</span></td>
         ${showSensitive ? `<td>${money(paidAmount(entry))}</td>` : ""}
         ${showSensitive ? `<td><span class="formula-pill">${payoutText}</span></td>` : ""}
-        ${showSensitive ? `<td><div class="row-actions">${entry.status === "partial_payment" ? `<button class="text-button followup-button" type="button" data-followup-entry="${entry.id}">تكملة الدفع</button>` : ""}${receipt && canViewReceipts() ? `<button class="text-button" type="button" data-open-receipt="${receipt.id}">إيصال</button>` : ""}${canDelete ? `<button class="icon-button danger" type="button" data-delete-entry="${entry.id}">حذف</button>` : ""}</div></td>` : ""}
+        <td><div class="row-actions">
+          ${entry.status === "partial_payment" ? `<button class="text-button followup-button" type="button" data-followup-entry="${entry.id}">تكملة الدفع</button>` : ""}
+          ${receipt && canViewReceipts() ? `<button class="text-button" type="button" data-open-receipt="${receipt.id}">إيصال</button>` : ""}
+          ${canDelete ? `<button class="icon-button danger" type="button" data-delete-entry="${entry.id}">حذف</button>` : ""}
+        </div></td>
       </tr>
     `;
   }).join("");
@@ -7494,6 +7511,17 @@ function resetEntryFormDefaults() {
   renderPaymentQuickButtons();
 }
 
+function applyPriceFieldVisibility() {
+  // Managers see and edit price/discount. Non-managers: auto-fill from service, fields hidden.
+  const showPrice = canViewSensitive();
+  if (!els.entryForm) return;
+  els.entryForm.querySelectorAll("[data-price-field]").forEach(el => {
+    el.hidden = !showPrice;
+    const input = el.querySelector("input");
+    if (input) input.required = showPrice; // not required when hidden
+  });
+}
+
 function openOperationModal({ returnView = "" } = {}) {
   if (!canView("entries")) return;
   const currentView = document.querySelector(".view.active")?.dataset.view || "dashboard";
@@ -7502,6 +7530,7 @@ function openOperationModal({ returnView = "" } = {}) {
   if (!els.operationModal) return;
   els.operationModal.hidden = false;
   document.body.classList.add("operation-modal-open");
+  applyPriceFieldVisibility();
   renderPaymentQuickButtons();
   window.setTimeout(() => {
     els.entryForm?.querySelector('input[name="patient"]')?.focus({ preventScroll: true });
@@ -9165,6 +9194,7 @@ if (els.entryForm) {
     if (event.target === els.serviceSelect) {
       const service = getService(els.serviceSelect.value);
       if (service) {
+        // Always auto-fill from service — managers can override, non-managers get it silently
         els.entryForm.elements.amount.value = service.defaultPrice || "";
         const costInput = els.entryForm.querySelector("[data-cost-input]");
         if (costInput) costInput.value = service.defaultCost || 0;

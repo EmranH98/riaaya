@@ -476,28 +476,17 @@
                 ملاحظات
                 <input name="notes" type="text" placeholder="اختياري">
               </label>
+              <!-- always individual — no need to ask every time -->
+              <input name="buyerType" type="hidden" value="individual">
+              <input name="buyerTaxNumber" type="hidden" value="">
+              <input name="taxRate" type="hidden" value="0">
               <div class="receipt-options">
                 <label class="permission-check inline-check">
                   <input name="createReceipt" type="checkbox" checked>
                   إصدار إيصال لهذه الزيارة
                 </label>
                 <label>
-                  نوع المشتري
-                  <select name="buyerType">
-                    <option value="individual">فرد</option>
-                    <option value="business">شركة / جهة</option>
-                  </select>
-                </label>
-                <label>
-                  الرقم الوطني / الضريبي
-                  <input name="buyerTaxNumber" type="text" placeholder="اختياري حسب نوع الفاتورة">
-                </label>
-                <label>
-                  ضريبة المبيعات %
-                  <input name="taxRate" type="number" min="0" max="100" step="0.01" value="0">
-                </label>
-                <label>
-                  رقم أمر أو مرجع
+                  رقم مرجع / ملاحظة الإيصال
                   <input name="receiptReference" type="text" placeholder="اختياري">
                 </label>
               </div>
@@ -511,11 +500,11 @@
                     الكمية
                     <input name="quantity" type="number" min="1" step="1" value="1" required>
                   </label>
-                  <label>
+                  <label data-price-field>
                     سعر الوحدة
                     <input name="amount" type="number" min="0" step="0.01" placeholder="80" required>
                   </label>
-                  <label>
+                  <label data-price-field>
                     الخصم
                     <input name="discount" type="number" min="0" step="0.01" value="0">
                   </label>
