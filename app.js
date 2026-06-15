@@ -2348,7 +2348,7 @@ function roleLabel(role) {
     }
     : {
       admin: "مدير",
-      data_entry: "إدخال بيانات",
+      data_entry: "مساعد / استقبال",
       doctor: "طبيب",
       specialist: "أخصائي"
     };
@@ -3296,10 +3296,10 @@ function renderAccountStaffSelect() {
 
 function roleCodeLabel(role) {
   const labels = {
-    admin: "admin",
-    data_entry: "assistant",
-    doctor: "doctor-compound",
-    specialist: "specialist"
+    admin: "مدير",
+    data_entry: "مساعد / استقبال",
+    doctor: "طبيب",
+    specialist: "أخصائي"
   };
   return labels[role] || role;
 }
@@ -3408,10 +3408,10 @@ function renderAccountList() {
         <td>${account.firstName || "-"}</td>
         <td>${account.lastName || "-"}</td>
         <td>${roleCodeLabel(account.role)}</td>
-        <td><span class="status-pill ${account.active === false ? "bad" : "good"}">${account.active === false ? "Inactive" : "Active"}</span></td>
+        <td><span class="status-pill ${account.active === false ? "bad" : "good"}">${account.active === false ? "موقوف" : "نشط"}</span></td>
         <td>${account.memberSince ? displayDate(account.memberSince) : "-"}</td>
         <td>${account.lastAccess || "-"}</td>
-        <td><button class="text-button" type="button" data-edit-account="${account.id}">edit</button></td>
+        <td><button class="text-button" type="button" data-edit-account="${account.id}">تعديل</button></td>
         <td>${canDelete ? `<button class="icon-button danger compact-delete" type="button" data-delete-account="${account.id}">×</button>` : "-"}</td>
       </tr>
     `;
@@ -3444,7 +3444,7 @@ function renderPermissionTable() {
     <tr>
       <td>${row.accounts.map(account => accountDisplayName(account)).join(", ")}</td>
       <td>${row.feature.label}</td>
-      <td><button class="text-button" type="button" data-edit-permission="${row.feature.id}">Edit</button></td>
+      <td><button class="text-button" type="button" data-edit-permission="${row.feature.id}">تعديل</button></td>
       <td><button class="icon-button danger compact-delete" type="button" data-delete-permission="${row.feature.id}">×</button></td>
     </tr>
   `).join("");

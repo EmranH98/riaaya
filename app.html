@@ -1691,7 +1691,7 @@
           <div class="panel-header">
             <div>
               <p class="eyebrow">إدارة المستخدمين</p>
-              <h2>Manage Users</h2>
+              <h2>الحسابات</h2>
             </div>
             <button class="text-button" type="button" data-reset-account-form>حساب جديد</button>
           </div>
@@ -1699,48 +1699,48 @@
           <form class="account-form practical-form" data-account-form>
             <input name="accountId" type="hidden">
             <label>
-              Login Email
+              البريد الإلكتروني
               <input name="email" type="email" placeholder="user@clinic.com">
             </label>
             <label>
-              Initial / New Password
+              كلمة المرور
               <input name="password" type="password" minlength="12" placeholder="اتركها فارغة عند التعديل">
             </label>
             <label>
-              User Name
+              اسم المستخدم
               <input name="userName" type="text" placeholder="reception01" required>
             </label>
             <label>
-              Arabic First Name
+              الاسم الأول
               <input name="arabicFirstName" type="text" placeholder="سارة">
             </label>
             <label>
-              Arabic Last Name
+              اسم العائلة
               <input name="arabicLastName" type="text" placeholder="خالد">
             </label>
             <label>
-              First Name
+              الاسم الأول (إنجليزي)
               <input name="firstName" type="text" placeholder="Sara">
             </label>
             <label>
-              Last Name
+              اسم العائلة (إنجليزي)
               <input name="lastName" type="text" placeholder="Khaled">
             </label>
             <label>
-              Mobile No.
+              رقم الجوال
               <input name="mobile" type="tel" placeholder="079 000 0000">
             </label>
             <label>
-              Tel. No.
+              رقم الهاتف
               <input name="telNo" type="tel" placeholder="06 000 0000">
             </label>
             <label>
-              Role
+              الصلاحية
               <select name="role" required>
-                <option value="data_entry">assistant</option>
-                <option value="doctor">doctor-compound</option>
-                <option value="specialist">specialist</option>
-                <option value="admin">admin</option>
+                <option value="data_entry">مساعد / استقبال</option>
+                <option value="doctor">طبيب</option>
+                <option value="specialist">أخصائي</option>
+                <option value="admin">مدير</option>
               </select>
             </label>
             <label>
@@ -1748,10 +1748,10 @@
               <select name="staffId" data-account-staff-select></select>
             </label>
             <label>
-              Status
+              الحالة
               <select name="active">
-                <option value="true">Active</option>
-                <option value="false">Inactive</option>
+                <option value="true">نشط</option>
+                <option value="false">موقوف</option>
               </select>
             </label>
             <label class="permission-check inline-check">
@@ -1790,46 +1790,46 @@
               <label><input name="workingDays" type="checkbox" value="5"> الجمعة</label>
               <label><input name="workingDays" type="checkbox" value="6"> السبت</label>
             </fieldset>
-            <button class="primary-button form-submit" type="submit" data-account-submit>Save User</button>
+            <button class="primary-button form-submit" type="submit" data-account-submit>حفظ الحساب</button>
           </form>
 
           <form class="account-filter-form" data-account-filter-form>
             <label>
-              Active
+              الحالة
               <select name="active">
-                <option value="">- Any -</option>
-                <option value="true">Active</option>
-                <option value="false">Inactive</option>
+                <option value="">— الكل —</option>
+                <option value="true">نشط</option>
+                <option value="false">موقوف</option>
               </select>
             </label>
             <label>
-              User Name
+              اسم المستخدم
               <input name="userName" type="search">
             </label>
             <label>
-              Arabic First Name
+              الاسم الأول
               <input name="arabicFirstName" type="search">
             </label>
             <label>
-              First Name
+              الاسم (إنجليزي)
               <input name="firstName" type="search">
             </label>
             <label>
-              Mobile No.
+              رقم الجوال
               <input name="mobile" type="search">
             </label>
             <label>
-              Tel. No.
+              رقم الهاتف
               <input name="telNo" type="search">
             </label>
             <label>
-              Role
+              الصلاحية
               <select name="role">
-                <option value="">- Any -</option>
-                <option value="data_entry">assistant</option>
-                <option value="doctor">doctor-compound</option>
-                <option value="specialist">specialist</option>
-                <option value="admin">admin</option>
+                <option value="">— الكل —</option>
+                <option value="data_entry">مساعد / استقبال</option>
+                <option value="doctor">طبيب</option>
+                <option value="specialist">أخصائي</option>
+                <option value="admin">مدير</option>
               </select>
             </label>
           </form>
@@ -1838,18 +1838,18 @@
             <table class="practical-table">
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Arabic First Name</th>
-                  <th>Arabic Last Name</th>
-                  <th>Uid</th>
-                  <th>First Name</th>
-                  <th>Last Name</th>
-                  <th>Roles</th>
-                  <th>Status</th>
-                  <th>Member Since</th>
-                  <th>Last access</th>
-                  <th>Edit</th>
-                  <th>Delete</th>
+                  <th>المستخدم</th>
+                  <th>الاسم الأول</th>
+                  <th>اسم العائلة</th>
+                  <th>المعرّف</th>
+                  <th>الاسم (إنج)</th>
+                  <th>العائلة (إنج)</th>
+                  <th>الصلاحية</th>
+                  <th>الحالة</th>
+                  <th>عضو منذ</th>
+                  <th>آخر دخول</th>
+                  <th>تعديل</th>
+                  <th>حذف</th>
                 </tr>
               </thead>
               <tbody data-account-table></tbody>
@@ -1860,31 +1860,31 @@
         <article class="panel access-panel permissions-panel">
           <div class="panel-header">
             <div>
-              <p class="eyebrow">Feature Permissions</p>
-              <h2>Permissions</h2>
+              <p class="eyebrow">صلاحيات الميزات</p>
+              <h2>الصلاحيات</h2>
             </div>
           </div>
           <form class="permission-assignment-form" data-permission-form>
             <label>
-              Full Name
+              المستخدم
               <select name="accountIds" data-permission-account-select multiple required></select>
-              <small>Press in box to choose more users</small>
+              <small>اضغط داخل القائمة لاختيار أكثر من مستخدم</small>
             </label>
             <label>
-              Module
+              القسم
               <select name="category" data-permission-category-select>
-                <option value="">All modules</option>
+                <option value="">— كل الأقسام —</option>
               </select>
             </label>
             <label>
-              Search permissions
-              <input name="permissionQuery" type="search" data-permission-search placeholder="Patient, calendar, finance...">
+              بحث في الصلاحيات
+              <input name="permissionQuery" type="search" data-permission-search placeholder="مريض، تقويم، مالية...">
             </label>
             <label>
-              Feature
+              الميزة
               <select name="feature" data-permission-feature-select required></select>
             </label>
-            <button class="primary-button form-submit" type="submit">Save</button>
+            <button class="primary-button form-submit" type="submit">حفظ</button>
           </form>
 
           <div class="permission-catalog" data-permission-catalog></div>
@@ -1893,10 +1893,10 @@
             <table class="practical-table permission-record-table">
               <thead>
                 <tr>
-                  <th>User Name</th>
-                  <th>Feature</th>
-                  <th>Edit</th>
-                  <th>Delete</th>
+                  <th>المستخدم</th>
+                  <th>الميزة</th>
+                  <th>تعديل</th>
+                  <th>حذف</th>
                 </tr>
               </thead>
               <tbody data-permission-table></tbody>
