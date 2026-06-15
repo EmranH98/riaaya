@@ -7576,7 +7576,7 @@ function updateEntryPreview() {
 
   if (!canViewSensitive()) {
     els.entryPreview.textContent = overpaid
-      ? `المدفوع أعلى من قيمة الزيارة. عدّل الكاش أو الفيزا أو التحويل قبل الحفظ.`
+      ? `المدفوع ${money(paid)} — أعلى من قيمة الخدمات. سيُسجَّل المبلغ الفعلي.`
       : `${lines.length} ${lines.length === 1 ? "عملية" : "عمليات"} في هذه الزيارة. المدفوع ${money(paid)}.`;
     return;
   }
@@ -9473,11 +9473,7 @@ els.entryForm.addEventListener("submit", event => {
   const createdAt = new Date().toISOString();
   const visitTotal = visitNetForLines(lines);
   const visitPayments = paymentBreakdownFromForm(lines);
-  if (paymentTotal(visitPayments) - visitTotal > 0.009) {
-    alert("المدفوع أعلى من قيمة الزيارة. عدّل مبالغ الكاش أو الفيزا أو التحويل قبل الحفظ.");
-    updateEntryPreview();
-    return;
-  }
+  // Overpayment is allowed (advance/credit payment) — the preview already warns the user.
   const newEntries = lines.map(line => normalizeEntry({
     ...line,
     id: nextId("entry"),
