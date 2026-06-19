@@ -2,9 +2,15 @@ services:
   - type: web
     name: riaaya
     runtime: docker
-    plan: free
+    # Persistent disks require a paid instance type (Free has no durable storage).
+    plan: starter
     dockerfilePath: ./Dockerfile
     healthCheckPath: /healthz
+    # Durable storage so clinic data survives every deploy/restart.
+    disk:
+      name: riaaya-data
+      mountPath: /data
+      sizeGB: 1
     envVars:
       - key: NODE_ENV
         value: production
@@ -13,9 +19,9 @@ services:
       - key: PORT
         value: 4174
       - key: RIAAYA_DB_PATH
-        value: /tmp/riaaya.sqlite
+        value: /data/riaaya.sqlite
       - key: RIAAYA_BACKUP_DIR
-        value: /tmp/riaaya-backups
+        value: /data/backups
       - key: RIAAYA_ALLOW_EPHEMERAL_STORAGE
         value: true
       - key: RIAAYA_BACKUP_RETENTION
