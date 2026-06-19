@@ -39,8 +39,38 @@
       <article class="trial"><span>تجارب فعالة</span><strong data-owner-kpi="trial">0</strong></article>
       <article class="active"><span>اشتراكات فعالة</span><strong data-owner-kpi="active">0</strong></article>
       <article class="warning"><span>موقوفة</span><strong data-owner-kpi="suspended">0</strong></article>
+      <article class="revenue"><span>الإيرادات الشهرية (MRR)</span><strong data-owner-kpi="mrr">0 د.أ</strong></article>
+      <article class="revenue"><span>الإيرادات السنوية (ARR)</span><strong data-owner-kpi="arr">0 د.أ</strong></article>
     </section>
 
+    <!-- ── Create New Clinic ──────────────────────────────────────────────── -->
+    <section class="owner-panel create-clinic-panel">
+      <div class="panel-heading">
+        <div><p>إدارة العيادات</p><h2>إنشاء عيادة جديدة</h2></div>
+      </div>
+      <form class="create-clinic-form" data-create-clinic-form>
+        <label>اسم العيادة<input name="clinicName" type="text" required placeholder="عيادة الدكتور أحمد"></label>
+        <label>المدينة<input name="city" type="text" placeholder="عمّان"></label>
+        <label>الهاتف<input name="phone" type="text" placeholder="+962 7..."></label>
+        <label>
+          الخطة
+          <select name="plan">
+            <option value="starter">البداية</option>
+            <option value="professional" selected>الاحترافية</option>
+            <option value="enterprise">المؤسسات</option>
+          </select>
+        </label>
+        <label>اسم المدير<input name="adminName" type="text" required placeholder="الاسم الكامل"></label>
+        <label>إيميل المدير<input name="adminEmail" type="email" required placeholder="admin@clinic.com"></label>
+        <label>كلمة مرور المدير<input name="adminPassword" type="password" required placeholder="8 أحرف على الأقل"></label>
+        <div class="create-clinic-actions">
+          <button type="submit">إنشاء العيادة</button>
+          <span data-create-clinic-status></span>
+        </div>
+      </form>
+    </section>
+
+    <!-- ── Landing Page Settings ──────────────────────────────────────────── -->
     <section class="owner-panel landing-panel">
       <div class="panel-heading">
         <div><p>الموقع العام</p><h2>تخصيص صفحة الهبوط</h2></div>
@@ -192,6 +222,80 @@
       </article>
     </section>
   </main>
+
+  <!-- ── Send Notification Modal ────────────────────────────────────────── -->
+  <dialog class="owner-dialog" data-notify-dialog>
+    <form method="dialog" class="owner-dialog-form" data-notify-form>
+      <h2>إرسال إشعار للعيادة</h2>
+      <input type="hidden" name="clinicId">
+      <label>عنوان الإشعار<input name="title" type="text" required placeholder="مثال: تجديد الاشتراك"></label>
+      <label class="wide-field">نص الإشعار<textarea name="body" rows="3" required placeholder="تفاصيل الإشعار..."></textarea></label>
+      <label>
+        الأولوية
+        <select name="severity">
+          <option value="info">معلوماتي</option>
+          <option value="warning">تحذير</option>
+          <option value="danger">عاجل</option>
+        </select>
+      </label>
+      <label>
+        القسم المرتبط
+        <select name="viewTarget">
+          <option value="dashboard">الرئيسية</option>
+          <option value="entries">العمليات</option>
+          <option value="bookings">الحجوزات</option>
+          <option value="accounts">الحسابات</option>
+        </select>
+      </label>
+      <label>ينتهي بتاريخ (اختياري)<input name="expiresAt" type="date"></label>
+      <div class="dialog-actions">
+        <button type="submit">إرسال الإشعار</button>
+        <button type="button" data-close-notify-dialog>إلغاء</button>
+        <span data-notify-status></span>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- ── Reset User Password Modal ─────────────────────────────────────── -->
+  <dialog class="owner-dialog" data-reset-user-dialog>
+    <form method="dialog" class="owner-dialog-form" data-reset-user-form>
+      <h2>إعادة كلمة مرور مستخدم</h2>
+      <input type="hidden" name="clinicId">
+      <label>
+        اختر المستخدم
+        <select name="userId" data-reset-user-select required></select>
+      </label>
+      <div class="dialog-actions">
+        <button type="submit">إعادة تعيين كلمة المرور</button>
+        <button type="button" data-close-reset-user-dialog>إلغاء</button>
+        <span data-reset-user-status></span>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- ── Override Settings Modal ───────────────────────────────────────── -->
+  <dialog class="owner-dialog" data-override-settings-dialog>
+    <form method="dialog" class="owner-dialog-form" data-override-settings-form>
+      <h2>تعديل إعدادات العيادة</h2>
+      <input type="hidden" name="clinicId">
+      <label>اسم العيادة (داخل التطبيق)<input name="clinicName" type="text" placeholder="اتركه فارغاً لعدم التغيير"></label>
+      <label>تاريخ العمل النشط<input name="activeDate" type="date" placeholder="YYYY-MM-DD"></label>
+      <label>
+        اللغة
+        <select name="language">
+          <option value="">— لا تغيير —</option>
+          <option value="ar">العربية</option>
+          <option value="en">English</option>
+        </select>
+      </label>
+      <div class="dialog-actions">
+        <button type="submit">حفظ التغييرات</button>
+        <button type="button" data-close-override-settings-dialog>إلغاء</button>
+        <span data-override-settings-status></span>
+      </div>
+    </form>
+  </dialog>
+
   <script src="owner.js"></script>
 </body>
 </html>

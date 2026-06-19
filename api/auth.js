@@ -119,6 +119,14 @@ export function requireSession(req, res, { owner = false, csrf = false } = {}) {
     sendJson(res, 402, { error: "trial_expired" });
     return null;
   }
+  if (
+    auth.clinic?.accountDeadline
+    && auth.clinic.accountDeadline <= nowIso().slice(0, 10)
+    && auth.user.role !== "platform_owner"
+  ) {
+    sendJson(res, 402, { error: "account_deadline_reached" });
+    return null;
+  }
   if (csrf && req.headers["x-csrf-token"] !== auth.session.csrfToken) {
     sendJson(res, 403, { error: "invalid_csrf_token" });
     return null;

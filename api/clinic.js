@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { audit, databasePath, db, defaultClinicModules, nowIso, parseJson, publicClinic, publicUser } from "../lib/database.js";
+import { audit, databasePath, db, defaultClinicModules, listClinicNotifications, nowIso, parseJson, publicClinic, publicUser } from "../lib/database.js";
 import { requireSession } from "./auth.js";
 import { clientIp, encryptSecret, hashPassword, normalizeEmail, safeText, validatePassword } from "../lib/security.js";
 import { storageReadiness } from "../lib/storage-policy.js";
@@ -764,6 +764,23 @@ function saveIntegration(req, res) {
   sendJson(res, 200, { ok: true, integration: integrationPayload(saved) });
 }
 
+function getClinicNotifications(req, res) {
+  const auth = requireSession(req, res);
+  if (!auth) return;
+  const rows = listClinicNotifications(auth.user.clinicId);
+  sendJson(res, 200, {
+    ok: true,
+    notifications: rows.map(n => ({
+      id: n.id,
+      title: n.title,
+      body: n.body,
+      severity: n.severity,
+      view: n.view_target,
+      createdAt: n.created_at
+    }))
+  });
+}
+
 export default async function clinicHandler(req, res, url) {
   if (url.pathname === "/api/clinic-state" && req.method === "GET") return getState(req, res);
   if (url.pathname === "/api/clinic-state" && req.method === "PUT") return saveState(req, res);
@@ -773,6 +790,7 @@ export default async function clinicHandler(req, res, url) {
   if (url.pathname === "/api/clinic-users" && req.method === "POST") return saveUser(req, res);
   if (url.pathname === "/api/clinic-integrations" && req.method === "GET") return listIntegrations(req, res);
   if (url.pathname === "/api/clinic-integrations" && req.method === "PUT") return saveIntegration(req, res);
+  if (url.pathname === "/api/clinic/notifications" && req.method === "GET") return getClinicNotifications(req, res);
   const match = url.pathname.match(/^\/api\/clinic-users\/([^/]+)$/);
   if (match && req.method === "PUT") return saveUser(req, res, match[1]);
   if (match && req.method === "DELETE") return deleteUser(req, res, match[1]);

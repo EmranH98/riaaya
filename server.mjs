@@ -167,6 +167,7 @@ const server = createServer(async (req, res) => {
     || url.pathname === "/api/clinic-export"
     || url.pathname.startsWith("/api/clinic-users")
     || url.pathname === "/api/clinic-integrations"
+    || url.pathname === "/api/clinic/notifications"
   ) {
     // Clinic API: 120 req/min — allows normal debounced saves
     if (isRateLimited(req, res, { windowMs: 60_000, maxHits: 120 })) return;

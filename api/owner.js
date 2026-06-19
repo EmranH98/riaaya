@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import {
   audit,
   CLINIC_MODULES,
@@ -9,10 +10,11 @@ import {
   parseJson,
   publicClinic,
   publicLandingSettings,
-  setPlatformSetting
+  setPlatformSetting,
+  slugifyClinic
 } from "../lib/database.js";
 import { requireSession } from "./auth.js";
-import { clientIp, hashPassword, safeText, temporaryPassword } from "../lib/security.js";
+import { clientIp, hashPassword, safeText, temporaryPassword, validatePassword } from "../lib/security.js";
 
 function sendJson(res, statusCode, payload) {
   res.statusCode = statusCode;
@@ -144,6 +146,9 @@ function cleanLandingSettings(input = {}) {
   };
 }
 
+// ── Plan monthly prices (JD) used for ARR/MRR ────────────────────────────────
+const PLAN_MONTHLY_PRICE = { starter: 25, professional: 45, enterprise: 90 };
+
 function listClinics(req, res) {
   const auth = requireSession(req, res, { owner: true });
   if (!auth) return;
@@ -181,7 +186,12 @@ function listClinics(req, res) {
     metadata: parseJson(row.metadata_json, {}),
     createdAt: row.created_at
   }));
-  sendJson(res, 200, { ok: true, clinics, auditLogs: auditRows });
+
+  // MRR = sum of monthly price for all active/trial clinics
+  const activeClinics = clinics.filter(c => c.status === "active" || c.status === "trial");
+  const mrr = activeClinics.reduce((sum, c) => sum + (PLAN_MONTHLY_PRICE[c.plan] || 0), 0);
+
+  sendJson(res, 200, { ok: true, clinics, auditLogs: auditRows, mrr, arr: mrr * 12 });
 }
 
 function getLandingSettings(req, res) {
@@ -206,6 +216,79 @@ function updateLandingSettings(req, res) {
   sendJson(res, 200, { ok: true, landing });
 }
 
+function createClinic(req, res) {
+  const auth = requireSession(req, res, { owner: true, csrf: true });
+  if (!auth) return;
+
+  const clinicName = safeText(req.body?.clinicName, 120);
+  const city = safeText(req.body?.city || "", 80);
+  const phone = safeText(req.body?.phone || "", 40);
+  const plan = ["starter", "professional", "enterprise"].includes(req.body?.plan) ? req.body.plan : "professional";
+  const adminName = safeText(req.body?.adminName, 120);
+  const adminEmail = String(req.body?.adminEmail || "").trim().toLowerCase();
+  const adminPassword = String(req.body?.adminPassword || "");
+
+  if (!clinicName || !adminName || !adminEmail) {
+    sendJson(res, 400, { error: "missing_fields" });
+    return;
+  }
+  if (!validatePassword(adminPassword)) {
+    sendJson(res, 400, { error: "weak_password" });
+    return;
+  }
+  if (db.prepare("select 1 from users where email = ?").get(adminEmail)) {
+    sendJson(res, 409, { error: "email_already_registered" });
+    return;
+  }
+
+  const clinicId = randomUUID();
+  const userId = randomUUID();
+  const createdAt = nowIso();
+  const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+
+  db.exec("begin immediate");
+  try {
+    db.prepare(`
+      insert into clinics (
+        id, name, slug, phone, city, plan, status, trial_ends_at,
+        enabled_modules_json, limits_json, branding_json, support_tier,
+        owner_notes, created_at, updated_at
+      ) values (?, ?, ?, ?, ?, ?, 'trial', ?, ?, ?, '{}', 'standard', '', ?, ?)
+    `).run(
+      clinicId, clinicName, slugifyClinic(clinicName), phone, city, plan,
+      trialEndsAt,
+      JSON.stringify(defaultClinicModules(plan)),
+      JSON.stringify(defaultClinicLimits(plan)),
+      createdAt, createdAt
+    );
+    db.prepare(`
+      insert into users (
+        id, clinic_id, email, password_hash, name, role, permissions_json,
+        own_entries_only, can_view_sensitive, calendar_scope, calendar_days_back,
+        calendar_days_ahead, working_days_json, active, must_change_password, created_at, updated_at
+      ) values (?, ?, ?, ?, ?, 'admin', '[]', 0, 1, 'all', 3650, 3650, '[0,1,2,3,4,5,6]', 1, 0, ?, ?)
+    `).run(userId, clinicId, adminEmail, hashPassword(adminPassword), adminName, createdAt, createdAt);
+    db.exec("commit");
+  } catch (error) {
+    db.exec("rollback");
+    throw error;
+  }
+
+  audit({
+    userId: auth.user.id,
+    clinicId,
+    action: "create",
+    entity: "clinic",
+    entityId: clinicId,
+    metadata: { plan, adminEmail },
+    ipAddress: clientIp(req)
+  });
+  sendJson(res, 201, {
+    ok: true,
+    clinic: publicClinic(db.prepare("select * from clinics where id = ?").get(clinicId))
+  });
+}
+
 function updateClinic(req, res, clinicId) {
   const auth = requireSession(req, res, { owner: true, csrf: true });
   if (!auth) return;
@@ -218,39 +301,94 @@ function updateClinic(req, res, clinicId) {
   const allowedSupport = new Set(["standard", "priority", "white_glove"]);
   const status = allowedStatuses.has(req.body?.status) ? req.body.status : existing.status;
   const plan = safeText(req.body?.plan || existing.plan, 40);
-  const trialEndsAt = safeText(req.body?.trialEndsAt || existing.trial_ends_at, 40);
+  const trialEndsAt = safeText(req.body?.trialEndsAt || existing.trial_ends_at || "", 40);
+  const accountDeadline = safeText(req.body?.accountDeadline || "", 40);
   const modules = cleanModules(req.body?.enabledModules, plan, parseJson(existing.enabled_modules_json, []));
   const limits = cleanLimits(req.body?.limits, plan, parseJson(existing.limits_json, {}));
   const branding = cleanBranding(req.body?.branding, parseJson(existing.branding_json, {}));
   const supportTier = allowedSupport.has(req.body?.supportTier) ? req.body.supportTier : existing.support_tier || "standard";
   const ownerNotes = safeText(req.body?.ownerNotes ?? existing.owner_notes, 2000);
+  // Validate deadline format (YYYY-MM-DD or empty)
+  const cleanDeadline = /^\d{4}-\d{2}-\d{2}$/.test(accountDeadline) ? accountDeadline : (existing.account_deadline || null);
   db.prepare(`
     update clinics set
       status = ?, plan = ?, trial_ends_at = ?,
       enabled_modules_json = ?, limits_json = ?, branding_json = ?,
-      support_tier = ?, owner_notes = ?, updated_at = ?
+      support_tier = ?, owner_notes = ?, account_deadline = ?, updated_at = ?
     where id = ?
   `).run(
-    status,
-    plan,
-    trialEndsAt || null,
-    JSON.stringify(modules),
-    JSON.stringify(limits),
-    JSON.stringify(branding),
-    supportTier,
-    ownerNotes,
-    nowIso(),
-    clinicId
+    status, plan, trialEndsAt || null,
+    JSON.stringify(modules), JSON.stringify(limits), JSON.stringify(branding),
+    supportTier, ownerNotes, cleanDeadline, nowIso(), clinicId
   );
   audit({
     userId: auth.user.id,
     action: "update",
     entity: "clinic",
     entityId: clinicId,
-    metadata: { status, plan, trialEndsAt, modules, limits, supportTier },
+    metadata: { status, plan, trialEndsAt, modules, limits, supportTier, accountDeadline: cleanDeadline },
     ipAddress: clientIp(req)
   });
   sendJson(res, 200, { ok: true, clinic: publicClinic(db.prepare("select * from clinics where id = ?").get(clinicId)) });
+}
+
+function deleteClinic(req, res, clinicId) {
+  const auth = requireSession(req, res, { owner: true, csrf: true });
+  if (!auth) return;
+  const existing = db.prepare("select * from clinics where id = ?").get(clinicId);
+  if (!existing) {
+    sendJson(res, 404, { error: "clinic_not_found" });
+    return;
+  }
+  audit({
+    userId: auth.user.id,
+    action: "delete",
+    entity: "clinic",
+    entityId: clinicId,
+    metadata: { name: existing.name, slug: existing.slug },
+    ipAddress: clientIp(req)
+  });
+  db.prepare("delete from clinics where id = ?").run(clinicId);
+  sendJson(res, 200, { ok: true });
+}
+
+function exportClinicData(req, res, clinicId) {
+  const auth = requireSession(req, res, { owner: true });
+  if (!auth) return;
+  const clinic = db.prepare("select * from clinics where id = ?").get(clinicId);
+  if (!clinic) {
+    sendJson(res, 404, { error: "clinic_not_found" });
+    return;
+  }
+  const users = db.prepare("select id, email, name, role, active, created_at from users where clinic_id = ?").all(clinicId);
+  const state = parseJson(clinic.state_json, {});
+  const payload = {
+    exportedAt: nowIso(),
+    clinic: publicClinic(clinic),
+    users,
+    state
+  };
+  const filename = `riaaya-export-${clinic.slug}-${nowIso().slice(0, 10)}.json`;
+  res.statusCode = 200;
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  res.setHeader("Cache-Control", "no-store");
+  res.end(JSON.stringify(payload, null, 2));
+}
+
+function getClinicUsers(req, res, clinicId) {
+  const auth = requireSession(req, res, { owner: true });
+  if (!auth) return;
+  const clinic = db.prepare("select id from clinics where id = ?").get(clinicId);
+  if (!clinic) {
+    sendJson(res, 404, { error: "clinic_not_found" });
+    return;
+  }
+  const users = db.prepare(`
+    select id, email, name, role, active, created_at, updated_at
+    from users where clinic_id = ? order by role asc, name asc
+  `).all(clinicId);
+  sendJson(res, 200, { ok: true, users });
 }
 
 function resetClinicAdminPassword(req, res, clinicId) {
@@ -282,13 +420,136 @@ function resetClinicAdminPassword(req, res, clinicId) {
   sendJson(res, 200, { ok: true, email: admin.email, temporaryPassword: password });
 }
 
+function resetUserPassword(req, res, clinicId) {
+  const auth = requireSession(req, res, { owner: true, csrf: true });
+  if (!auth) return;
+  const userId = safeText(req.body?.userId || "", 40);
+  const user = db.prepare("select * from users where id = ? and clinic_id = ? and active = 1").get(userId, clinicId);
+  if (!user) {
+    sendJson(res, 404, { error: "user_not_found" });
+    return;
+  }
+  const password = temporaryPassword();
+  db.prepare("update users set password_hash = ?, must_change_password = 1, updated_at = ? where id = ?")
+    .run(hashPassword(password), nowIso(), user.id);
+  db.prepare("delete from sessions where user_id = ?").run(user.id);
+  audit({
+    userId: auth.user.id,
+    clinicId,
+    action: "reset_password",
+    entity: "user",
+    entityId: user.id,
+    metadata: { email: user.email, role: user.role },
+    ipAddress: clientIp(req)
+  });
+  sendJson(res, 200, { ok: true, email: user.email, name: user.name, temporaryPassword: password });
+}
+
+function sendClinicNotification(req, res, clinicId) {
+  const auth = requireSession(req, res, { owner: true, csrf: true });
+  if (!auth) return;
+  const clinic = db.prepare("select id from clinics where id = ?").get(clinicId);
+  if (!clinic) {
+    sendJson(res, 404, { error: "clinic_not_found" });
+    return;
+  }
+  const title = safeText(req.body?.title || "", 200);
+  const body = safeText(req.body?.body || "", 500);
+  const severity = ["info", "warning", "danger"].includes(req.body?.severity) ? req.body.severity : "info";
+  const viewTarget = safeText(req.body?.viewTarget || "dashboard", 40);
+  const expiresAt = req.body?.expiresAt ? safeText(req.body.expiresAt, 40) : null;
+
+  if (!title || !body) {
+    sendJson(res, 400, { error: "missing_notification_fields" });
+    return;
+  }
+
+  const notifId = randomUUID();
+  db.prepare(`
+    insert into clinic_notifications (id, clinic_id, title, body, severity, view_target, expires_at, created_at)
+    values (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(notifId, clinicId, title, body, severity, viewTarget, expiresAt, nowIso());
+
+  audit({
+    userId: auth.user.id,
+    clinicId,
+    action: "notify",
+    entity: "clinic_notification",
+    entityId: notifId,
+    metadata: { title, severity },
+    ipAddress: clientIp(req)
+  });
+  sendJson(res, 201, { ok: true, id: notifId });
+}
+
+function overrideClinicSettings(req, res, clinicId) {
+  const auth = requireSession(req, res, { owner: true, csrf: true });
+  if (!auth) return;
+  const clinic = db.prepare("select * from clinics where id = ?").get(clinicId);
+  if (!clinic) {
+    sendJson(res, 404, { error: "clinic_not_found" });
+    return;
+  }
+  const state = parseJson(clinic.state_json, {});
+  if (!state.settings) state.settings = {};
+
+  // Allow overriding: activeDate, language
+  if (req.body?.activeDate && /^\d{4}-\d{2}-\d{2}$/.test(req.body.activeDate)) {
+    state.settings.activeDate = req.body.activeDate;
+  }
+  if (req.body?.language && ["ar", "en"].includes(req.body.language)) {
+    state.settings.language = req.body.language;
+  }
+  if (req.body?.clinicName) {
+    state.settings.clinicName = safeText(req.body.clinicName, 120);
+  }
+
+  const newVersion = (Number(clinic.state_version) || 0) + 1;
+  db.prepare("update clinics set state_json = ?, state_version = ?, updated_at = ? where id = ?")
+    .run(JSON.stringify(state), newVersion, nowIso(), clinicId);
+
+  audit({
+    userId: auth.user.id,
+    clinicId,
+    action: "override_settings",
+    entity: "clinic",
+    entityId: clinicId,
+    metadata: req.body,
+    ipAddress: clientIp(req)
+  });
+  sendJson(res, 200, { ok: true });
+}
+
 export default async function ownerHandler(req, res, url) {
   if (url.pathname === "/api/owner/clinics" && req.method === "GET") return listClinics(req, res);
+  if (url.pathname === "/api/owner/clinics" && req.method === "POST") return createClinic(req, res);
   if (url.pathname === "/api/owner/landing-settings" && req.method === "GET") return getLandingSettings(req, res);
   if (url.pathname === "/api/owner/landing-settings" && req.method === "PUT") return updateLandingSettings(req, res);
-  const resetMatch = url.pathname.match(/^\/api\/owner\/clinics\/([^/]+)\/reset-admin-password$/);
-  if (resetMatch && req.method === "POST") return resetClinicAdminPassword(req, res, resetMatch[1]);
-  const match = url.pathname.match(/^\/api\/owner\/clinics\/([^/]+)$/);
-  if (match && req.method === "PATCH") return updateClinic(req, res, match[1]);
+
+  const clinicMatch = url.pathname.match(/^\/api\/owner\/clinics\/([^/]+)$/);
+  if (clinicMatch) {
+    const clinicId = clinicMatch[1];
+    if (req.method === "PATCH") return updateClinic(req, res, clinicId);
+    if (req.method === "DELETE") return deleteClinic(req, res, clinicId);
+  }
+
+  const exportMatch = url.pathname.match(/^\/api\/owner\/clinics\/([^/]+)\/export$/);
+  if (exportMatch && req.method === "GET") return exportClinicData(req, res, exportMatch[1]);
+
+  const usersMatch = url.pathname.match(/^\/api\/owner\/clinics\/([^/]+)\/users$/);
+  if (usersMatch && req.method === "GET") return getClinicUsers(req, res, usersMatch[1]);
+
+  const resetAdminMatch = url.pathname.match(/^\/api\/owner\/clinics\/([^/]+)\/reset-admin-password$/);
+  if (resetAdminMatch && req.method === "POST") return resetClinicAdminPassword(req, res, resetAdminMatch[1]);
+
+  const resetUserMatch = url.pathname.match(/^\/api\/owner\/clinics\/([^/]+)\/reset-user-password$/);
+  if (resetUserMatch && req.method === "POST") return resetUserPassword(req, res, resetUserMatch[1]);
+
+  const notifyMatch = url.pathname.match(/^\/api\/owner\/clinics\/([^/]+)\/notify$/);
+  if (notifyMatch && req.method === "POST") return sendClinicNotification(req, res, notifyMatch[1]);
+
+  const settingsMatch = url.pathname.match(/^\/api\/owner\/clinics\/([^/]+)\/override-settings$/);
+  if (settingsMatch && req.method === "PATCH") return overrideClinicSettings(req, res, settingsMatch[1]);
+
   sendJson(res, 404, { error: "owner_route_not_found" });
 }

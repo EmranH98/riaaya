@@ -38,11 +38,12 @@ h1, h2 { margin: 0; font-family: "Cairo", sans-serif; }
 .owner-title label { display: grid; gap: 5px; min-width: min(360px, 42vw); color: var(--muted); }
 input, select { min-height: 42px; border: 1px solid var(--line); padding: 8px 10px; background: white; }
 
-.owner-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin: 22px 0; }
+.owner-kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px; margin: 22px 0; }
 .owner-kpis article { border: 1px solid var(--line); border-top: 4px solid var(--blue); background: white; padding: 17px; }
 .owner-kpis article.trial { border-top-color: var(--gold); }
 .owner-kpis article.active { border-top-color: var(--teal); }
 .owner-kpis article.warning { border-top-color: var(--danger); }
+.owner-kpis article.revenue { border-top-color: #2563a8; }
 .owner-kpis span, .owner-kpis strong { display: block; }
 .owner-kpis span { color: var(--muted); }
 .owner-kpis strong { margin-top: 7px; font: 800 28px "Cairo", sans-serif; }
@@ -124,8 +125,52 @@ input, select { min-height: 42px; border: 1px solid var(--line); padding: 8px 10
 .clinic-row span, .clinic-row small { color: var(--muted); }
 .clinic-metric { text-align: center; }
 .clinic-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
-.clinic-controls button { grid-column: 1 / -1; border: 0; min-height: 36px; background: var(--ink); color: white; cursor: pointer; font-weight: 800; }
+.clinic-controls button, .clinic-controls a { grid-column: 1 / -1; display: block; border: 0; min-height: 36px; padding: 0 10px; background: var(--ink); color: white; cursor: pointer; font-weight: 800; text-align: center; line-height: 36px; text-decoration: none; }
 .clinic-controls .secondary-control { background: white; color: var(--ink); border: 1px solid var(--line); }
+.clinic-controls .danger-control { background: #fff0ed; color: var(--danger); border: 1px solid #f5c3bb; }
+.clinic-controls .danger-control:hover { background: var(--danger); color: white; }
+.inline-label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); font-weight: 800; }
+.deadline-label small { color: var(--muted); font-size: 11px; font-weight: 400; }
+
+/* ── Create clinic form ─────────────────────────────────── */
+.create-clinic-panel { margin-bottom: 18px; }
+.create-clinic-form {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+.create-clinic-form label { display: grid; gap: 5px; color: var(--muted); font-size: 12px; font-weight: 800; }
+.create-clinic-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+.create-clinic-actions button { border: 0; min-height: 42px; padding: 0 18px; background: var(--teal); color: white; cursor: pointer; font-weight: 800; }
+.create-clinic-actions button:disabled { opacity: .65; cursor: wait; }
+.create-clinic-actions span { color: var(--muted); }
+
+/* ── Dialogs ─────────────────────────────────────────────── */
+.owner-dialog {
+  border: 1px solid var(--line);
+  padding: 0;
+  max-width: 520px;
+  width: 92vw;
+  box-shadow: 0 8px 32px rgba(0,0,0,.15);
+}
+.owner-dialog::backdrop { background: rgba(0,0,0,.4); }
+.owner-dialog-form { padding: 24px; display: grid; gap: 14px; }
+.owner-dialog-form h2 { margin: 0 0 6px; font: 800 20px "Cairo", sans-serif; }
+.owner-dialog-form label { display: grid; gap: 5px; color: var(--muted); font-size: 12px; font-weight: 800; }
+.owner-dialog-form .wide-field { grid-column: 1 / -1; }
+.owner-dialog-form textarea { min-height: 90px; font: inherit; }
+.dialog-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 14px; }
+.dialog-actions button:first-child { border: 0; min-height: 40px; padding: 0 18px; background: var(--teal); color: white; cursor: pointer; font-weight: 800; }
+.dialog-actions button:last-of-type { border: 1px solid var(--line); min-height: 40px; padding: 0 14px; background: white; cursor: pointer; }
+.dialog-actions span { color: var(--muted); font-size: 13px; }
 
 .clinic-customizer {
   grid-column: 1 / -1;
@@ -218,7 +263,7 @@ textarea {
 @media (max-width: 700px) {
   .owner-header, .owner-title { align-items: stretch; flex-direction: column; }
   .owner-title label { min-width: 0; }
-  .owner-kpis { grid-template-columns: 1fr 1fr; }
+  .owner-kpis { grid-template-columns: repeat(3, 1fr); }
   .landing-form { grid-template-columns: 1fr; }
   .landing-form .wide-field,
   .landing-form .json-field { grid-column: 1; }

@@ -10,6 +10,17 @@ const statusFilter = document.querySelector("[data-owner-status-filter]");
 const landingForm = document.querySelector("[data-landing-settings-form]");
 const landingStatus = document.querySelector("[data-landing-settings-status]");
 
+// Modals
+const notifyDialog = document.querySelector("[data-notify-dialog]");
+const notifyForm = document.querySelector("[data-notify-form]");
+const notifyStatus = document.querySelector("[data-notify-status]");
+const resetUserDialog = document.querySelector("[data-reset-user-dialog]");
+const resetUserForm = document.querySelector("[data-reset-user-form]");
+const resetUserStatus = document.querySelector("[data-reset-user-status]");
+const overrideSettingsDialog = document.querySelector("[data-override-settings-dialog]");
+const overrideSettingsForm = document.querySelector("[data-override-settings-form]");
+const overrideSettingsStatus = document.querySelector("[data-override-settings-status]");
+
 const CLINIC_MODULES = [
   ["operations", "العمليات"],
   ["patients", "ملفات المرضى والزوار"],
@@ -45,11 +56,13 @@ function supportLabel(tier) {
   return { standard: "دعم عادي", priority: "أولوية", white_glove: "إعداد كامل" }[tier] || tier;
 }
 
-function renderKpis() {
+function renderKpis(mrr = 0, arr = 0) {
   document.querySelector("[data-owner-kpi='all']").textContent = clinics.length;
   ["trial", "active", "suspended"].forEach(status => {
-    document.querySelector(`[data-owner-kpi='${status}']`).textContent = clinics.filter(clinic => clinic.status === status).length;
+    document.querySelector(`[data-owner-kpi='${status}']`).textContent = clinics.filter(c => c.status === status).length;
   });
+  document.querySelector("[data-owner-kpi='mrr']").textContent = `${mrr.toLocaleString("ar-JO")} د.أ`;
+  document.querySelector("[data-owner-kpi='arr']").textContent = `${arr.toLocaleString("ar-JO")} د.أ`;
 }
 
 function filteredClinics() {
@@ -90,14 +103,24 @@ function renderClinics() {
           <option value="suspended" ${clinic.status === "suspended" ? "selected" : ""}>موقوفة</option>
           <option value="cancelled" ${clinic.status === "cancelled" ? "selected" : ""}>ملغاة</option>
         </select>
-        <input data-clinic-trial type="date" value="${clinic.trialEndsAt ? clinic.trialEndsAt.slice(0, 10) : ""}" aria-label="نهاية التجربة">
+        <label class="inline-label">انتهاء التجربة<input data-clinic-trial type="date" value="${clinic.trialEndsAt ? clinic.trialEndsAt.slice(0, 10) : ""}" aria-label="نهاية التجربة"></label>
+        <label class="inline-label deadline-label">
+          تاريخ إغلاق الحساب
+          <input data-clinic-deadline type="date" value="${clinic.accountDeadline || ""}" aria-label="تاريخ إغلاق الحساب">
+          <small>عند هذا التاريخ يُوقف الحساب تلقائياً وتظهر تنبيهات للعيادة</small>
+        </label>
         <select data-clinic-support aria-label="مستوى الدعم">
           <option value="standard" ${(clinic.supportTier || "standard") === "standard" ? "selected" : ""}>دعم عادي</option>
           <option value="priority" ${clinic.supportTier === "priority" ? "selected" : ""}>أولوية</option>
           <option value="white_glove" ${clinic.supportTier === "white_glove" ? "selected" : ""}>إعداد كامل</option>
         </select>
         <button type="button" data-save-clinic="${clinic.id}">حفظ التغييرات</button>
-        <button class="secondary-control" type="button" data-reset-clinic-password="${clinic.id}">كلمة مرور مؤقتة</button>
+        <button class="secondary-control" type="button" data-reset-clinic-password="${clinic.id}">كلمة مرور مؤقتة للمدير</button>
+        <button class="secondary-control" type="button" data-reset-user-password="${clinic.id}">إعادة كلمة مرور موظف</button>
+        <button class="secondary-control" type="button" data-send-notify="${clinic.id}">إرسال إشعار</button>
+        <button class="secondary-control" type="button" data-override-settings="${clinic.id}">تعديل إعدادات التطبيق</button>
+        <a class="secondary-control" href="/api/owner/clinics/${clinic.id}/export" target="_blank" rel="noreferrer">تصدير البيانات</a>
+        <button class="danger-control" type="button" data-delete-clinic="${clinic.id}">حذف العيادة</button>
       </div>
       <details class="clinic-customizer">
         <summary>تخصيص الخدمة والصلاحيات التجارية</summary>
@@ -225,8 +248,10 @@ async function loadOwner() {
     return;
   }
   document.querySelector("[data-owner-name]").textContent = ownerSession.user.name;
-  const response = await fetch("/api/owner/clinics");
-  const landingResponse = await fetch("/api/owner/landing-settings");
+  const [response, landingResponse] = await Promise.all([
+    fetch("/api/owner/clinics"),
+    fetch("/api/owner/landing-settings")
+  ]);
   if (!response.ok) {
     location.href = "/login";
     return;
@@ -236,12 +261,51 @@ async function loadOwner() {
   clinics = result.clinics || [];
   auditLogs = result.auditLogs || [];
   landingSettings = landingResult.landing || null;
-  renderKpis();
+  renderKpis(result.mrr || 0, result.arr || 0);
   renderClinics();
   renderAudit();
   renderLandingSettings();
 }
 
+// ── Create Clinic ──────────────────────────────────────────────────────────────
+const createClinicForm = document.querySelector("[data-create-clinic-form]");
+const createClinicStatus = document.querySelector("[data-create-clinic-status]");
+
+if (createClinicForm) {
+  createClinicForm.addEventListener("submit", async event => {
+    event.preventDefault();
+    if (!ownerSession?.csrfToken) return;
+    const data = Object.fromEntries(new FormData(createClinicForm));
+    const button = createClinicForm.querySelector("button[type='submit']");
+    button.disabled = true;
+    createClinicStatus.textContent = "جاري الإنشاء...";
+    try {
+      const response = await fetch("/api/owner/clinics", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": ownerSession.csrfToken },
+        body: JSON.stringify(data)
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        const msgs = {
+          missing_fields: "الحقول المطلوبة غير مكتملة.",
+          weak_password: "كلمة المرور ضعيفة (8 أحرف على الأقل).",
+          email_already_registered: "البريد الإلكتروني مسجّل مسبقاً."
+        };
+        throw new Error(msgs[result.error] || result.error || "حدث خطأ.");
+      }
+      createClinicStatus.textContent = `تم إنشاء العيادة: ${result.clinic.name}`;
+      createClinicForm.reset();
+      await loadOwner();
+    } catch (error) {
+      createClinicStatus.textContent = error.message || "تعذر إنشاء العيادة.";
+    } finally {
+      button.disabled = false;
+    }
+  });
+}
+
+// ── Landing Settings ────────────────────────────────────────────────────────────
 if (landingForm) {
   landingForm.addEventListener("submit", async event => {
     event.preventDefault();
@@ -259,10 +323,7 @@ if (landingForm) {
     try {
       const response = await fetch("/api/owner/landing-settings", {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRF-Token": ownerSession.csrfToken
-        },
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": ownerSession.csrfToken },
         body: JSON.stringify({ landing: payload })
       });
       const result = await response.json().catch(() => ({}));
@@ -278,14 +339,144 @@ if (landingForm) {
   });
 }
 
-document.addEventListener("click", async event => {
-  const clinicId = event.target.dataset.saveClinic;
-  const resetClinicId = event.target.dataset.resetClinicPassword;
-  if (resetClinicId) {
-    if (!confirm("سيتم إلغاء جلسات مدير العيادة الحالية وإصدار كلمة مرور مؤقتة. هل تريد المتابعة؟")) return;
-    event.target.disabled = true;
+// ── Send Notification Modal ──────────────────────────────────────────────────
+if (notifyForm) {
+  notifyForm.addEventListener("submit", async event => {
+    event.preventDefault();
+    if (!ownerSession?.csrfToken) return;
+    const data = Object.fromEntries(new FormData(notifyForm));
+    const button = notifyForm.querySelector("button[type='submit']");
+    button.disabled = true;
+    notifyStatus.textContent = "جاري الإرسال...";
     try {
-      const response = await fetch(`/api/owner/clinics/${resetClinicId}/reset-admin-password`, {
+      const response = await fetch(`/api/owner/clinics/${data.clinicId}/notify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": ownerSession.csrfToken },
+        body: JSON.stringify({
+          title: data.title,
+          body: data.body,
+          severity: data.severity,
+          viewTarget: data.viewTarget,
+          expiresAt: data.expiresAt || null
+        })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "send_failed");
+      notifyStatus.textContent = "تم إرسال الإشعار.";
+      notifyForm.reset();
+      setTimeout(() => notifyDialog.close(), 1200);
+    } catch {
+      notifyStatus.textContent = "تعذر إرسال الإشعار.";
+    } finally {
+      button.disabled = false;
+    }
+  });
+}
+
+document.querySelector("[data-close-notify-dialog]")?.addEventListener("click", () => notifyDialog.close());
+
+// ── Reset User Password Modal ────────────────────────────────────────────────
+if (resetUserForm) {
+  resetUserForm.addEventListener("submit", async event => {
+    event.preventDefault();
+    if (!ownerSession?.csrfToken) return;
+    const data = Object.fromEntries(new FormData(resetUserForm));
+    const button = resetUserForm.querySelector("button[type='submit']");
+    button.disabled = true;
+    resetUserStatus.textContent = "جاري إعادة التعيين...";
+    try {
+      const response = await fetch(`/api/owner/clinics/${data.clinicId}/reset-user-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": ownerSession.csrfToken },
+        body: JSON.stringify({ userId: data.userId })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "reset_failed");
+      window.prompt(`كلمة المرور المؤقتة لـ ${result.name} (${result.email}). تظهر مرة واحدة فقط:`, result.temporaryPassword);
+      resetUserDialog.close();
+    } catch {
+      resetUserStatus.textContent = "تعذر إعادة تعيين كلمة المرور.";
+    } finally {
+      button.disabled = false;
+    }
+  });
+}
+
+document.querySelector("[data-close-reset-user-dialog]")?.addEventListener("click", () => resetUserDialog.close());
+
+// ── Override Settings Modal ──────────────────────────────────────────────────
+if (overrideSettingsForm) {
+  overrideSettingsForm.addEventListener("submit", async event => {
+    event.preventDefault();
+    if (!ownerSession?.csrfToken) return;
+    const data = Object.fromEntries(new FormData(overrideSettingsForm));
+    const button = overrideSettingsForm.querySelector("button[type='submit']");
+    button.disabled = true;
+    overrideSettingsStatus.textContent = "جاري الحفظ...";
+    const payload = {};
+    if (data.clinicName?.trim()) payload.clinicName = data.clinicName.trim();
+    if (data.activeDate) payload.activeDate = data.activeDate;
+    if (data.language) payload.language = data.language;
+    try {
+      const response = await fetch(`/api/owner/clinics/${data.clinicId}/override-settings`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": ownerSession.csrfToken },
+        body: JSON.stringify(payload)
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "override_failed");
+      overrideSettingsStatus.textContent = "تم تطبيق الإعدادات.";
+      setTimeout(() => overrideSettingsDialog.close(), 1200);
+    } catch {
+      overrideSettingsStatus.textContent = "تعذر حفظ الإعدادات.";
+    } finally {
+      button.disabled = false;
+    }
+  });
+}
+
+document.querySelector("[data-close-override-settings-dialog]")?.addEventListener("click", () => overrideSettingsDialog.close());
+
+// ── Main Click Handler ────────────────────────────────────────────────────────
+document.addEventListener("click", async event => {
+  const target = event.target;
+
+  // Save clinic changes
+  const clinicId = target.dataset.saveClinic;
+  if (clinicId) {
+    const row = target.closest("[data-clinic-row]");
+    target.disabled = true;
+    try {
+      const response = await fetch(`/api/owner/clinics/${clinicId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": ownerSession.csrfToken },
+        body: JSON.stringify({
+          plan: row.querySelector("[data-clinic-plan]").value,
+          status: row.querySelector("[data-clinic-status]").value,
+          trialEndsAt: row.querySelector("[data-clinic-trial]").value,
+          accountDeadline: row.querySelector("[data-clinic-deadline]").value,
+          supportTier: row.querySelector("[data-clinic-support]").value,
+          enabledModules: [...row.querySelectorAll("[data-clinic-module]:checked")].map(i => i.dataset.clinicModule),
+          limits: Object.fromEntries([...row.querySelectorAll("[data-clinic-limit]")].map(i => [i.dataset.clinicLimit, Number(i.value)])),
+          branding: Object.fromEntries([...row.querySelectorAll("[data-clinic-branding]")].map(i => [i.dataset.clinicBranding, i.value.trim()])),
+          ownerNotes: row.querySelector("[data-clinic-owner-notes]").value
+        })
+      });
+      if (!response.ok) throw new Error("save_failed");
+      await loadOwner();
+    } finally {
+      target.disabled = false;
+    }
+    return;
+  }
+
+  // Reset admin password
+  const resetAdminId = target.dataset.resetClinicPassword;
+  if (resetAdminId) {
+    if (!confirm("سيتم إلغاء جلسات مدير العيادة الحالية وإصدار كلمة مرور مؤقتة. هل تريد المتابعة؟")) return;
+    target.disabled = true;
+    try {
+      const response = await fetch(`/api/owner/clinics/${resetAdminId}/reset-admin-password`, {
         method: "POST",
         headers: { "X-CSRF-Token": ownerSession.csrfToken }
       });
@@ -294,35 +485,69 @@ document.addEventListener("click", async event => {
       window.prompt(`كلمة المرور المؤقتة لـ ${result.email}. تظهر مرة واحدة فقط:`, result.temporaryPassword);
       await loadOwner();
     } finally {
-      event.target.disabled = false;
+      target.disabled = false;
     }
     return;
   }
-  if (!clinicId) return;
-  const row = event.target.closest("[data-clinic-row]");
-  event.target.disabled = true;
-  try {
-    const response = await fetch(`/api/owner/clinics/${clinicId}`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        "X-CSRF-Token": ownerSession.csrfToken
-      },
-      body: JSON.stringify({
-        plan: row.querySelector("[data-clinic-plan]").value,
-        status: row.querySelector("[data-clinic-status]").value,
-        trialEndsAt: row.querySelector("[data-clinic-trial]").value,
-        supportTier: row.querySelector("[data-clinic-support]").value,
-        enabledModules: [...row.querySelectorAll("[data-clinic-module]:checked")].map(input => input.dataset.clinicModule),
-        limits: Object.fromEntries([...row.querySelectorAll("[data-clinic-limit]")].map(input => [input.dataset.clinicLimit, Number(input.value)])),
-        branding: Object.fromEntries([...row.querySelectorAll("[data-clinic-branding]")].map(input => [input.dataset.clinicBranding, input.value.trim()])),
-        ownerNotes: row.querySelector("[data-clinic-owner-notes]").value
-      })
-    });
-    if (!response.ok) throw new Error("save_failed");
-    await loadOwner();
-  } finally {
-    event.target.disabled = false;
+
+  // Reset any user password — open modal with user list
+  const resetUserId = target.dataset.resetUserPassword;
+  if (resetUserId) {
+    resetUserStatus.textContent = "جاري التحميل...";
+    resetUserForm.elements.clinicId.value = resetUserId;
+    resetUserDialog.showModal();
+    try {
+      const response = await fetch(`/api/owner/clinics/${resetUserId}/users`);
+      const result = await response.json();
+      if (!response.ok) throw new Error("load_failed");
+      const select = resetUserForm.querySelector("[data-reset-user-select]");
+      select.innerHTML = result.users.map(u =>
+        `<option value="${u.id}">${u.name} — ${u.email} (${u.role})</option>`
+      ).join("");
+      resetUserStatus.textContent = "";
+    } catch {
+      resetUserStatus.textContent = "تعذر تحميل قائمة المستخدمين.";
+    }
+    return;
+  }
+
+  // Send notification — open modal
+  const sendNotifyId = target.dataset.sendNotify;
+  if (sendNotifyId) {
+    notifyForm.reset();
+    notifyForm.elements.clinicId.value = sendNotifyId;
+    notifyStatus.textContent = "";
+    notifyDialog.showModal();
+    return;
+  }
+
+  // Override clinic settings — open modal
+  const overrideId = target.dataset.overrideSettings;
+  if (overrideId) {
+    overrideSettingsForm.reset();
+    overrideSettingsForm.elements.clinicId.value = overrideId;
+    overrideSettingsStatus.textContent = "";
+    overrideSettingsDialog.showModal();
+    return;
+  }
+
+  // Delete clinic
+  const deleteId = target.dataset.deleteClinic;
+  if (deleteId) {
+    const clinic = clinics.find(c => c.id === deleteId);
+    if (!confirm(`هذا الإجراء لا يمكن التراجع عنه.\n\nهل تريد حذف العيادة "${clinic?.name || deleteId}" وكل بياناتها نهائياً؟`)) return;
+    target.disabled = true;
+    try {
+      const response = await fetch(`/api/owner/clinics/${deleteId}`, {
+        method: "DELETE",
+        headers: { "X-CSRF-Token": ownerSession.csrfToken }
+      });
+      if (!response.ok) throw new Error("delete_failed");
+      await loadOwner();
+    } finally {
+      target.disabled = false;
+    }
+    return;
   }
 });
 

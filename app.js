@@ -24,7 +24,8 @@ const runtime = {
   savePending: false,
   openReceiptId: "",
   operationReturnView: "dashboard",
-  stateVersion: 0
+  stateVersion: 0,
+  serverNotifications: []
 };
 
 function storageGet(key) {
@@ -2323,6 +2324,20 @@ async function initializeApp() {
   if (initializeClinicState) saveState();
   loadCommunicationBackendStatus();
   loadStorageSafetyStatus();
+  if (runtime.mode === "live") loadServerNotifications();
+}
+
+async function loadServerNotifications() {
+  try {
+    const response = await fetch("/api/clinic/notifications", { headers: { Accept: "application/json" } });
+    const data = await response.json();
+    if (data.notifications) {
+      runtime.serverNotifications = data.notifications;
+      renderNotificationCenters();
+    }
+  } catch {
+    // non-critical — notifications will appear on next load
+  }
 }
 
 function currentLanguage() {
@@ -3929,6 +3944,79 @@ function operationalNotifications() {
   const draftReceipts = (state.receipts || []).filter(receipt => ["draft", "ready"].includes(receipt.status));
   const notifications = [];
   const nextBooking = nextVisitorBooking();
+
+  // ── Subscription & account status notifications ────────────────────────────
+  const clinic = runtime.session?.clinic;
+  if (clinic) {
+    if (clinic.status === "suspended") {
+      notifications.push({
+        id: "account-suspended",
+        severity: "danger",
+        title: "الحساب موقوف مؤقتاً",
+        body: "تواصل مع الدعم لإعادة تفعيل العيادة.",
+        view: "dashboard"
+      });
+    }
+
+    if (clinic.accountDeadline) {
+      const deadlineDate = clinic.accountDeadline.slice(0, 10);
+      const daysLeft = Math.ceil((new Date(deadlineDate) - new Date(today)) / 86400000);
+      if (daysLeft <= 0) {
+        notifications.push({
+          id: "account-deadline-passed",
+          severity: "danger",
+          title: "موعد إغلاق الحساب وصل",
+          body: `الحساب كان مقرراً إغلاقه بتاريخ ${displayDate(deadlineDate)}. تواصل مع الدعم فوراً.`,
+          view: "dashboard"
+        });
+      } else if (daysLeft <= 3) {
+        notifications.push({
+          id: `account-deadline-${deadlineDate}`,
+          severity: "danger",
+          title: `الحساب سيُغلق بعد ${daysLeft} ${daysLeft === 1 ? "يوم" : "أيام"}`,
+          body: `تاريخ الإغلاق: ${displayDate(deadlineDate)}. تواصل مع الدعم الآن.`,
+          view: "dashboard"
+        });
+      } else if (daysLeft <= 14) {
+        notifications.push({
+          id: `account-deadline-${deadlineDate}`,
+          severity: "warning",
+          title: `تذكير: إغلاق الحساب بعد ${daysLeft} يوماً`,
+          body: `الحساب سيُغلق بتاريخ ${displayDate(deadlineDate)}.`,
+          view: "dashboard"
+        });
+      } else if (daysLeft <= 30) {
+        notifications.push({
+          id: `account-deadline-${deadlineDate}`,
+          severity: "info",
+          title: `إشعار: إغلاق الحساب بعد ${daysLeft} يوماً`,
+          body: `الحساب سيُغلق بتاريخ ${displayDate(deadlineDate)}.`,
+          view: "dashboard"
+        });
+      }
+    }
+
+    if (clinic.status === "trial" && clinic.trialEndsAt) {
+      const trialDate = clinic.trialEndsAt.slice(0, 10);
+      const daysLeft = Math.ceil((new Date(trialDate) - new Date(today)) / 86400000);
+      if (daysLeft > 0 && daysLeft <= 3) {
+        notifications.push({
+          id: `trial-ending-${trialDate}`,
+          severity: "warning",
+          title: `الفترة التجريبية تنتهي بعد ${daysLeft} ${daysLeft === 1 ? "يوم" : "أيام"}`,
+          body: "تواصل معنا للاشتراك قبل انتهاء الفترة.",
+          view: "dashboard"
+        });
+      }
+    }
+
+    // Owner-sent messages
+    (runtime.serverNotifications || []).forEach(n => {
+      if (!notifications.find(existing => existing.id === n.id)) {
+        notifications.push(n);
+      }
+    });
+  }
 
   if (nextBooking) {
     notifications.push({
