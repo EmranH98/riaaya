@@ -1163,6 +1163,7 @@ function normalizeAccount(account) {
       : Array.isArray(account.working_days)
         ? account.working_days.map(Number)
         : [0, 1, 2, 3, 4, 5, 6],
+    allowedColumnIds: Array.isArray(account.allowedColumnIds) ? account.allowedColumnIds : [],
     active: account.active !== false
   };
 
@@ -1494,9 +1495,14 @@ function loadState() {
     if (saved.settings?.clinicName) {
       saved.settings.clinicName = saved.settings.clinicName.replaceAll("رعايا", "رعاية");
     }
+    const mergedSettings = { ...seed.settings, ...saved.settings };
+    // Auto-advance the active working date to today if the app wasn't opened today.
+    if (mergedSettings.activeDate && mergedSettings.activeDate < today) {
+      mergedSettings.activeDate = today;
+    }
     return ensureDemoHistory({
       demoHistoryVersion: saved.demoHistoryVersion || 0,
-      settings: { ...seed.settings, ...saved.settings },
+      settings: mergedSettings,
       staff: Array.isArray(saved.staff) ? saved.staff.map(normalizeStaffMember) : seed.staff,
       services,
       scheduleColumns: Array.isArray(saved.scheduleColumns)
@@ -1652,6 +1658,7 @@ const els = {
   accountSwitcher: document.querySelector("[data-account-switcher]"),
   accountForm: document.querySelector("[data-account-form]"),
   accountStaffSelect: document.querySelector("[data-account-staff-select]"),
+  accountColumnsSelect: document.querySelector("[data-account-columns-select]"),
   accountList: document.querySelector("[data-account-list]"),
   accountFilterForm: document.querySelector("[data-account-filter-form]"),
   accountTable: document.querySelector("[data-account-table]"),
@@ -3294,6 +3301,13 @@ function renderAccountStaffSelect() {
   ].join("");
 }
 
+function renderAccountColumnsSelect(selectedIds = []) {
+  if (!els.accountColumnsSelect) return;
+  els.accountColumnsSelect.innerHTML = (state.scheduleColumns || [])
+    .map(col => `<option value="${col.id}" ${selectedIds.includes(col.id) ? "selected" : ""}>${col.label}</option>`)
+    .join("");
+}
+
 function roleCodeLabel(role) {
   const labels = {
     admin: "مدير",
@@ -3340,7 +3354,7 @@ function renderPermissionSelects() {
   if (els.permissionCategorySelect) {
     const selectedCategory = els.permissionCategorySelect.value;
     els.permissionCategorySelect.innerHTML = [
-      `<option value="">All modules</option>`,
+      `<option value="">— كل الأقسام —</option>`,
       ...categories.map(category => `<option value="${category}">${permissionCategoryLabel(category)}</option>`)
     ].join("");
     els.permissionCategorySelect.value = selectedCategory;
@@ -3359,7 +3373,7 @@ function renderPermissionSelects() {
         ${filtered.filter(feature => feature.category === group).map(feature => `<option value="${feature.id}">${feature.label}</option>`).join("")}
       </optgroup>
     `).join("");
-    els.permissionFeatureSelect.innerHTML = `<option value="">- Select -</option>${grouped}`;
+    els.permissionFeatureSelect.innerHTML = `<option value="">— اختر ميزة —</option>${grouped}`;
     if (filtered.some(feature => feature.id === currentFeature)) {
       els.permissionFeatureSelect.value = currentFeature;
     }
@@ -3456,6 +3470,7 @@ function renderAccessControls() {
   }
   renderAccountSwitcher();
   renderAccountStaffSelect();
+  renderAccountColumnsSelect();
   if (els.accountSwitcher?.closest(".account-switcher")) {
     els.accountSwitcher.closest(".account-switcher").hidden = runtime.mode === "live";
   }
@@ -5730,7 +5745,11 @@ function renderBookingDayCalendar() {
   if (!els.bookingDayCalendar) return;
   const isEnglish = currentLanguage() === "en";
   const bookings = activeBookings();
-  const columns = bookingScheduleColumns();
+  const allColumns = bookingScheduleColumns();
+  const allowedIds = currentAccount()?.allowedColumnIds || [];
+  const columns = allowedIds.length
+    ? allColumns.filter(col => allowedIds.includes(col.id))
+    : allColumns;
   const slots = dayScheduleSlots(bookings);
   const grouped = new Map();
 
@@ -7320,7 +7339,10 @@ function operationLineFromForm() {
   const service = getService(data.serviceId);
   if (!service) return null;
   const quantity = Math.max(numberValue(data.quantity) || 1, 1);
-  const unitPrice = numberValue(data.amount || service.defaultPrice);
+  // Managers set an explicit price; non-managers record only what was paid (resolved on submit)
+  const unitPrice = canViewSensitive()
+    ? numberValue(data.amount || service.defaultPrice)
+    : numberValue(data.amount) || 0;
   const amount = unitPrice * quantity;
   // Cost: use the form's visible cost field if non-zero, else fall back to service default
   const formCost = numberValue(data.cost);
@@ -8392,6 +8414,9 @@ function render() {
   renderLeads();
   renderStorageSafety();
   renderAlerts(entries, totals, diffs);
+  renderAccountList();
+  renderPermissionSelects();
+  renderPermissionTable();
   updateEntryPreview();
   renderPaymentQuickButtons();
   applyLanguage();
@@ -8441,7 +8466,8 @@ function resetAccountForm() {
   [...els.accountForm.querySelectorAll('[name="workingDays"]')].forEach(input => {
     input.checked = input.value !== "5";
   });
-  if (els.accountSubmit) els.accountSubmit.textContent = "Save User";
+  renderAccountColumnsSelect([]);
+  if (els.accountSubmit) els.accountSubmit.textContent = "حساب جديد";
 }
 
 function fillAccountForm(accountId) {
@@ -8469,7 +8495,8 @@ function fillAccountForm(accountId) {
   [...els.accountForm.querySelectorAll('[name="workingDays"]')].forEach(input => {
     input.checked = (account.workingDays || []).includes(Number(input.value));
   });
-  if (els.accountSubmit) els.accountSubmit.textContent = "Update User";
+  renderAccountColumnsSelect(account.allowedColumnIds || []);
+  if (els.accountSubmit) els.accountSubmit.textContent = "تعديل الحساب";
   els.accountForm.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
@@ -8520,6 +8547,7 @@ if (els.accountForm) {
       calendarDaysBack: data.calendarDaysBack,
       calendarDaysAhead: data.calendarDaysAhead,
       workingDays: formData.getAll("workingDays").map(Number),
+      allowedColumnIds: formData.getAll("allowedColumnIds"),
       active: data.active === "true"
     });
     try {
@@ -9194,8 +9222,12 @@ if (els.entryForm) {
     if (event.target === els.serviceSelect) {
       const service = getService(els.serviceSelect.value);
       if (service) {
-        // Always auto-fill from service — managers can override, non-managers get it silently
-        els.entryForm.elements.amount.value = service.defaultPrice || "";
+        // Only managers see/set a price — non-managers record what was paid, no catalog price
+        if (canViewSensitive()) {
+          els.entryForm.elements.amount.value = service.defaultPrice || "";
+        } else {
+          els.entryForm.elements.amount.value = "";
+        }
         const costInput = els.entryForm.querySelector("[data-cost-input]");
         if (costInput) costInput.value = service.defaultCost || 0;
       }
@@ -9471,10 +9503,23 @@ els.entryForm.addEventListener("submit", event => {
   const doctorModelOverride = data.doctorModelOverride || "";
   const visitId = nextId("visit");
   const createdAt = new Date().toISOString();
-  const visitTotal = visitNetForLines(lines);
   const visitPayments = paymentBreakdownFromForm(lines);
-  // Overpayment is allowed (advance/credit payment) — the preview already warns the user.
-  const newEntries = lines.map(line => normalizeEntry({
+  const totalPaid = paymentTotal(visitPayments);
+  // For non-managers: amount = what was actually paid (no catalog price enforced).
+  // For managers: amount = the set price (may differ from paid for partial/outstanding tracking).
+  const effectiveVisitTotal = canViewSensitive()
+    ? visitNetForLines(lines) || totalPaid
+    : totalPaid;
+  const newEntries = lines.map(line => {
+    const lineWeight = effectiveVisitTotal
+      ? (canViewSensitive()
+          ? Math.max(numberValue(line.amount) - numberValue(line.discount), 0)
+          : 1 / lines.length)
+      : 1 / lines.length;
+    const lineAmount = canViewSensitive()
+      ? line.amount
+      : totalPaid * lineWeight * lines.length; // distribute evenly for non-managers
+    return normalizeEntry({
     ...line,
     id: nextId("entry"),
     visitId,
@@ -9488,17 +9533,17 @@ els.entryForm.addEventListener("submit", event => {
     doctorRate: doctorRateOverride || 0,
     doctorModel: doctorRateOverride > 0 ? doctorModelOverride : "",
     quantity: line.quantity,
-    unitPrice: line.unitPrice,
-    amount: line.amount,
+    unitPrice: canViewSensitive() ? line.unitPrice : lineAmount / (line.quantity || 1),
+    amount: lineAmount,
     cost: line.cost,
-    discount: line.discount,
-    paymentBreakdown: allocatePaymentBreakdown(line, visitPayments, visitTotal),
+    discount: canViewSensitive() ? line.discount : 0,
+    paymentBreakdown: allocatePaymentBreakdown(line, visitPayments, effectiveVisitTotal),
     paymentMethod: paymentMethodFromBreakdown(visitPayments, data.paymentMethod),
     status,
     bookingId: data.bookingId || "",
     createdAt,
     notes: data.notes.trim()
-  }, state.services));
+  }, state.services); });
   state.entries.push(...newEntries);
   const receipt = data.createReceipt === "on" && canUseFeature("issue_receipts")
     ? createReceiptForVisit(newEntries, patient, {
