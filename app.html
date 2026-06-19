@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=2026080">
+  <link rel="stylesheet" href="app.css?v=20260619">
 </head>
 <body>
 
@@ -437,29 +437,30 @@
                   <option value="transfer">تحويل</option>
                 </select>
               </label>
-              <div class="payment-quick-row" data-payment-quick-row>
-                <button type="button" data-payment-option="cash">كاش</button>
-                <button type="button" data-payment-option="card">فيزا</button>
-                <button type="button" data-payment-option="transfer">تحويل</button>
-              </div>
               <div class="payment-split-panel" data-payment-split-panel>
                 <div class="payment-split-heading">
-                  <strong>المدفوع من المريض</strong>
-                  <small>يمكن تقسيم نفس الزيارة بين كاش وفيزا وتحويل.</small>
+                  <strong>الدفع</strong>
+                  <small>اكتب المبلغ الذي دفعه المريض الآن — المتبقي يُحسب تلقائياً.</small>
                 </div>
-                <label>
-                  كاش
-                  <input name="paidCash" type="number" min="0" step="0.01" placeholder="0">
-                </label>
-                <label>
-                  فيزا
-                  <input name="paidCard" type="number" min="0" step="0.01" placeholder="0">
-                </label>
-                <label>
-                  تحويل
-                  <input name="paidTransfer" type="number" min="0" step="0.01" placeholder="0">
-                </label>
-                <button class="text-button" type="button" data-fill-payment-total>تعبئة كامل المبلغ</button>
+                <div class="payment-paid-row">
+                  <label data-paid-amount-field>
+                    المدفوع الآن
+                    <input name="paidAmount" type="number" min="0" step="0.01" placeholder="0">
+                  </label>
+                  <div class="payment-remaining" data-payment-remaining hidden>
+                    <span>المتبقي</span>
+                    <strong data-payment-remaining-value>0</strong>
+                  </div>
+                </div>
+                <details class="payment-split-advanced">
+                  <summary>دفع بأكثر من طريقة؟ (اختياري)</summary>
+                  <div class="payment-split-grid">
+                    <label>كاش<input name="paidCash" type="number" min="0" step="0.01" placeholder="0"></label>
+                    <label>فيزا<input name="paidCard" type="number" min="0" step="0.01" placeholder="0"></label>
+                    <label>تحويل<input name="paidTransfer" type="number" min="0" step="0.01" placeholder="0"></label>
+                  </div>
+                  <small>إذا ملأت هذه الخانات، تُحسب بدلاً من خانة "المدفوع الآن".</small>
+                </details>
               </div>
               <!-- status is written by the payment-status toggle, hidden here -->
               <input name="status" type="hidden" value="completed">
@@ -501,8 +502,8 @@
                     <input name="quantity" type="number" min="1" step="1" value="1" required>
                   </label>
                   <label data-price-field>
-                    سعر الوحدة
-                    <input name="amount" type="number" min="0" step="0.01" placeholder="80" required>
+                    سعر الوحدة <small>اختياري — من إعداد الخدمة</small>
+                    <input name="amount" type="number" min="0" step="0.01" placeholder="0">
                   </label>
                   <label data-price-field>
                     الخصم
@@ -2448,7 +2449,7 @@
     </div>
   </div>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=20260619">
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>

@@ -1876,15 +1876,101 @@ td {
 
 .payment-split-panel {
   grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: minmax(190px, 1.15fr) repeat(3, minmax(120px, 0.75fr)) auto;
-  gap: 10px;
-  align-items: end;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   border: 1px solid #dce7e3;
   border-inline-start: 4px solid var(--gold);
   border-radius: 10px;
   background: #fffdf7;
-  padding: 12px;
+  padding: 14px;
+}
+
+.payment-paid-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto;
+  gap: 14px;
+  align-items: end;
+}
+
+.payment-paid-row label {
+  display: grid;
+  gap: 5px;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.payment-paid-row input {
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.payment-remaining {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  min-width: 120px;
+  padding: 8px 14px;
+  border-radius: 9px;
+  background: #fff0ed;
+  border: 1px solid #f3c9c0;
+}
+
+.payment-remaining span {
+  font-size: 12px;
+  font-weight: 800;
+  color: #9a4435;
+}
+
+.payment-remaining strong {
+  font-size: 20px;
+  font-weight: 900;
+  color: #9a4435;
+}
+
+.payment-remaining.settled {
+  background: #e9f7ef;
+  border-color: #b6e2c8;
+}
+
+.payment-remaining.settled span,
+.payment-remaining.settled strong {
+  color: var(--teal, #0a7c5c);
+}
+
+.payment-split-advanced {
+  border-top: 1px dashed #e2ddcf;
+  padding-top: 10px;
+}
+
+.payment-split-advanced summary {
+  cursor: pointer;
+  font-weight: 800;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.payment-split-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(90px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.payment-split-grid label {
+  display: grid;
+  gap: 4px;
+  font-weight: 800;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.payment-split-advanced > small {
+  display: block;
+  margin-top: 8px;
+  color: var(--ink-soft);
+  font-size: 11px;
 }
 
 .payment-split-heading strong,
@@ -4210,7 +4296,8 @@ html[dir="ltr"] label {
   .expense-filter-form,
   .expense-category-form,
   .import-source-form,
-  .import-mapping {
+  .import-mapping,
+  .payment-paid-row {
     grid-template-columns: 1fr;
   }
 

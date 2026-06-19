@@ -1690,6 +1690,9 @@ const els = {
   operationModal: document.querySelector("[data-operation-modal]"),
   entryForm: document.querySelector("[data-entry-form]"),
   paymentQuickRow: document.querySelector("[data-payment-quick-row]"),
+  paymentRemaining: document.querySelector("[data-payment-remaining]"),
+  paymentRemainingValue: document.querySelector("[data-payment-remaining-value]"),
+  paidAmountField: document.querySelector("[data-paid-amount-field]"),
   operationPatientOptions: document.querySelector("[data-operation-patient-options]"),
   entryFilterForm: document.querySelector("[data-entry-filter-form]"),
   entryFilterService: document.querySelector("[data-entry-filter-service]"),
@@ -7554,14 +7557,30 @@ function visitNetForLines(lines = currentOperationLines()) {
 function paymentBreakdownFromForm(lines = currentOperationLines()) {
   if (!els.entryForm) return { cash: 0, card: 0, transfer: 0 };
   const data = Object.fromEntries(new FormData(els.entryForm).entries());
-  const breakdown = {
+  const method = PAYMENT_METHODS.includes(data.paymentMethod) ? data.paymentMethod : "cash";
+  const status = data.status || "completed";
+
+  // Optional split across methods wins if the advanced boxes are used.
+  const split = {
     cash: Math.max(numberValue(data.paidCash), 0),
     card: Math.max(numberValue(data.paidCard), 0),
     transfer: Math.max(numberValue(data.paidTransfer), 0)
   };
-  const paid = PAYMENT_METHODS.reduce((sum, method) => sum + breakdown[method], 0);
-  if (paid > 0.009) return breakdown;
-  const method = PAYMENT_METHODS.includes(data.paymentMethod) ? data.paymentMethod : "cash";
+  if (split.cash + split.card + split.transfer > 0.009) return split;
+
+  // Nothing collected yet
+  if (status === "pending_payment") return { cash: 0, card: 0, transfer: 0 };
+
+  // Single "paid now" field — this is what the patient actually handed over.
+  const paidRaw = String(data.paidAmount ?? "").trim();
+  if (paidRaw !== "") {
+    return { cash: 0, card: 0, transfer: 0, [method]: Math.max(numberValue(paidRaw), 0) };
+  }
+
+  // Empty paid box:
+  //   • partial  → 0 (they will normally type an amount)
+  //   • completed → assume paid in full = the visit total (manager pricing)
+  if (status === "partial_payment") return { cash: 0, card: 0, transfer: 0 };
   return { cash: 0, card: 0, transfer: 0, [method]: visitNetForLines(lines) };
 }
 
@@ -7572,18 +7591,19 @@ function allocatePaymentBreakdown(line, visitPayments, visitTotal) {
   return Object.fromEntries(PAYMENT_METHODS.map(method => [method, numberValue(visitPayments[method]) * ratio]));
 }
 
-function fillPaymentTotal() {
+// Show/hide the "paid now" box based on the payment-status toggle.
+//   completed → optional (empty = paid in full)
+//   partial   → primary input (what was collected so far)
+//   pending   → hidden (nothing collected)
+function updatePaymentFieldsForStatus() {
   if (!els.entryForm) return;
-  const method = PAYMENT_METHODS.includes(els.entryForm.elements.paymentMethod.value)
-    ? els.entryForm.elements.paymentMethod.value
-    : "cash";
-  const total = visitNetForLines();
-  els.entryForm.elements.paidCash.value = "";
-  els.entryForm.elements.paidCard.value = "";
-  els.entryForm.elements.paidTransfer.value = "";
-  const fieldByMethod = { cash: "paidCash", card: "paidCard", transfer: "paidTransfer" };
-  els.entryForm.elements[fieldByMethod[method]].value = total ? total.toFixed(2) : "";
-  updateEntryPreview();
+  const status = els.entryForm.elements.status?.value || "completed";
+  const paidInput = els.entryForm.elements.paidAmount;
+  if (els.paidAmountField) els.paidAmountField.hidden = status === "pending_payment";
+  if (paidInput) {
+    if (status === "pending_payment") paidInput.value = "";
+    paidInput.placeholder = status === "completed" ? "كامل المبلغ" : "0";
+  }
 }
 
 function resetEntryFormDefaults() {
@@ -7593,6 +7613,7 @@ function resetEntryFormDefaults() {
   els.entryForm.elements.quantity.value = 1;
   els.entryForm.elements.discount.value = 0;
   els.entryForm.elements.paymentMethod.value = "cash";
+  if (els.entryForm.elements.paidAmount) els.entryForm.elements.paidAmount.value = "";
   els.entryForm.elements.paidCash.value = "";
   els.entryForm.elements.paidCard.value = "";
   els.entryForm.elements.paidTransfer.value = "";
@@ -7611,24 +7632,27 @@ function resetEntryFormDefaults() {
   const firstService = activeServices()[0];
   if (firstService) {
     els.entryForm.elements.serviceId.value = firstService.id;
-    els.entryForm.elements.amount.value = firstService.defaultPrice || "";
+    // Only managers get a catalog price pre-filled; non-managers record what was paid.
+    els.entryForm.elements.amount.value = canViewSensitive() ? (firstService.defaultPrice || "") : "";
     const costInput = els.entryForm.querySelector("[data-cost-input]");
     if (costInput) costInput.value = firstService.defaultCost || 0;
   }
   renderStaffRuleServiceSelect();
   renderOperationLines();
+  updatePaymentFieldsForStatus();
   updateEntryPreview();
   renderPaymentQuickButtons();
 }
 
 function applyPriceFieldVisibility() {
-  // Managers see and edit price/discount. Non-managers: auto-fill from service, fields hidden.
+  // Managers see price/discount (optional, from the service default); non-managers don't.
+  // Price is never required — what the patient paid is the source of truth.
   const showPrice = canViewSensitive();
   if (!els.entryForm) return;
   els.entryForm.querySelectorAll("[data-price-field]").forEach(el => {
     el.hidden = !showPrice;
     const input = el.querySelector("input");
-    if (input) input.required = showPrice; // not required when hidden
+    if (input) input.required = false;
   });
 }
 
@@ -7641,6 +7665,7 @@ function openOperationModal({ returnView = "" } = {}) {
   els.operationModal.hidden = false;
   document.body.classList.add("operation-modal-open");
   applyPriceFieldVisibility();
+  updatePaymentFieldsForStatus();
   renderPaymentQuickButtons();
   window.setTimeout(() => {
     els.entryForm?.querySelector('input[name="patient"]')?.focus({ preventScroll: true });
@@ -7655,12 +7680,24 @@ function closeOperationModal({ restoreView = "" } = {}) {
   if (target && target !== "entries" && canView(target)) setView(target);
 }
 
+function updatePaymentRemainingDisplay(net = 0, unpaid = 0) {
+  if (!els.paymentRemaining) return;
+  // Show a live "remaining" figure only when there is a known charge to subtract from.
+  const showRemaining = canViewSensitive() && net > 0.009;
+  els.paymentRemaining.hidden = !showRemaining;
+  if (showRemaining && els.paymentRemainingValue) {
+    els.paymentRemainingValue.textContent = money(unpaid);
+    els.paymentRemaining.classList.toggle("settled", unpaid <= 0.009);
+  }
+}
+
 function updateEntryPreview() {
   if (!els.entryPreview || !els.entryForm) return;
   const lines = currentOperationLines();
   if (!lines.length) {
     els.entryPreview.classList.remove("warning");
     els.entryPreview.textContent = "اختر خدمة وأضفها إلى الزيارة.";
+    updatePaymentRemainingDisplay(0, 0);
     return;
   }
 
@@ -7683,6 +7720,7 @@ function updateEntryPreview() {
   const unpaid = Math.max(net - paid, 0);
   const overpaid = paid - net > 0.009;
   els.entryPreview.classList.toggle("warning", overpaid);
+  updatePaymentRemainingDisplay(net, unpaid);
 
   if (!canViewSensitive()) {
     els.entryPreview.textContent = overpaid
@@ -9300,6 +9338,8 @@ function initPaymentStatusToggle() {
     els.paymentStatusToggle.querySelectorAll("[data-pstatus]").forEach(b => {
       b.classList.toggle("active", b === btn);
     });
+    updatePaymentFieldsForStatus();
+    updateEntryPreview();
   });
 }
 initPaymentStatusToggle();
@@ -9845,6 +9885,7 @@ function fillEntryFromBooking(bookingId) {
   els.entryForm.elements.cost.value = service?.defaultCost || 0;
   els.entryForm.elements.discount.value = 0;
   els.entryForm.elements.paymentMethod.value = "cash";
+  if (els.entryForm.elements.paidAmount) els.entryForm.elements.paidAmount.value = "";
   els.entryForm.elements.paidCash.value = "";
   els.entryForm.elements.paidCard.value = "";
   els.entryForm.elements.paidTransfer.value = "";
@@ -9861,6 +9902,7 @@ function fillEntryFromBooking(bookingId) {
     discount: 0
   });
   renderOperationLines();
+  updatePaymentFieldsForStatus();
   updateEntryPreview();
   openOperationModal({ returnView });
 }
@@ -10143,7 +10185,6 @@ document.addEventListener("click", async event => {
   const openOperationAction = event.target.closest("[data-open-operation-modal]");
   const closeOperationAction = event.target.closest("[data-close-operation-modal]");
   const paymentOptionAction = event.target.closest("[data-payment-option]");
-  const fillPaymentTotalAction = event.target.closest("[data-fill-payment-total]");
   const downloadClinicJsonAction = event.target.closest("[data-download-clinic-json]");
   const exportClinicCsvAction = event.target.closest("[data-export-clinic-csv]");
   const restoreClinicJsonAction = event.target.closest("[data-restore-clinic-json-action]");
@@ -10244,11 +10285,6 @@ document.addEventListener("click", async event => {
     els.entryForm.elements.paymentMethod.value = paymentOptionAction.dataset.paymentOption;
     renderPaymentQuickButtons();
     updateEntryPreview();
-    return;
-  }
-
-  if (fillPaymentTotalAction) {
-    fillPaymentTotal();
     return;
   }
 
