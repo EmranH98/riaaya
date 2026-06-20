@@ -22,6 +22,7 @@ import {
 } from "../lib/security.js";
 import { generateBackupCodes, generateTotpSecret, otpauthUrl, verifyTotp } from "../lib/totp.js";
 import { sendEmail } from "../lib/email.js";
+import { reportEvent } from "../lib/monitor.js";
 
 // Short-lived challenges for the second factor: a verified password earns a
 // challenge id, which must be exchanged for a real session by submitting a code.
@@ -201,6 +202,8 @@ function login(req, res) {
   const rateKey = loginRateLimitKey(req, email);
 
   if (isLoginRateLimited(rateKey)) {
+    // Repeated failures for one email/IP — likely brute force. Alert (cooldown-limited in monitor).
+    reportEvent("security", "login_brute_force_suspected", { email, ip: clientIp(req) });
     sendJson(res, 429, { error: "too_many_login_attempts" });
     return;
   }

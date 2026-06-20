@@ -9,6 +9,7 @@ import ownerHandler from "./api/owner.js";
 import publicHandler from "./api/public.js";
 import { db } from "./lib/database.js";
 import { startBackupScheduler } from "./lib/backup-scheduler.js";
+import { reportEvent, startResourceMonitor } from "./lib/monitor.js";
 
 const root = fileURLToPath(new URL(".", import.meta.url));
 const port = Number(process.env.PORT || 4174);
@@ -146,6 +147,11 @@ function sendHealth(res) {
 
 function sendUnhandledError(req, res, error) {
   console.error("Unhandled request error", req.method, req.url, error?.stack || error);
+  reportEvent("error", "unhandled_request_error", {
+    method: req.method,
+    path: (() => { try { return new URL(req.url || "/", `http://${req.headers.host}`).pathname; } catch { return req.url; } })(),
+    message: String(error?.message || error).slice(0, 300)
+  });
   if (res.headersSent) {
     res.end();
     return;
@@ -272,6 +278,18 @@ const server = createServer((req, res) => {
 server.listen(port, () => {
   console.log(`رعاية is running at http://localhost:${port}`);
   startBackupScheduler();
+  startResourceMonitor();
+  reportEvent("info", "server_boot", { port });
+});
+
+// Last-resort guards: log + alert before the process dies, instead of vanishing silently.
+process.on("uncaughtException", error => {
+  reportEvent("critical", "uncaught_exception", { message: String(error?.message || error).slice(0, 300) });
+  console.error("uncaughtException", error?.stack || error);
+});
+process.on("unhandledRejection", reason => {
+  reportEvent("critical", "unhandled_rejection", { message: String(reason?.message || reason).slice(0, 300) });
+  console.error("unhandledRejection", reason);
 });
 
 function shutdown(signal) {
