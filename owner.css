@@ -352,6 +352,19 @@ input, select { min-height: 42px; border: 1px solid var(--line); padding: 8px 10
 .module-toggle input {
   min-height: auto;
 }
+.require-2fa-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfdfc;
+  padding: 12px 14px;
+  cursor: pointer;
+}
+.require-2fa-toggle input { margin-top: 3px; width: 18px; height: 18px; }
+.require-2fa-toggle strong { display: block; font-size: 14px; }
+.require-2fa-toggle small { display: block; color: var(--ink-soft, #5a6a72); margin-top: 3px; font-weight: 500; }
 .limit-grid,
 .branding-grid {
   display: grid;

@@ -1877,6 +1877,7 @@ const els = {
   logoutButton: document.querySelector("[data-logout-button]"),
   securityButton: document.querySelector("[data-security-button]"),
   securityModal: document.querySelector("[data-security-modal]"),
+  twofaGate: document.querySelector("[data-twofa-gate]"),
   receiptModal: document.querySelector("[data-receipt-modal]"),
   receiptDocument: document.querySelector("[data-receipt-document]"),
   submitOpenReceipt: document.querySelector("[data-submit-open-receipt]"),
@@ -2354,6 +2355,7 @@ async function initializeApp() {
   runtime.ready = true;
   applyRuntimeUI();
   render();
+  enforce2faRequirement();
   if (initializeClinicState) saveState();
   loadCommunicationBackendStatus();
   loadStorageSafetyStatus();
@@ -9093,8 +9095,28 @@ async function securityRequest(path, body) {
   return result;
 }
 
+// When the owner has flagged this clinic as 2FA-required, block the app until
+// the logged-in user enrolls. Only applies to live clinic sessions (not the
+// public trial) and never to the platform owner.
+function enforce2faRequirement() {
+  if (!els.twofaGate) return;
+  const required = runtime.mode === "live" && Boolean(runtime.session?.clinic?.require2fa);
+  const enrolled = Boolean(runtime.session?.user?.twoFactorEnabled);
+  const mustEnroll = required && !enrolled;
+  els.twofaGate.hidden = !mustEnroll;
+  document.body.classList.toggle("twofa-gated", mustEnroll);
+}
+
 els.securityButton?.addEventListener("click", openSecurityModal);
 securityPart("close")?.addEventListener("click", closeSecurityModal);
+els.twofaGate?.querySelector("[data-twofa-gate-enable]")?.addEventListener("click", () => {
+  // Open the existing 2FA setup and jump straight into enrollment.
+  openSecurityModal();
+  securityPart("start-enable")?.click();
+});
+els.twofaGate?.querySelector("[data-twofa-gate-logout]")?.addEventListener("click", () => {
+  els.logoutButton?.click();
+});
 els.securityModal?.addEventListener("click", event => {
   if (event.target === els.securityModal) closeSecurityModal();
 });
@@ -9132,6 +9154,8 @@ securityPart("enable-confirm")?.addEventListener("click", async () => {
     if (backupSection) backupSection.hidden = false;
     const statusEl = securityPart("status");
     if (statusEl) { statusEl.textContent = "✅ المصادقة الثنائية مفعّلة على حسابك."; statusEl.classList.add("on"); }
+    // Requirement satisfied — drop the gate (user still sees backup codes in the modal).
+    enforce2faRequirement();
   } catch (error) {
     if (status) status.textContent = error.message === "invalid_2fa_code" ? "الرمز غير صحيح. حاول مرة أخرى." : "تعذّر التفعيل.";
   }

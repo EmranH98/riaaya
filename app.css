@@ -6954,6 +6954,33 @@ html[dir="ltr"] label {
   background: rgba(23, 33, 43, 0.6);
   padding: 24px;
 }
+
+/* Full-screen gate when the clinic requires 2FA and the user hasn't enabled it. */
+.twofa-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 1150;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(23, 33, 43, 0.82);
+  padding: 24px;
+  backdrop-filter: blur(3px);
+}
+.twofa-gate[hidden] { display: none; }
+.twofa-gate-card {
+  width: min(460px, 96vw);
+  background: white;
+  border-radius: 16px;
+  padding: 34px 30px;
+  text-align: center;
+  box-shadow: 0 30px 70px rgba(23, 33, 43, 0.4);
+}
+.twofa-gate-icon { font-size: 42px; margin-bottom: 8px; }
+.twofa-gate-card h2 { margin: 6px 0 12px; font-size: 22px; color: var(--ink); }
+.twofa-gate-card p { color: var(--ink-soft); line-height: 1.8; margin-bottom: 22px; }
+.twofa-gate-card .primary-button { width: 100%; }
+.twofa-gate-card .ghost-button { width: 100%; margin-top: 10px; }
 .security-dialog {
   width: min(540px, 96vw);
   max-height: 92vh;

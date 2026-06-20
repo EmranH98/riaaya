@@ -169,6 +169,16 @@ function renderClinics() {
             </div>
           </section>
           <section>
+            <h3>الأمان</h3>
+            <label class="require-2fa-toggle">
+              <input type="checkbox" data-clinic-require-2fa ${clinic.require2fa ? "checked" : ""}>
+              <span>
+                <strong>إلزام المصادقة الثنائية (2FA)</strong>
+                <small>عند التفعيل، يجب على كل مستخدم في هذه العيادة تفعيل المصادقة الثنائية قبل استخدام النظام.</small>
+              </span>
+            </label>
+          </section>
+          <section>
             <h3>الهوية والملاحظات</h3>
             <div class="branding-grid">
               <label>لون العيادة<input data-clinic-branding="accentColor" type="color" value="${clinic.branding?.accentColor || "#0a7c5c"}"></label>
@@ -708,7 +718,8 @@ document.addEventListener("click", async event => {
           enabledModules: [...row.querySelectorAll("[data-clinic-module]:checked")].map(i => i.dataset.clinicModule),
           limits: Object.fromEntries([...row.querySelectorAll("[data-clinic-limit]")].map(i => [i.dataset.clinicLimit, Number(i.value)])),
           branding: Object.fromEntries([...row.querySelectorAll("[data-clinic-branding]")].map(i => [i.dataset.clinicBranding, i.value.trim()])),
-          ownerNotes: row.querySelector("[data-clinic-owner-notes]").value
+          ownerNotes: row.querySelector("[data-clinic-owner-notes]").value,
+          require2fa: row.querySelector("[data-clinic-require-2fa]")?.checked === true
         })
       });
       if (!response.ok) throw new Error("save_failed");

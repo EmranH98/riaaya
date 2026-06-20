@@ -86,6 +86,8 @@ export function authenticateRequest(req) {
       clinics.branding_json as clinic_branding_json,
       clinics.support_tier as clinic_support_tier,
       clinics.owner_notes as clinic_owner_notes,
+      clinics.account_deadline as clinic_account_deadline,
+      clinics.require_2fa as clinic_require_2fa,
       clinics.created_at as clinic_created_at,
       clinics.updated_at as clinic_updated_at
     from sessions
@@ -116,6 +118,8 @@ export function authenticateRequest(req) {
         branding_json: row.clinic_branding_json,
         support_tier: row.clinic_support_tier,
         owner_notes: row.clinic_owner_notes,
+        account_deadline: row.clinic_account_deadline,
+        require_2fa: row.clinic_require_2fa,
         created_at: row.clinic_created_at,
         updated_at: row.clinic_updated_at
       }

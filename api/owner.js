@@ -458,25 +458,29 @@ function updateClinic(req, res, clinicId) {
   const branding = cleanBranding(req.body?.branding, parseJson(existing.branding_json, {}));
   const supportTier = allowedSupport.has(req.body?.supportTier) ? req.body.supportTier : existing.support_tier || "standard";
   const ownerNotes = safeText(req.body?.ownerNotes ?? existing.owner_notes, 2000);
+  // Owner-controlled per-clinic 2FA requirement (only changes when explicitly sent).
+  const require2fa = req.body?.require2fa === undefined
+    ? Number(existing.require_2fa || 0)
+    : (req.body.require2fa === true || req.body.require2fa === "true" ? 1 : 0);
   // Validate deadline format (YYYY-MM-DD or empty)
   const cleanDeadline = /^\d{4}-\d{2}-\d{2}$/.test(accountDeadline) ? accountDeadline : (existing.account_deadline || null);
   db.prepare(`
     update clinics set
       status = ?, plan = ?, trial_ends_at = ?,
       enabled_modules_json = ?, limits_json = ?, branding_json = ?,
-      support_tier = ?, owner_notes = ?, account_deadline = ?, updated_at = ?
+      support_tier = ?, owner_notes = ?, account_deadline = ?, require_2fa = ?, updated_at = ?
     where id = ?
   `).run(
     status, plan, trialEndsAt || null,
     JSON.stringify(modules), JSON.stringify(limits), JSON.stringify(branding),
-    supportTier, ownerNotes, cleanDeadline, nowIso(), clinicId
+    supportTier, ownerNotes, cleanDeadline, require2fa, nowIso(), clinicId
   );
   audit({
     userId: auth.user.id,
     action: "update",
     entity: "clinic",
     entityId: clinicId,
-    metadata: { status, plan, trialEndsAt, modules, limits, supportTier, accountDeadline: cleanDeadline },
+    metadata: { status, plan, trialEndsAt, modules, limits, supportTier, accountDeadline: cleanDeadline, require2fa },
     ipAddress: clientIp(req)
   });
   sendJson(res, 200, { ok: true, clinic: publicClinic(db.prepare("select * from clinics where id = ?").get(clinicId)) });

@@ -65,6 +65,7 @@ const server = spawn(process.execPath, ["server.mjs"], {
     RIAAYA_OWNER_EMAIL: OWNER.email,
     RIAAYA_OWNER_PASSWORD: OWNER.password,
     RIAAYA_OWNER_SYNC: "true",
+    RIAAYA_DISABLE_RATE_LIMIT: "1",
     NODE_ENV: "development"
   },
   stdio: ["ignore", "pipe", "pipe"]
@@ -142,6 +143,22 @@ async function run() {
   const newUserBody = await newUser.json().catch(() => ({}));
   ok(newUser.status === 200 || newUser.status === 201, "clinic A admin creates a restricted user");
   ok(JSON.stringify(newUserBody.user?.allowedColumnIds || []) === JSON.stringify(["laser-men"]), "allowedColumnIds persists for the new user");
+
+  // ── Owner-controlled per-clinic 2FA requirement ───────────────────────────
+  const require2fa = await owner.fetch(`/api/owner/clinics/${clinicA.body.clinic.id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", "X-CSRF-Token": ownerLogin.csrf },
+    body: JSON.stringify({ require2fa: true })
+  });
+  const require2faBody = await require2fa.json().catch(() => ({}));
+  ok(require2fa.status === 200 && require2faBody.clinic?.require2fa === true, "owner turns on require-2FA for clinic A");
+  // The clinic A admin's live session now reflects the requirement…
+  const stateAfter2fa = await (await adminA.fetch("/api/clinic-state")).json();
+  ok(stateAfter2fa.clinic?.require2fa === true, "clinic A admin's session sees require2fa=true");
+  // …and clinic B is unaffected (per-clinic, not global).
+  const stateBClinic = await (await owner.fetch("/api/owner/clinics")).json();
+  const clinicBRow = (stateBClinic.clinics || []).find(c => c.id === clinicB.body.clinic.id);
+  ok(clinicBRow && clinicBRow.require2fa === false, "clinic B is NOT required (per-clinic toggle)");
 
   // ── Owner can reset a clinic admin password; old password stops working ───
   const reset = await owner.fetch(`/api/owner/clinics/${clinicA.body.clinic.id}/reset-admin-password`, {

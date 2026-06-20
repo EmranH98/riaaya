@@ -40,6 +40,8 @@ function getClientIp(req) {
  * @param {{ windowMs?: number, maxHits?: number }} opts
  */
 function isRateLimited(req, res, { windowMs = 60_000, maxHits = 60 } = {}) {
+  // Opt-out for automated tests only (never set in production).
+  if (process.env.RIAAYA_DISABLE_RATE_LIMIT === "1") return false;
   const ip = getClientIp(req);
   const now = Date.now();
   const cutoff = now - windowMs;
