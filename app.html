@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260619">
+  <link rel="stylesheet" href="app.css?v=20260620c">
 </head>
 <body>
 
@@ -38,6 +38,7 @@
       <span class="print-page-ref">رعاية — نظام إدارة العيادات</span>
     </div>
   </div>
+  <button class="focus-exit" type="button" data-exit-focus hidden>تصغير الشاشة</button>
   <!-- ════════════════════════════════════════════════════════ -->
 
   <div class="app-shell">
@@ -739,6 +740,9 @@
                 <p class="eyebrow">الدليل</p>
                 <h2>المرضى والزوار</h2>
               </div>
+              <button class="focus-icon-button" type="button" data-expand-view="patients" aria-label="تكبير مساحة الملفات" title="تكبير مساحة الملفات">
+                <span aria-hidden="true">⛶</span>
+              </button>
             </div>
             <form class="patient-filter-form" data-patient-filter-form>
               <label class="filter-search">
@@ -2508,7 +2512,7 @@
     </div>
   </div>
 
-  <script src="app.js?v=20260619"></script>
+  <script src="app.js?v=20260620c"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>

@@ -17,6 +17,9 @@ const notifyStatus = document.querySelector("[data-notify-status]");
 const resetUserDialog = document.querySelector("[data-reset-user-dialog]");
 const resetUserForm = document.querySelector("[data-reset-user-form]");
 const resetUserStatus = document.querySelector("[data-reset-user-status]");
+const disableUser2faDialog = document.querySelector("[data-disable-user-2fa-dialog]");
+const disableUser2faForm = document.querySelector("[data-disable-user-2fa-form]");
+const disableUser2faStatus = document.querySelector("[data-disable-user-2fa-status]");
 const overrideSettingsDialog = document.querySelector("[data-override-settings-dialog]");
 const overrideSettingsForm = document.querySelector("[data-override-settings-form]");
 const overrideSettingsStatus = document.querySelector("[data-override-settings-status]");
@@ -44,6 +47,28 @@ const DEFAULT_LIMITS = {
   enterprise: { maxUsers: 100, maxPatients: 100000, maxMonthlySms: 10000, maxBranches: 20 }
 };
 
+let disableUser2faOpenLocked = false;
+
+function handleDisableUser2faOpen(event) {
+  const button = event.target.closest?.("[data-disable-user-2fa]");
+  if (!button) return;
+  event.preventDefault();
+  event.stopPropagation();
+  if (disableUser2faOpenLocked) return;
+  disableUser2faOpenLocked = true;
+  setTimeout(() => {
+    disableUser2faOpenLocked = false;
+  }, 500);
+  openDisableUser2faDialog(button.dataset.disableUser2fa);
+}
+
+document.addEventListener("pointerdown", handleDisableUser2faOpen, true);
+document.addEventListener("click", handleDisableUser2faOpen, true);
+document.addEventListener("keydown", event => {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  handleDisableUser2faOpen(event);
+}, true);
+
 function statusLabel(status) {
   return { trial: "تجربة", active: "فعالة", suspended: "موقوفة", cancelled: "ملغاة" }[status] || status;
 }
@@ -54,6 +79,15 @@ function planLabel(plan) {
 
 function supportLabel(tier) {
   return { standard: "دعم عادي", priority: "أولوية", white_glove: "إعداد كامل" }[tier] || tier;
+}
+
+function twoFactorLabel(enabled) {
+  return enabled ? "2FA مفعّلة" : "2FA غير مفعّلة";
+}
+
+function userOptionLabel(user, includeTwoFactor = false) {
+  const base = `${user.name || user.email} — ${user.email} (${user.role})`;
+  return includeTwoFactor ? `${base} — ${twoFactorLabel(user.twoFactorEnabled)}` : base;
 }
 
 function renderKpis(mrr = 0, arr = 0) {
@@ -117,6 +151,7 @@ function renderClinics() {
         <button type="button" data-save-clinic="${clinic.id}">حفظ التغييرات</button>
         <button class="secondary-control" type="button" data-reset-clinic-password="${clinic.id}">كلمة مرور مؤقتة للمدير</button>
         <button class="secondary-control" type="button" data-reset-user-password="${clinic.id}">إعادة كلمة مرور موظف</button>
+        <button class="secondary-control" type="button" data-disable-user-2fa="${clinic.id}">إيقاف 2FA لمستخدم</button>
         <button class="secondary-control" type="button" data-send-notify="${clinic.id}">إرسال إشعار</button>
         <button class="secondary-control" type="button" data-override-settings="${clinic.id}">تعديل إعدادات التطبيق</button>
         <a class="secondary-control" href="/api/owner/clinics/${clinic.id}/export" target="_blank" rel="noreferrer">تصدير البيانات</a>
@@ -157,6 +192,13 @@ function renderClinics() {
       </details>
     </div>
   `).join("") : `<div class="empty">لا توجد عيادات مطابقة.</div>`;
+  clinicList.querySelectorAll("[data-disable-user-2fa]").forEach(button => {
+    button.addEventListener("click", event => {
+      event.preventDefault();
+      event.stopPropagation();
+      openDisableUser2faDialog(button.dataset.disableUser2fa);
+    });
+  });
 }
 
 function renderAudit() {
@@ -404,6 +446,66 @@ if (resetUserForm) {
 
 document.querySelector("[data-close-reset-user-dialog]")?.addEventListener("click", () => resetUserDialog.close());
 
+// ── Disable User 2FA Modal ─────────────────────────────────────────────────
+if (disableUser2faForm) {
+  disableUser2faForm.addEventListener("submit", async event => {
+    event.preventDefault();
+    if (!ownerSession?.csrfToken) return;
+    const data = Object.fromEntries(new FormData(disableUser2faForm));
+    const button = disableUser2faForm.querySelector("button[type='submit']");
+    button.disabled = true;
+    disableUser2faStatus.textContent = "جاري الإيقاف...";
+    try {
+      const response = await fetch(`/api/owner/clinics/${data.clinicId}/disable-user-2fa`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": ownerSession.csrfToken },
+        body: JSON.stringify({ userId: data.userId })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "disable_failed");
+      disableUser2faStatus.textContent = `تم إيقاف المصادقة الثنائية لـ ${result.name || result.email}.`;
+      await loadOwner();
+      setTimeout(() => disableUser2faDialog.close(), 1200);
+    } catch {
+      disableUser2faStatus.textContent = "تعذر إيقاف المصادقة الثنائية.";
+    } finally {
+      button.disabled = false;
+    }
+  });
+}
+
+document.querySelector("[data-close-disable-user-2fa-dialog]")?.addEventListener("click", () => disableUser2faDialog.close());
+
+async function openDisableUser2faDialog(clinicId) {
+  if (!clinicId || !disableUser2faDialog || !disableUser2faForm) return;
+  disableUser2faStatus.textContent = "جاري التحميل...";
+  disableUser2faForm.elements.clinicId.value = clinicId;
+  disableUser2faDialog.showModal();
+  try {
+    const response = await fetch(`/api/owner/clinics/${clinicId}/users`);
+    const result = await response.json();
+    if (!response.ok) throw new Error("load_failed");
+    const select = disableUser2faForm.querySelector("[data-disable-user-2fa-select]");
+    const submitButton = disableUser2faForm.querySelector("button[type='submit']");
+    select.replaceChildren(...result.users.map(user => {
+      const option = new Option(userOptionLabel(user, true), user.id);
+      option.disabled = !user.twoFactorEnabled;
+      return option;
+    }));
+    const enabledUsers = result.users.filter(u => u.twoFactorEnabled);
+    if (enabledUsers.length) {
+      select.value = enabledUsers[0].id;
+      if (submitButton) submitButton.disabled = false;
+      disableUser2faStatus.textContent = "";
+    } else {
+      if (submitButton) submitButton.disabled = true;
+      disableUser2faStatus.textContent = "لا يوجد مستخدم لديه مصادقة ثنائية مفعلة في هذه العيادة.";
+    }
+  } catch {
+    disableUser2faStatus.textContent = "تعذر تحميل قائمة المستخدمين.";
+  }
+}
+
 // ── Override Settings Modal ──────────────────────────────────────────────────
 if (overrideSettingsForm) {
   overrideSettingsForm.addEventListener("submit", async event => {
@@ -501,13 +603,18 @@ document.addEventListener("click", async event => {
       const result = await response.json();
       if (!response.ok) throw new Error("load_failed");
       const select = resetUserForm.querySelector("[data-reset-user-select]");
-      select.innerHTML = result.users.map(u =>
-        `<option value="${u.id}">${u.name} — ${u.email} (${u.role})</option>`
-      ).join("");
+      select.replaceChildren(...result.users.map(user => new Option(userOptionLabel(user), user.id)));
       resetUserStatus.textContent = "";
     } catch {
       resetUserStatus.textContent = "تعذر تحميل قائمة المستخدمين.";
     }
+    return;
+  }
+
+  // Disable any user's two-factor authentication — open modal with user list
+  const disableUser2faId = target.dataset.disableUser2fa;
+  if (disableUser2faId) {
+    await openDisableUser2faDialog(disableUser2faId);
     return;
   }
 

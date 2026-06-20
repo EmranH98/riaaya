@@ -385,9 +385,18 @@ function getClinicUsers(req, res, clinicId) {
     return;
   }
   const users = db.prepare(`
-    select id, email, name, role, active, created_at, updated_at
+    select id, email, name, role, active, totp_enabled, created_at, updated_at
     from users where clinic_id = ? order by role asc, name asc
-  `).all(clinicId);
+  `).all(clinicId).map(user => ({
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    active: Boolean(user.active),
+    twoFactorEnabled: Boolean(user.totp_enabled),
+    createdAt: user.created_at,
+    updatedAt: user.updated_at
+  }));
   sendJson(res, 200, { ok: true, users });
 }
 
@@ -443,6 +452,39 @@ function resetUserPassword(req, res, clinicId) {
     ipAddress: clientIp(req)
   });
   sendJson(res, 200, { ok: true, email: user.email, name: user.name, temporaryPassword: password });
+}
+
+function disableUserTwoFactor(req, res, clinicId) {
+  const auth = requireSession(req, res, { owner: true, csrf: true });
+  if (!auth) return;
+  const userId = safeText(req.body?.userId || "", 40);
+  const user = db.prepare("select * from users where id = ? and clinic_id = ?").get(userId, clinicId);
+  if (!user) {
+    sendJson(res, 404, { error: "user_not_found" });
+    return;
+  }
+
+  db.prepare(`
+    update users
+    set totp_enabled = 0,
+        totp_secret_cipher = null,
+        totp_pending_cipher = null,
+        totp_backup_codes_json = '[]',
+        updated_at = ?
+    where id = ?
+  `).run(nowIso(), user.id);
+  db.prepare("delete from sessions where user_id = ?").run(user.id);
+
+  audit({
+    userId: auth.user.id,
+    clinicId,
+    action: "disable_2fa",
+    entity: "user",
+    entityId: user.id,
+    metadata: { email: user.email, role: user.role, by: "platform_owner" },
+    ipAddress: clientIp(req)
+  });
+  sendJson(res, 200, { ok: true, email: user.email, name: user.name, wasEnabled: Boolean(user.totp_enabled) });
 }
 
 function sendClinicNotification(req, res, clinicId) {
@@ -544,6 +586,9 @@ export default async function ownerHandler(req, res, url) {
 
   const resetUserMatch = url.pathname.match(/^\/api\/owner\/clinics\/([^/]+)\/reset-user-password$/);
   if (resetUserMatch && req.method === "POST") return resetUserPassword(req, res, resetUserMatch[1]);
+
+  const disableUser2faMatch = url.pathname.match(/^\/api\/owner\/clinics\/([^/]+)\/disable-user-2fa$/);
+  if (disableUser2faMatch && req.method === "POST") return disableUserTwoFactor(req, res, disableUser2faMatch[1]);
 
   const notifyMatch = url.pathname.match(/^\/api\/owner\/clinics\/([^/]+)\/notify$/);
   if (notifyMatch && req.method === "POST") return sendClinicNotification(req, res, notifyMatch[1]);

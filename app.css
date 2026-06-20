@@ -4088,6 +4088,33 @@ body.focus-mode .view[data-view="reports"].expanded-view .report-page {
   min-height: calc(100vh - 210px);
 }
 
+body.focus-mode .view[data-view="patients"].expanded-view {
+  display: grid !important;
+  grid-template-rows: minmax(0, 1fr);
+}
+
+body.focus-mode .view[data-view="patients"].expanded-view .patient-create-panel {
+  display: none;
+}
+
+body.focus-mode .view[data-view="patients"].expanded-view .patient-workspace {
+  height: calc(100vh - 56px);
+  grid-template-columns: minmax(420px, 0.95fr) minmax(520px, 1.05fr);
+  align-items: stretch;
+}
+
+body.focus-mode .view[data-view="patients"].expanded-view .patient-directory-panel,
+body.focus-mode .view[data-view="patients"].expanded-view .patient-file-panel {
+  min-height: 0;
+  overflow: auto;
+  position: static;
+}
+
+body.focus-mode .view[data-view="patients"].expanded-view .patient-directory-panel .table-wrap,
+body.focus-mode .view[data-view="patients"].expanded-view .patient-file-panel .table-wrap {
+  max-height: none;
+}
+
 html[dir="ltr"] .nav-item,
 html[dir="ltr"] label {
   text-align: left;
@@ -4601,6 +4628,12 @@ html[dir="ltr"] label {
 
   body.focus-mode .view.expanded-view {
     padding: 16px;
+  }
+
+  body.focus-mode .view[data-view="patients"].expanded-view .patient-workspace {
+    height: auto;
+    min-height: calc(100vh - 32px);
+    grid-template-columns: 1fr;
   }
 }
 

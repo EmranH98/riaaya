@@ -4691,6 +4691,9 @@ function renderPatientFile() {
         <p>${canUseFeature("patient_number") ? `ملف #${patient.patientNumber}` : "رقم الملف مخفي"} | آخر نشاط ${displayDate(lastActivity) || "-"}</p>
       </div>
       <div class="form-actions">
+        <button class="focus-icon-button" type="button" data-expand-view="patients" aria-label="تكبير ملف المريض" title="تكبير ملف المريض">
+          <span aria-hidden="true">⛶</span>
+        </button>
         ${canEdit ? `<button class="text-button" type="button" data-edit-patient="${patient.id}">تعديل</button>` : ""}
         ${canDelete ? `<button class="text-button danger" type="button" data-delete-patient="${patient.id}">حذف</button>` : ""}
       </div>
@@ -10343,7 +10346,8 @@ document.addEventListener("click", async event => {
   const paginationPage = Number(event.target.dataset.paginationPage);
   const approveSalaryId = event.target.dataset.approveSalary;
   const paySalaryId = event.target.dataset.paySalary;
-  const expandViewName = event.target.dataset.expandView;
+  const expandViewTrigger = event.target.closest("[data-expand-view]");
+  const expandViewName = expandViewTrigger?.dataset.expandView;
   const calendarDate = event.target.closest("[data-calendar-date]")?.dataset.calendarDate;
   const calendarNav = event.target.closest("[data-calendar-nav]")?.dataset.calendarNav;
   const openOperationAction = event.target.closest("[data-open-operation-modal]");
