@@ -1644,6 +1644,7 @@ function hydrateClinicState(saved, clinic, accounts) {
 let state = loadState();
 let selectedSalaryMemberId = "";
 let selectedPatientId = state.patients?.[0]?.id || "";
+let patientFocusMode = "list";
 let patientPage = 1;
 let operationPage = 1;
 let reportPage = 1;
@@ -4691,7 +4692,8 @@ function renderPatientFile() {
         <p>${canUseFeature("patient_number") ? `ملف #${patient.patientNumber}` : "رقم الملف مخفي"} | آخر نشاط ${displayDate(lastActivity) || "-"}</p>
       </div>
       <div class="form-actions">
-        <button class="focus-icon-button" type="button" data-expand-view="patients" aria-label="تكبير ملف المريض" title="تكبير ملف المريض">
+        <button class="text-button patient-focus-back" type="button" data-patient-focus-list>رجوع للملفات</button>
+        <button class="focus-icon-button" type="button" data-expand-view="patients" data-patient-focus="file" aria-label="تكبير ملف المريض" title="تكبير ملف المريض">
           <span aria-hidden="true">⛶</span>
         </button>
         ${canEdit ? `<button class="text-button" type="button" data-edit-patient="${patient.id}">تعديل</button>` : ""}
@@ -9193,7 +9195,14 @@ window.addEventListener("afterprint", () => {
   document.body.classList.remove("printing-receipt");
 });
 
-function enterFocusMode(viewName) {
+function setPatientFocusMode(mode) {
+  patientFocusMode = mode === "file" ? "file" : "list";
+  if (document.body.dataset.focusView === "patients") {
+    document.body.dataset.patientFocusMode = patientFocusMode;
+  }
+}
+
+function enterFocusMode(viewName, options = {}) {
   if (!viewName || !canView(viewName)) return;
   setView(viewName);
   document.querySelectorAll(".view.expanded-view").forEach(view => {
@@ -9204,6 +9213,11 @@ function enterFocusMode(viewName) {
   view.classList.add("expanded-view");
   document.body.classList.add("focus-mode");
   document.body.dataset.focusView = viewName;
+  if (viewName === "patients") {
+    setPatientFocusMode(options.patientFocus || patientFocusMode || "list");
+  } else {
+    delete document.body.dataset.patientFocusMode;
+  }
   if (els.focusExit) {
     els.focusExit.hidden = false;
     els.focusExit.textContent = currentLanguage() === "en" ? "Exit Full Screen" : "تصغير الشاشة";
@@ -9214,6 +9228,7 @@ function enterFocusMode(viewName) {
 function exitFocusMode() {
   document.body.classList.remove("focus-mode");
   delete document.body.dataset.focusView;
+  delete document.body.dataset.patientFocusMode;
   document.querySelectorAll(".view.expanded-view").forEach(view => {
     view.classList.remove("expanded-view");
   });
@@ -10309,6 +10324,7 @@ document.addEventListener("click", async event => {
   const printReceiptAction = event.target.closest("[data-print-receipt]");
   const tableFocusTrigger = event.target.closest("[data-open-table-focus]");
   const tableFocusClose = event.target.closest("[data-close-table-focus]");
+  const patientFocusListAction = event.target.closest("[data-patient-focus-list]");
   const sendSmsId      = event.target.closest("[data-send-sms]")?.dataset.sendSms;
   const copyReminderId = event.target.closest("[data-copy-reminder]")?.dataset.copyReminder;
   const followupEntryId = event.target.closest("[data-followup-entry]")?.dataset.followupEntry;
@@ -10664,8 +10680,18 @@ document.addEventListener("click", async event => {
   if (openPatientId) {
     selectedPatientId = openPatientId;
     setView("patients");
+    if (document.body.classList.contains("focus-mode") && document.body.dataset.focusView === "patients") {
+      setPatientFocusMode("file");
+    }
     renderPatients();
-    els.patientFile?.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (document.body.dataset.focusView !== "patients") {
+      els.patientFile?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    return;
+  }
+
+  if (patientFocusListAction) {
+    setPatientFocusMode("list");
     return;
   }
 
@@ -10698,7 +10724,7 @@ document.addEventListener("click", async event => {
   }
 
   if (expandViewName) {
-    enterFocusMode(expandViewName);
+    enterFocusMode(expandViewName, { patientFocus: expandViewTrigger?.dataset.patientFocus });
     return;
   }
 

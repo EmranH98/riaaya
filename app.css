@@ -4099,7 +4099,7 @@ body.focus-mode .view[data-view="patients"].expanded-view .patient-create-panel 
 
 body.focus-mode .view[data-view="patients"].expanded-view .patient-workspace {
   height: calc(100vh - 56px);
-  grid-template-columns: minmax(420px, 0.95fr) minmax(520px, 1.05fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: stretch;
 }
 
@@ -4113,6 +4113,37 @@ body.focus-mode .view[data-view="patients"].expanded-view .patient-file-panel {
 body.focus-mode .view[data-view="patients"].expanded-view .patient-directory-panel .table-wrap,
 body.focus-mode .view[data-view="patients"].expanded-view .patient-file-panel .table-wrap {
   max-height: none;
+}
+
+.patient-focus-back {
+  display: none;
+}
+
+body.focus-mode[data-patient-focus-mode="list"] .view[data-view="patients"].expanded-view .patient-file-panel,
+body.focus-mode[data-patient-focus-mode="file"] .view[data-view="patients"].expanded-view .patient-directory-panel {
+  display: none;
+}
+
+body.focus-mode[data-patient-focus-mode="file"] .view[data-view="patients"].expanded-view .patient-file-panel,
+body.focus-mode[data-patient-focus-mode="list"] .view[data-view="patients"].expanded-view .patient-directory-panel {
+  display: block;
+}
+
+body.focus-mode[data-patient-focus-mode="file"] .patient-focus-back {
+  display: inline-flex;
+}
+
+body.focus-mode[data-patient-focus-mode="file"] .view[data-view="patients"].expanded-view .patient-file-panel {
+  padding: 26px;
+}
+
+body.focus-mode[data-patient-focus-mode="file"] .view[data-view="patients"].expanded-view .patient-file-header {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  margin: -26px -26px 18px;
+  padding: 22px 26px 18px;
+  background: white;
 }
 
 html[dir="ltr"] .nav-item,
