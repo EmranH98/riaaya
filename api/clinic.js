@@ -503,6 +503,9 @@ function cleanUserInput(input, existing = null) {
   const workingDays = Array.isArray(input.workingDays)
     ? input.workingDays.map(Number).filter(day => day >= 0 && day <= 6)
     : [0, 1, 2, 3, 4];
+  const allowedColumnIds = Array.isArray(input.allowedColumnIds)
+    ? [...new Set(input.allowedColumnIds.map(id => safeText(id, 80)).filter(Boolean))].slice(0, 100)
+    : [];
   return {
     email: normalizeEmail(input.email || existing?.email),
     name: safeText(input.name || existing?.name, 120),
@@ -517,6 +520,8 @@ function cleanUserInput(input, existing = null) {
     calendarDaysBack: Math.max(0, Math.min(Number(input.calendarDaysBack || 0), 3650)),
     calendarDaysAhead: Math.max(0, Math.min(Number(input.calendarDaysAhead || 0), 3650)),
     workingDays: workingDays.length ? workingDays : [0, 1, 2, 3, 4],
+    // Admins always see every column; restrictions only apply to non-admins.
+    allowedColumnIds: role === "admin" ? [] : allowedColumnIds,
     active: input.active !== false
   };
 }
@@ -575,7 +580,7 @@ function saveUser(req, res, userId = "") {
       update users set
         email = ?, name = ?, mobile = ?, tel_no = ?, role = ?, permissions_json = ?, staff_id = ?,
         own_entries_only = ?, can_view_sensitive = ?, calendar_scope = ?,
-        calendar_days_back = ?, calendar_days_ahead = ?, working_days_json = ?,
+        calendar_days_back = ?, calendar_days_ahead = ?, working_days_json = ?, allowed_column_ids_json = ?,
         active = ?, password_hash = ?, must_change_password = ?, updated_at = ?
       where id = ? and clinic_id = ?
     `).run(
@@ -592,6 +597,7 @@ function saveUser(req, res, userId = "") {
       input.calendarDaysBack,
       input.calendarDaysAhead,
       JSON.stringify(input.workingDays),
+      JSON.stringify(input.allowedColumnIds),
       Number(input.active),
       password ? hashPassword(password) : existing.password_hash,
       password ? 0 : existing.must_change_password,
@@ -621,8 +627,8 @@ function saveUser(req, res, userId = "") {
       insert into users (
         id, clinic_id, email, password_hash, name, mobile, tel_no, role, permissions_json, staff_id,
         own_entries_only, can_view_sensitive, calendar_scope, calendar_days_back,
-        calendar_days_ahead, working_days_json, active, must_change_password, created_at, updated_at
-      ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+        calendar_days_ahead, working_days_json, allowed_column_ids_json, active, must_change_password, created_at, updated_at
+      ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
     `).run(
       userId,
       auth.user.clinicId,
@@ -640,6 +646,7 @@ function saveUser(req, res, userId = "") {
       input.calendarDaysBack,
       input.calendarDaysAhead,
       JSON.stringify(input.workingDays),
+      JSON.stringify(input.allowedColumnIds),
       Number(input.active),
       timestamp,
       timestamp

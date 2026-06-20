@@ -2594,6 +2594,54 @@ td {
   font-size: 12px;
 }
 
+.account-columns-field {
+  grid-column: 1 / -1;
+  border: 1px solid var(--border);
+  padding: 12px;
+}
+
+.account-columns-field legend {
+  padding: 0 7px;
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.account-columns-field .field-hint {
+  margin: 0 0 10px;
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
+.account-columns-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+.column-permission-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fbfdfc;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.column-permission-check:hover {
+  border-color: var(--teal, #0a7c5c);
+}
+
+.column-permission-check input {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
 .receipt-modal {
   position: fixed;
   z-index: 1000;

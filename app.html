@@ -1791,11 +1791,11 @@
               <label><input name="workingDays" type="checkbox" value="5"> الجمعة</label>
               <label><input name="workingDays" type="checkbox" value="6"> السبت</label>
             </fieldset>
-            <label>
-              أعمدة الجدول المرئية
-              <small>اتركها فارغة لرؤية كل الأعمدة</small>
-              <select name="allowedColumnIds" data-account-columns-select multiple></select>
-            </label>
+            <fieldset class="account-columns-field" data-account-columns-fieldset>
+              <legend>أعمدة الجدول المرئية</legend>
+              <p class="field-hint">اختر الأعمدة المسموح له برؤيتها. اتركها كلها فارغة لرؤية كل الأعمدة.</p>
+              <div class="account-columns-grid" data-account-columns-select></div>
+            </fieldset>
             <button class="primary-button form-submit" type="submit" data-account-submit>حفظ الحساب</button>
           </form>
 

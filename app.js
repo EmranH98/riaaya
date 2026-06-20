@@ -3326,8 +3326,18 @@ function renderAccountStaffSelect() {
 
 function renderAccountColumnsSelect(selectedIds = []) {
   if (!els.accountColumnsSelect) return;
-  els.accountColumnsSelect.innerHTML = (state.scheduleColumns || [])
-    .map(col => `<option value="${col.id}" ${selectedIds.includes(col.id) ? "selected" : ""}>${col.label}</option>`)
+  const columns = (state.scheduleColumns || []).filter(col => col.active !== false);
+  if (!columns.length) {
+    els.accountColumnsSelect.innerHTML = `<p class="field-hint">لا توجد أعمدة في الجدول بعد.</p>`;
+    return;
+  }
+  els.accountColumnsSelect.innerHTML = columns
+    .map(col => `
+      <label class="column-permission-check">
+        <input type="checkbox" name="allowedColumnIds" value="${col.id}" ${selectedIds.includes(col.id) ? "checked" : ""}>
+        ${col.label}
+      </label>
+    `)
     .join("");
 }
 
