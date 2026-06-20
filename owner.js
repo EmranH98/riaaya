@@ -822,6 +822,37 @@ searchInput.addEventListener("input", renderClinics);
 statusFilter.addEventListener("change", renderClinics);
 document.querySelector("[data-refresh-readiness]")?.addEventListener("click", loadReadiness);
 
+document.querySelector("[data-test-offsite-backup]")?.addEventListener("click", async event => {
+  const button = event.currentTarget;
+  const status = document.querySelector("[data-offsite-test-status]");
+  button.disabled = true;
+  if (status) { status.textContent = "جاري اختبار رفع نسخة إلى التخزين الخارجي..."; status.className = "offsite-test-status"; }
+  try {
+    const response = await fetch("/api/owner/offsite-backup-test", {
+      method: "POST",
+      headers: { "X-CSRF-Token": ownerSession.csrfToken }
+    });
+    const result = await response.json().catch(() => ({}));
+    if (status) {
+      if (result.ok) {
+        status.textContent = `✅ نجح الرفع إلى ${result.bucket} (${result.key}). التخزين الخارجي يعمل.`;
+        status.className = "offsite-test-status ok";
+      } else if (!result.configured) {
+        status.textContent = "⚠️ لم تُضبط متغيّرات التخزين الخارجي (LITESTREAM_*) في Render بعد.";
+        status.className = "offsite-test-status warn";
+      } else {
+        status.textContent = `❌ فشل الرفع: ${result.error || "خطأ غير معروف"}`;
+        status.className = "offsite-test-status error";
+      }
+    }
+    await loadReadiness();
+  } catch {
+    if (status) { status.textContent = "تعذّر تنفيذ الاختبار. حاول مرة أخرى."; status.className = "offsite-test-status error"; }
+  } finally {
+    button.disabled = false;
+  }
+});
+
 document.querySelector("[data-owner-logout]").addEventListener("click", async () => {
   await fetch("/api/auth/logout", {
     method: "POST",

@@ -19,7 +19,7 @@ import {
 import { requireSession } from "./auth.js";
 import { clientIp, hashPassword, isValidEmail, normalizeEmail, safeText, temporaryPassword, validatePassword } from "../lib/security.js";
 import { storageReadiness } from "../lib/storage-policy.js";
-import { offsiteBackupStatus } from "../lib/offsite-backup.js";
+import { offsiteBackupStatus, testOffsiteConnectivity } from "../lib/offsite-backup.js";
 
 function sendJson(res, statusCode, payload) {
   res.statusCode = statusCode;
@@ -247,6 +247,21 @@ function backupStatus() {
       warning: `تعذر قراءة مسار النسخ الاحتياطي: ${error.message}`
     };
   }
+}
+
+async function testOffsiteBackup(req, res) {
+  const auth = requireSession(req, res, { owner: true, csrf: true });
+  if (!auth) return;
+  const result = await testOffsiteConnectivity();
+  audit({
+    userId: auth.user.id,
+    action: "test_offsite_backup",
+    entity: "platform",
+    entityId: "offsite",
+    metadata: { ok: result.ok, configured: result.configured },
+    ipAddress: clientIp(req)
+  });
+  sendJson(res, result.ok ? 200 : (result.configured ? 502 : 400), result);
 }
 
 function productionReadiness(req, res) {
@@ -730,6 +745,7 @@ function overrideClinicSettings(req, res, clinicId) {
 export default async function ownerHandler(req, res, url) {
   if (url.pathname === "/api/owner/clinics" && req.method === "GET") return listClinics(req, res);
   if (url.pathname === "/api/owner/readiness" && req.method === "GET") return productionReadiness(req, res);
+  if (url.pathname === "/api/owner/offsite-backup-test" && req.method === "POST") return testOffsiteBackup(req, res);
   if (url.pathname === "/api/owner/clinics" && req.method === "POST") return createClinic(req, res);
   if (url.pathname === "/api/owner/landing-settings" && req.method === "GET") return getLandingSettings(req, res);
   if (url.pathname === "/api/owner/landing-settings" && req.method === "PUT") return updateLandingSettings(req, res);

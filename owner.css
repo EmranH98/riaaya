@@ -422,3 +422,8 @@ textarea {
   .clinic-row > div:first-child, .clinic-controls { grid-column: 1 / -1; }
   .module-grid, .limit-grid, .branding-grid { grid-template-columns: 1fr; }
 }
+
+.offsite-test-status { margin: 8px 0 0; font-size: 13px; font-weight: 600; min-height: 18px; }
+.offsite-test-status.ok { color: #0a6a4f; }
+.offsite-test-status.warn { color: #7a4e00; }
+.offsite-test-status.error { color: #a3271b; }
