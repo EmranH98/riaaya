@@ -1853,6 +1853,8 @@ const els = {
   runtimeLabel: document.querySelector("[data-runtime-label]"),
   loginLink: document.querySelector("[data-login-link]"),
   logoutButton: document.querySelector("[data-logout-button]"),
+  securityButton: document.querySelector("[data-security-button]"),
+  securityModal: document.querySelector("[data-security-modal]"),
   receiptModal: document.querySelector("[data-receipt-modal]"),
   receiptDocument: document.querySelector("[data-receipt-document]"),
   submitOpenReceipt: document.querySelector("[data-submit-open-receipt]"),
@@ -2264,6 +2266,7 @@ function applyRuntimeUI() {
   }
   if (els.loginLink) els.loginLink.hidden = live;
   if (els.logoutButton) els.logoutButton.hidden = !live;
+  if (els.securityButton) els.securityButton.hidden = !live;
   if (els.runtimeBanner) {
     els.runtimeBanner.classList.toggle("trial", !live);
     els.runtimeBanner.classList.toggle("live", live);
@@ -8618,6 +8621,117 @@ els.logoutButton?.addEventListener("click", async () => {
     headers: { "X-CSRF-Token": runtime.csrfToken }
   }).catch(() => null);
   location.href = "/login";
+});
+
+// ── Two-factor authentication management ────────────────────────────────────
+function securityPart(name) {
+  return els.securityModal?.querySelector(`[data-security-${name}]`);
+}
+
+function renderSecurityModal() {
+  const enabled = Boolean(runtime.session?.user?.twoFactorEnabled);
+  const statusEl = securityPart("status");
+  if (statusEl) {
+    statusEl.textContent = enabled ? "✅ المصادقة الثنائية مفعّلة على حسابك." : "المصادقة الثنائية غير مفعّلة.";
+    statusEl.classList.toggle("on", enabled);
+  }
+  // hide all step sections, then show the idle action for the current state
+  ["enable", "backup", "disable"].forEach(s => { const el = securityPart(s); if (el) el.hidden = true; });
+  const enabledActions = securityPart("enabled-actions");
+  const disabledActions = securityPart("disabled-actions");
+  if (enabledActions) enabledActions.hidden = !enabled;
+  if (disabledActions) disabledActions.hidden = enabled;
+}
+
+function openSecurityModal() {
+  if (!els.securityModal) return;
+  els.securityModal.hidden = false;
+  renderSecurityModal();
+}
+
+function closeSecurityModal() {
+  if (els.securityModal) els.securityModal.hidden = true;
+}
+
+async function securityRequest(path, body) {
+  const response = await fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-CSRF-Token": runtime.csrfToken },
+    body: JSON.stringify(body || {})
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error || "request_failed");
+  return result;
+}
+
+els.securityButton?.addEventListener("click", openSecurityModal);
+securityPart("close")?.addEventListener("click", closeSecurityModal);
+els.securityModal?.addEventListener("click", event => {
+  if (event.target === els.securityModal) closeSecurityModal();
+});
+
+// Begin enrollment
+securityPart("start-enable")?.addEventListener("click", async () => {
+  try {
+    const result = await securityRequest("/api/auth/2fa/setup");
+    const secretEl = securityPart("secret");
+    const otpEl = securityPart("otpauth");
+    if (secretEl) secretEl.textContent = result.secret;
+    if (otpEl) otpEl.textContent = result.otpauthUrl;
+    renderSecurityModal();
+    const enableSection = securityPart("enable");
+    if (enableSection) enableSection.hidden = false;
+    const disabledActions = securityPart("disabled-actions");
+    if (disabledActions) disabledActions.hidden = true;
+  } catch {
+    alert("تعذّر بدء إعداد المصادقة الثنائية.");
+  }
+});
+
+// Confirm enrollment with a code
+securityPart("enable-confirm")?.addEventListener("click", async () => {
+  const status = securityPart("enable-status");
+  const code = securityPart("enable-code")?.value.trim();
+  try {
+    const result = await securityRequest("/api/auth/2fa/enable", { code });
+    if (runtime.session?.user) runtime.session.user.twoFactorEnabled = true;
+    // show backup codes once
+    const codesEl = securityPart("backup-codes");
+    if (codesEl) codesEl.innerHTML = (result.backupCodes || []).map(c => `<code>${c}</code>`).join("");
+    ["enable", "disabled-actions", "enabled-actions"].forEach(s => { const el = securityPart(s); if (el) el.hidden = true; });
+    const backupSection = securityPart("backup");
+    if (backupSection) backupSection.hidden = false;
+    const statusEl = securityPart("status");
+    if (statusEl) { statusEl.textContent = "✅ المصادقة الثنائية مفعّلة على حسابك."; statusEl.classList.add("on"); }
+  } catch (error) {
+    if (status) status.textContent = error.message === "invalid_2fa_code" ? "الرمز غير صحيح. حاول مرة أخرى." : "تعذّر التفعيل.";
+  }
+});
+
+securityPart("backup-done")?.addEventListener("click", () => {
+  renderSecurityModal();
+});
+
+// Begin disable
+securityPart("start-disable")?.addEventListener("click", () => {
+  ["enabled-actions", "disabled-actions"].forEach(s => { const el = securityPart(s); if (el) el.hidden = true; });
+  const disableSection = securityPart("disable");
+  if (disableSection) disableSection.hidden = false;
+});
+
+// Confirm disable
+securityPart("disable-confirm")?.addEventListener("click", async () => {
+  const status = securityPart("disable-status");
+  const password = securityPart("disable-password")?.value;
+  const code = securityPart("disable-code")?.value.trim();
+  try {
+    await securityRequest("/api/auth/2fa/disable", { password, code });
+    if (runtime.session?.user) runtime.session.user.twoFactorEnabled = false;
+    renderSecurityModal();
+  } catch (error) {
+    const messages = { invalid_password: "كلمة المرور غير صحيحة.", invalid_2fa_code: "الرمز غير صحيح." };
+    if (status) status.textContent = messages[error.message] || "تعذّر الإيقاف.";
+  }
 });
 
 els.submitOpenReceipt?.addEventListener("click", () => {

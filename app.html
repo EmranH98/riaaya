@@ -114,9 +114,68 @@
           <div class="save-indicator" data-save-indicator aria-live="polite" aria-label="حالة الحفظ" hidden></div>
           <a href="index.html" class="ghost-button">الصفحة الرئيسية</a>
           <a href="/login" class="ghost-button" data-login-link>دخول العيادات</a>
+          <button class="ghost-button" type="button" data-security-button hidden>🔒 الأمان</button>
           <button class="ghost-button" type="button" data-logout-button hidden>تسجيل الخروج</button>
         </div>
       </header>
+
+      <div class="security-modal" data-security-modal hidden>
+        <div class="security-dialog">
+          <div class="security-dialog-head">
+            <h2>المصادقة الثنائية (2FA)</h2>
+            <button class="icon-button" type="button" data-security-close aria-label="إغلاق">×</button>
+          </div>
+          <p class="security-intro">طبقة حماية إضافية: بعد كلمة المرور يُطلب رمز من تطبيق المصادقة على هاتفك، فلا يكفي تسريب كلمة المرور لاختراق الحساب.</p>
+
+          <div data-security-status class="security-status"></div>
+
+          <!-- Step: enable -->
+          <div data-security-enable hidden>
+            <ol class="security-steps">
+              <li>افتح تطبيق مصادقة مثل <strong>Google Authenticator</strong> أو <strong>Microsoft Authenticator</strong>.</li>
+              <li>أضف حساباً جديداً يدوياً وأدخل هذا المفتاح:</li>
+            </ol>
+            <code class="security-secret" data-security-secret></code>
+            <p class="security-otpauth">أو استخدم الرابط: <span data-security-otpauth></span></p>
+            <label class="security-code-label">
+              أدخل الرمز المكوّن من 6 أرقام للتأكيد
+              <input type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="123456" data-security-enable-code>
+            </label>
+            <button class="primary-button" type="button" data-security-enable-confirm>تفعيل المصادقة الثنائية</button>
+            <p class="form-status" data-security-enable-status aria-live="polite"></p>
+          </div>
+
+          <!-- Step: backup codes (shown once) -->
+          <div data-security-backup hidden>
+            <p class="security-backup-warning">✅ تم التفعيل. احفظ رموز الاحتياط التالية في مكان آمن — كل رمز يُستخدم مرة واحدة عند فقدان هاتفك. <strong>لن تظهر مرة أخرى.</strong></p>
+            <div class="security-backup-codes" data-security-backup-codes></div>
+            <button class="primary-button" type="button" data-security-backup-done>حفظت الرموز — إغلاق</button>
+          </div>
+
+          <!-- Step: disable -->
+          <div data-security-disable hidden>
+            <p>المصادقة الثنائية مفعّلة على حسابك. لإيقافها أدخل كلمة المرور ورمزاً حالياً:</p>
+            <label class="security-code-label">
+              كلمة المرور
+              <input type="password" autocomplete="current-password" data-security-disable-password>
+            </label>
+            <label class="security-code-label">
+              رمز المصادقة (أو رمز احتياط)
+              <input type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="123456" data-security-disable-code>
+            </label>
+            <button class="danger-button" type="button" data-security-disable-confirm>إيقاف المصادقة الثنائية</button>
+            <p class="form-status" data-security-disable-status aria-live="polite"></p>
+          </div>
+
+          <!-- Step: enabled idle (offer disable) -->
+          <div data-security-enabled-actions hidden>
+            <button class="ghost-button" type="button" data-security-start-disable>إيقاف المصادقة الثنائية</button>
+          </div>
+          <div data-security-disabled-actions hidden>
+            <button class="primary-button" type="button" data-security-start-enable>تفعيل المصادقة الثنائية</button>
+          </div>
+        </div>
+      </div>
 
       <section class="runtime-banner trial" data-runtime-banner>
         <div>
@@ -2449,7 +2508,7 @@
     </div>
   </div>
 
-  <script src="app.js?v=20260619">
+  <script src="app.js?v=20260619"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>

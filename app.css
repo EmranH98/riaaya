@@ -6784,3 +6784,76 @@ html[dir="ltr"] label {
   background: #c0392b;
   border-color: #c0392b;
 }
+
+/* ── Two-factor (2FA) security modal ──────────────────────────────────── */
+.security-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(23, 33, 43, 0.6);
+  padding: 24px;
+}
+.security-dialog {
+  width: min(540px, 96vw);
+  max-height: 92vh;
+  overflow: auto;
+  background: #fff;
+  border-radius: 14px;
+  padding: 22px;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.28);
+}
+.security-dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.security-dialog-head h2 { margin: 0; font: 800 20px "Cairo", sans-serif; }
+.security-intro { color: var(--ink-soft); font-size: 13px; margin: 8px 0 14px; }
+.security-status {
+  padding: 10px 12px;
+  border-radius: 9px;
+  background: #f3f5f4;
+  font-weight: 800;
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+.security-status.on { background: #e9f7ef; color: #0a7c5c; }
+.security-steps { margin: 0 0 10px; padding-inline-start: 18px; color: var(--ink); font-size: 13px; line-height: 1.7; }
+.security-secret {
+  display: block;
+  font: 800 18px ui-monospace, Menlo, monospace;
+  letter-spacing: 2px;
+  background: #1f2a33;
+  color: #fff;
+  padding: 12px;
+  border-radius: 9px;
+  text-align: center;
+  direction: ltr;
+  word-break: break-all;
+}
+.security-otpauth { font-size: 11px; color: var(--ink-soft); word-break: break-all; direction: ltr; text-align: left; margin: 8px 0 14px; }
+.security-code-label { display: grid; gap: 6px; font-weight: 800; font-size: 13px; margin: 12px 0; }
+.security-code-label input { font-size: 18px; letter-spacing: 4px; text-align: center; direction: ltr; }
+.security-backup-warning { background: #fff7e6; border: 1px solid #f0d28a; border-radius: 9px; padding: 12px; font-size: 13px; }
+.security-backup-codes {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin: 14px 0;
+}
+.security-backup-codes code {
+  background: #f3f5f4;
+  padding: 10px;
+  border-radius: 8px;
+  font: 800 16px ui-monospace, Menlo, monospace;
+  text-align: center;
+  direction: ltr;
+  letter-spacing: 1px;
+}
+.security-modal .primary-button,
+.security-modal .danger-button,
+.security-modal .ghost-button { width: 100%; margin-top: 6px; }

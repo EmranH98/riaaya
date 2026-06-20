@@ -1,9 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { db, audit, defaultClinicLimits, defaultClinicModules, nowIso, publicClinic, publicUser, slugifyClinic } from "../lib/database.js";
+import { db, audit, defaultClinicLimits, defaultClinicModules, nowIso, parseJson, publicClinic, publicUser, slugifyClinic } from "../lib/database.js";
 import {
   clearLoginFailures,
   clearSessionCookie,
   clientIp,
+  decryptSecret,
+  encryptSecret,
   hashPassword,
   isLoginRateLimited,
   loginRateLimitKey,
@@ -17,6 +19,38 @@ import {
   validatePassword,
   verifyPassword
 } from "../lib/security.js";
+import { generateBackupCodes, generateTotpSecret, otpauthUrl, verifyTotp } from "../lib/totp.js";
+
+// Short-lived challenges for the second factor: a verified password earns a
+// challenge id, which must be exchanged for a real session by submitting a code.
+const twoFactorChallenges = new Map();
+const CHALLENGE_TTL_MS = 5 * 60 * 1000;
+const CHALLENGE_MAX_ATTEMPTS = 6;
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, challenge] of twoFactorChallenges) {
+    if (challenge.expiresAt < now) twoFactorChallenges.delete(id);
+  }
+}, 60_000).unref();
+
+function createTwoFactorChallenge(userId) {
+  const id = randomToken(24);
+  twoFactorChallenges.set(id, { userId, expiresAt: Date.now() + CHALLENGE_TTL_MS, attempts: 0 });
+  return id;
+}
+
+function consumeBackupCode(user, code) {
+  const clean = String(code || "").trim().toLowerCase();
+  if (!clean) return false;
+  const hashes = parseJson(user.totp_backup_codes_json, []);
+  const hash = tokenHash(clean);
+  const index = hashes.indexOf(hash);
+  if (index === -1) return false;
+  hashes.splice(index, 1);
+  db.prepare("update users set totp_backup_codes_json = ?, updated_at = ? where id = ?")
+    .run(JSON.stringify(hashes), nowIso(), user.id);
+  return true;
+}
 
 const SESSION_SECONDS = 12 * 60 * 60;
 
@@ -173,6 +207,22 @@ function login(req, res) {
   }
 
   clearLoginFailures(rateKey);
+
+  // Second factor: if the account has 2FA on, stop here and require a code.
+  if (row.totp_enabled) {
+    const challengeId = createTwoFactorChallenge(row.id);
+    audit({
+      clinicId: row.clinic_id,
+      userId: row.id,
+      action: "login_challenge",
+      entity: "session",
+      metadata: { method: "totp" },
+      ipAddress: clientIp(req)
+    });
+    sendJson(res, 200, { ok: true, twoFactorRequired: true, challengeId });
+    return;
+  }
+
   db.prepare("delete from sessions where user_id = ? and expires_at <= ?").run(row.id, nowIso());
   const session = createSession(req, res, row.id);
   const clinic = row.clinic_id ? db.prepare("select * from clinics where id = ?").get(row.clinic_id) : null;
@@ -329,6 +379,130 @@ function logout(req, res) {
   sendJson(res, 200, { ok: true });
 }
 
+// ── Two-factor authentication (TOTP) ────────────────────────────────────────
+
+// Step 2 of login: exchange a password-verified challenge + code for a session.
+function verifyTwoFactor(req, res) {
+  const challengeId = String(req.body?.challengeId || "");
+  const code = String(req.body?.code || "");
+  const challenge = twoFactorChallenges.get(challengeId);
+  if (!challenge || challenge.expiresAt < Date.now()) {
+    twoFactorChallenges.delete(challengeId);
+    sendJson(res, 401, { error: "challenge_expired" });
+    return;
+  }
+  challenge.attempts += 1;
+  if (challenge.attempts > CHALLENGE_MAX_ATTEMPTS) {
+    twoFactorChallenges.delete(challengeId);
+    sendJson(res, 429, { error: "too_many_2fa_attempts" });
+    return;
+  }
+  const user = db.prepare("select * from users where id = ?").get(challenge.userId);
+  if (!user || user.active !== 1 || !user.totp_enabled) {
+    twoFactorChallenges.delete(challengeId);
+    sendJson(res, 401, { error: "invalid_challenge" });
+    return;
+  }
+  const secret = decryptSecret(user.totp_secret_cipher);
+  const ok = verifyTotp(secret, code) || consumeBackupCode(user, code);
+  if (!ok) {
+    sendJson(res, 401, { error: "invalid_2fa_code" });
+    return;
+  }
+  twoFactorChallenges.delete(challengeId);
+  db.prepare("delete from sessions where user_id = ? and expires_at <= ?").run(user.id, nowIso());
+  const session = createSession(req, res, user.id);
+  const clinic = user.clinic_id ? db.prepare("select * from clinics where id = ?").get(user.clinic_id) : null;
+  audit({
+    clinicId: user.clinic_id,
+    userId: user.id,
+    action: "login",
+    entity: "session",
+    metadata: { method: "2fa" },
+    ipAddress: clientIp(req)
+  });
+  sendJson(res, 200, { ok: true, user: publicUser(user), clinic: publicClinic(clinic), ...session });
+}
+
+// Begin enrollment: issue a fresh secret (kept pending until a code confirms it).
+function setupTwoFactor(req, res) {
+  const auth = requireSession(req, res, { csrf: true });
+  if (!auth) return;
+  const secret = generateTotpSecret();
+  db.prepare("update users set totp_pending_cipher = ?, updated_at = ? where id = ?")
+    .run(encryptSecret(secret), nowIso(), auth.user.id);
+  sendJson(res, 200, {
+    ok: true,
+    secret,
+    otpauthUrl: otpauthUrl(secret, auth.user.email || auth.user.name || "user")
+  });
+}
+
+// Confirm enrollment with a code, turn 2FA on, and return one-time backup codes.
+function enableTwoFactor(req, res) {
+  const auth = requireSession(req, res, { csrf: true });
+  if (!auth) return;
+  const user = db.prepare("select * from users where id = ?").get(auth.user.id);
+  const pending = decryptSecret(user?.totp_pending_cipher);
+  if (!pending) {
+    sendJson(res, 400, { error: "no_pending_2fa" });
+    return;
+  }
+  if (!verifyTotp(pending, String(req.body?.code || ""))) {
+    sendJson(res, 401, { error: "invalid_2fa_code" });
+    return;
+  }
+  const backupCodes = generateBackupCodes(8);
+  const hashes = backupCodes.map(code => tokenHash(code.toLowerCase()));
+  db.prepare(`
+    update users set totp_enabled = 1, totp_secret_cipher = ?, totp_pending_cipher = null,
+      totp_backup_codes_json = ?, updated_at = ? where id = ?
+  `).run(encryptSecret(pending), JSON.stringify(hashes), nowIso(), user.id);
+  audit({
+    clinicId: user.clinic_id,
+    userId: user.id,
+    action: "enable_2fa",
+    entity: "user",
+    entityId: user.id,
+    ipAddress: clientIp(req)
+  });
+  sendJson(res, 200, { ok: true, backupCodes });
+}
+
+// Turn 2FA off — requires the current password plus a valid code (or backup code).
+function disableTwoFactor(req, res) {
+  const auth = requireSession(req, res, { csrf: true });
+  if (!auth) return;
+  const user = db.prepare("select * from users where id = ?").get(auth.user.id);
+  if (!user?.totp_enabled) {
+    sendJson(res, 400, { error: "2fa_not_enabled" });
+    return;
+  }
+  if (!verifyPassword(String(req.body?.password || ""), user.password_hash)) {
+    sendJson(res, 401, { error: "invalid_password" });
+    return;
+  }
+  const secret = decryptSecret(user.totp_secret_cipher);
+  const code = String(req.body?.code || "");
+  if (!verifyTotp(secret, code) && !consumeBackupCode(user, code)) {
+    sendJson(res, 401, { error: "invalid_2fa_code" });
+    return;
+  }
+  db.prepare(`
+    update users set totp_enabled = 0, totp_secret_cipher = null, totp_pending_cipher = null,
+      totp_backup_codes_json = '[]', updated_at = ? where id = ?
+  `).run(nowIso(), user.id);
+  audit({
+    clinicId: user.clinic_id,
+    userId: user.id,
+    action: "disable_2fa",
+    entity: "user",
+    entityId: user.id,
+    ipAddress: clientIp(req)
+  });
+  sendJson(res, 200, { ok: true });
+}
+
 export default async function authHandler(req, res, url) {
   if (req.method === "GET" && url.pathname === "/api/auth/session") {
     const auth = authenticateRequest(req);
@@ -347,6 +521,22 @@ export default async function authHandler(req, res, url) {
   }
   if (req.method === "POST" && url.pathname === "/api/auth/logout") {
     logout(req, res);
+    return;
+  }
+  if (req.method === "POST" && url.pathname === "/api/auth/2fa/verify") {
+    verifyTwoFactor(req, res);
+    return;
+  }
+  if (req.method === "POST" && url.pathname === "/api/auth/2fa/setup") {
+    setupTwoFactor(req, res);
+    return;
+  }
+  if (req.method === "POST" && url.pathname === "/api/auth/2fa/enable") {
+    enableTwoFactor(req, res);
+    return;
+  }
+  if (req.method === "POST" && url.pathname === "/api/auth/2fa/disable") {
+    disableTwoFactor(req, res);
     return;
   }
   if (req.method === "POST" && url.pathname === "/api/auth/change-password") {

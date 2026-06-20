@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@500;700;800&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="auth.css?v=2026080">
+  <link rel="stylesheet" href="auth.css?v=20260619">
 </head>
 <body>
   <main class="auth-shell">
@@ -62,6 +62,21 @@
         <p class="form-status" data-login-status aria-live="polite"></p>
       </form>
 
+      <form class="auth-form" data-twofactor-form hidden>
+        <div class="form-heading">
+          <p class="eyebrow">خطوة تحقق إضافية</p>
+          <h2>أدخل رمز المصادقة الثنائية</h2>
+        </div>
+        <p class="twofactor-hint">افتح تطبيق المصادقة (مثل Google Authenticator) وأدخل الرمز المكوّن من 6 أرقام. يمكنك أيضاً استخدام أحد رموز الاحتياط.</p>
+        <label>
+          الرمز
+          <input name="code" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="123456" required>
+        </label>
+        <button class="primary-action" type="submit">تأكيد الدخول</button>
+        <button class="ghost-action" type="button" data-twofactor-cancel>رجوع</button>
+        <p class="form-status" data-twofactor-status aria-live="polite"></p>
+      </form>
+
       <form class="auth-form" data-register-form>
         <div class="form-heading">
           <p class="eyebrow">14 يوم مجاناً</p>
@@ -111,6 +126,6 @@
       </form>
     </section>
   </main>
-  <script src="auth.js"></script>
+  <script src="auth.js?v=20260619b"></script>
 </body>
 </html>

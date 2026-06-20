@@ -251,3 +251,18 @@ h1 {
   border: 1px solid rgba(180,110,0,0.3);
   color: #7a4e00;
 }
+
+/* ── 2FA login step ───────────────────────────────────────────────────── */
+.twofactor-hint { color: #5a6a72; font-size: 13px; margin: 4px 0 14px; line-height: 1.7; }
+.ghost-action {
+  width: 100%;
+  margin-top: 10px;
+  padding: 12px;
+  background: transparent;
+  border: 1px solid rgba(0,0,0,0.15);
+  border-radius: 10px;
+  color: #33454f;
+  font-weight: 700;
+  cursor: pointer;
+}
+.ghost-action:hover { background: rgba(0,0,0,0.04); }
