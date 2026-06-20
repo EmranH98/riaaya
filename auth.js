@@ -47,6 +47,7 @@ function errorLabel(error) {
     invalid_credentials: "البريد الإلكتروني أو كلمة المرور غير صحيحة.",
     too_many_login_attempts: "محاولات كثيرة. حاول مرة أخرى بعد 15 دقيقة.",
     weak_password: "استخدم 12 خانة على الأقل مع حرف كبير وصغير ورقم ورمز.",
+    invalid_email: "أدخل بريدًا إلكترونيًا صحيحًا.",
     email_already_registered: "هذا البريد مسجل مسبقاً.",
     privacy_consent_required: "الموافقة على معالجة بيانات الحساب مطلوبة.",
     missing_registration_fields: "أكمل جميع الحقول المطلوبة.",

@@ -7,6 +7,7 @@ import {
   decryptSecret,
   encryptSecret,
   hashPassword,
+  isValidEmail,
   isLoginRateLimited,
   loginRateLimitKey,
   normalizeEmail,
@@ -248,6 +249,10 @@ function register(req, res) {
 
   if (!clinicName || !name || !email || !phone || !city) {
     sendJson(res, 400, { error: "missing_registration_fields" });
+    return;
+  }
+  if (!isValidEmail(email)) {
+    sendJson(res, 400, { error: "invalid_email" });
     return;
   }
   if (!validatePassword(password)) {

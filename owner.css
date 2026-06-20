@@ -53,6 +53,118 @@ input, select { min-height: 42px; border: 1px solid var(--line); padding: 8px 10
 .clinic-list, .audit-list { display: grid; gap: 10px; margin-top: 16px; }
 .owner-hint { color: var(--muted); font-size: 13px; }
 
+.readiness-panel { margin-bottom: 18px; }
+.readiness-layout {
+  display: grid;
+  grid-template-columns: 1.15fr .9fr .9fr;
+  gap: 12px;
+  margin-top: 16px;
+}
+.readiness-summary {
+  border: 1px solid var(--line);
+  background: #fbfdfc;
+  padding: 14px;
+}
+.readiness-summary span,
+.readiness-summary strong,
+.readiness-summary p { display: block; }
+.readiness-summary span {
+  color: var(--teal);
+  font-size: 12px;
+  font-weight: 800;
+}
+.readiness-summary strong {
+  margin-top: 6px;
+  font: 800 22px "Cairo", sans-serif;
+}
+.readiness-summary p {
+  margin: 7px 0 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.readiness-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.readiness-actions button,
+.readiness-actions a {
+  border: 1px solid var(--line);
+  min-height: 38px;
+  padding: 0 12px;
+  background: white;
+  color: var(--ink);
+  cursor: pointer;
+  font-weight: 800;
+  text-decoration: none;
+  line-height: 36px;
+}
+.readiness-actions button:first-child {
+  border-color: transparent;
+  background: var(--teal);
+  color: white;
+}
+.readiness-columns {
+  display: grid;
+  grid-template-columns: 1.1fr .9fr;
+  gap: 14px;
+  margin-top: 14px;
+}
+.readiness-columns > div {
+  border: 1px solid var(--line);
+  background: white;
+  padding: 14px;
+}
+.readiness-columns h3 {
+  margin: 0 0 10px;
+  font: 800 16px "Cairo", sans-serif;
+}
+.readiness-checklist {
+  display: grid;
+  gap: 8px;
+}
+.readiness-check {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 9px;
+  align-items: start;
+  border: 1px solid var(--line);
+  background: #fbfdfc;
+  padding: 10px;
+}
+.readiness-check .check-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #fff0ed;
+  color: var(--danger);
+  font-weight: 900;
+}
+.readiness-check.ok .check-icon {
+  background: #e5f5ef;
+  color: var(--teal);
+}
+.readiness-check strong {
+  display: block;
+  font-weight: 800;
+}
+.readiness-check small {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.restore-checklist {
+  margin: 0;
+  padding-inline-start: 20px;
+  color: var(--ink);
+  line-height: 1.8;
+}
+.restore-checklist li + li { margin-top: 5px; }
+
 .landing-panel { margin-bottom: 18px; }
 .landing-form {
   display: grid;
@@ -264,6 +376,7 @@ textarea {
 
 @media (max-width: 1050px) {
   .owner-grid { grid-template-columns: 1fr; }
+  .readiness-layout, .readiness-columns { grid-template-columns: 1fr; }
   .landing-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .clinic-row { grid-template-columns: 1fr repeat(4, minmax(70px, .3fr)); }
   .clinic-controls { grid-column: 1 / -1; grid-template-columns: repeat(3, 1fr); }

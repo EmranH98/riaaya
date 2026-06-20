@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260620d">
+  <link rel="stylesheet" href="app.css?v=20260620f">
 </head>
 <body>
 
@@ -1543,6 +1543,10 @@
                 التحويلات المؤكدة
                 <input name="countedTransfer" type="number" min="0" step="0.01" required>
               </label>
+              <label class="wide-field">
+                ملاحظة الإغلاق / سبب الفرق
+                <input name="note" type="text" placeholder="اختياري: سبب الفرق، رقم تقرير الجهاز، من راجع الإغلاق...">
+              </label>
               <button class="primary-button form-submit" type="submit">حفظ الإغلاق</button>
             </form>
           </article>
@@ -1613,7 +1617,7 @@
               <span class="report-tab-group-label">تشغيلي</span>
               <button class="report-tab active" type="button" data-report-tab="universal"     role="tab">🔍 بحث شامل</button>
               <button class="report-tab"        type="button" data-report-tab="patientBalance" role="tab">⚖️ ميزان المريض</button>
-              <button class="report-tab"        type="button" data-report-tab="reconciliation" role="tab">✓ المطابقة</button>
+              <button class="report-tab"        type="button" data-report-tab="reconciliation" role="tab">✓ الإغلاق اليومي</button>
               <button class="report-tab"        type="button" data-report-tab="byPatient"      role="tab">👤 حسب المريض</button>
               <button class="report-tab"        type="button" data-report-tab="perProcedure"   role="tab">📋 كل عملية</button>
             </div>
@@ -1638,7 +1642,7 @@
             <option value="patientBalance">ميزان المريض — تكملة الحسابات</option>
             <option value="retention">الاحتفاظ بالمرضى — LTV والتسرب</option>
             <option value="profit">ربح العيادة</option>
-            <option value="reconciliation">مطابقة المرضى والمدفوعات</option>
+            <option value="reconciliation">سجل المطابقة اليومية</option>
             <option value="byPatient">حسب المريض</option>
             <option value="perProcedure">كل عملية</option>
             <option value="bookings">الحجوزات والجدول</option>
@@ -1678,6 +1682,7 @@
                 <option value="supplier">الموردون</option>
                 <option value="staff">الموظفون</option>
                 <option value="expense">المصروفات</option>
+                <option value="reconciliation">الإغلاق اليومي</option>
               </select>
             </label>
             <label>
@@ -1693,6 +1698,8 @@
                 <option value="pending_payment">بانتظار الدفع</option>
                 <option value="cancelled">ملغي</option>
                 <option value="no_show">لم يحضر</option>
+                <option value="matched">مطابقة يومية: مطابق</option>
+                <option value="mismatch">مطابقة يومية: يحتاج مراجعة</option>
               </select>
             </label>
             <label>
@@ -1748,6 +1755,16 @@
               <button class="text-button danger" type="button" data-restore-clinic-json-action>استرجاع JSON</button>
               <input type="file" accept="application/json,.json" data-restore-clinic-json hidden>
             </div>
+          </div>
+          <div class="storage-restore-checklist">
+            <strong>قائمة التحقق قبل بيانات حقيقية</strong>
+            <ol>
+              <li>نزّل نسخة JSON كاملة للعيادة قبل أي تعديل كبير.</li>
+              <li>تأكد أن آخر نسخة احتياطية موجودة في مسار النسخ أو في قاعدة البيانات المدارة.</li>
+              <li>جرّب الاسترجاع على نسخة اختبار، وليس على الحساب الحقيقي أولاً.</li>
+              <li>قارن أعداد المرضى، العمليات، الحجوزات، الإيصالات، والمستخدمين بعد الاسترجاع.</li>
+              <li>وثّق وقت الاختبار والشخص الذي نفذه قبل إدخال بيانات مرضى حقيقية.</li>
+            </ol>
           </div>
         </article>
 
@@ -2512,7 +2529,7 @@
     </div>
   </div>
 
-  <script src="app.js?v=20260620e"></script>
+  <script src="app.js?v=20260620f"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>

@@ -2,6 +2,7 @@ let ownerSession = null;
 let clinics = [];
 let auditLogs = [];
 let landingSettings = null;
+let readinessStatus = null;
 
 const clinicList = document.querySelector("[data-clinic-list]");
 const auditList = document.querySelector("[data-audit-list]");
@@ -9,6 +10,15 @@ const searchInput = document.querySelector("[data-owner-search]");
 const statusFilter = document.querySelector("[data-owner-status-filter]");
 const landingForm = document.querySelector("[data-landing-settings-form]");
 const landingStatus = document.querySelector("[data-landing-settings-status]");
+const readinessBadge = document.querySelector("[data-readiness-badge]");
+const readinessStorageMode = document.querySelector("[data-readiness-storage-mode]");
+const readinessStorageDetail = document.querySelector("[data-readiness-storage-detail]");
+const readinessBackupTitle = document.querySelector("[data-readiness-backup-title]");
+const readinessBackupDetail = document.querySelector("[data-readiness-backup-detail]");
+const readinessSecurityTitle = document.querySelector("[data-readiness-security-title]");
+const readinessSecurityDetail = document.querySelector("[data-readiness-security-detail]");
+const readinessChecks = document.querySelector("[data-readiness-checks]");
+const readinessRestore = document.querySelector("[data-readiness-restore]");
 
 // Modals
 const notifyDialog = document.querySelector("[data-notify-dialog]");
@@ -211,6 +221,60 @@ function renderAudit() {
   `).join("") : `<div class="empty">لا يوجد نشاط بعد.</div>`;
 }
 
+function formatDateTime(value) {
+  return value ? new Date(value).toLocaleString("ar-JO") : "غير متوفر";
+}
+
+function renderReadiness() {
+  if (!readinessBadge) return;
+  if (!readinessStatus) {
+    readinessBadge.className = "status-pill trial";
+    readinessBadge.textContent = "بانتظار الفحص";
+    return;
+  }
+  const storage = readinessStatus.storage || {};
+  const backup = readinessStatus.backup || {};
+  const security = readinessStatus.security || {};
+  readinessBadge.className = `status-pill ${readinessStatus.readyForPilot ? "active" : "suspended"}`;
+  readinessBadge.textContent = readinessStatus.readyForPilot ? "جاهز لتجربة حقيقية" : "غير جاهز للبيانات الحقيقية";
+  readinessStorageMode.textContent = storage.safeForRealData
+    ? "Safe real clinic"
+    : storage.deploymentMode === "preview"
+      ? "Preview only"
+      : "Needs review";
+  readinessStorageDetail.textContent = `النشر: ${storage.deploymentMode || "غير محدد"} | التخزين: ${storage.databaseMode || "غير معروف"} | قاعدة البيانات: ${storage.databaseLocation || "غير محدد"}`;
+  readinessBackupTitle.textContent = backup.latestBackup
+    ? `${backup.count} نسخة | آخر نسخة ${formatDateTime(backup.latestBackup.modifiedAt)}`
+    : backup.configured
+      ? "لا توجد نسخة محفوظة بعد"
+      : "غير مضبوط";
+  readinessBackupDetail.textContent = backup.warning || `المسار: ${backup.path || "غير محدد"} | الاحتفاظ: ${backup.retentionDays || 30} يوم`;
+  readinessSecurityTitle.textContent = `${security.ownerTwoFactorCount || 0}/${security.ownerAccounts || 0} مالك مع 2FA`;
+  readinessSecurityDetail.textContent = `NODE_ENV=${security.nodeEnv || "غير محدد"} | ALLOWED_ORIGIN=${security.allowedOrigin || "غير مضبوط"}`;
+  readinessChecks.innerHTML = (readinessStatus.checks || []).map(check => `
+    <div class="readiness-check ${check.ok ? "ok" : ""}">
+      <span class="check-icon">${check.ok ? "✓" : "!"}</span>
+      <div>
+        <strong>${check.label}</strong>
+        <small>${check.detail}</small>
+      </div>
+    </div>
+  `).join("");
+  readinessRestore.innerHTML = (readinessStatus.restoreChecklist || [])
+    .map(item => `<li>${item}</li>`)
+    .join("");
+}
+
+async function loadReadiness() {
+  try {
+    const response = await fetch("/api/owner/readiness", { headers: { Accept: "application/json" } });
+    readinessStatus = response.ok ? await response.json() : null;
+  } catch {
+    readinessStatus = null;
+  }
+  renderReadiness();
+}
+
 function prettyJson(value) {
   return JSON.stringify(value || [], null, 2);
 }
@@ -290,9 +354,10 @@ async function loadOwner() {
     return;
   }
   document.querySelector("[data-owner-name]").textContent = ownerSession.user.name;
-  const [response, landingResponse] = await Promise.all([
+  const [response, landingResponse, readinessResponse] = await Promise.all([
     fetch("/api/owner/clinics"),
-    fetch("/api/owner/landing-settings")
+    fetch("/api/owner/landing-settings"),
+    fetch("/api/owner/readiness", { headers: { Accept: "application/json" } })
   ]);
   if (!response.ok) {
     location.href = "/login";
@@ -300,12 +365,14 @@ async function loadOwner() {
   }
   const result = await response.json();
   const landingResult = landingResponse.ok ? await landingResponse.json() : {};
+  readinessStatus = readinessResponse.ok ? await readinessResponse.json() : null;
   clinics = result.clinics || [];
   auditLogs = result.auditLogs || [];
   landingSettings = landingResult.landing || null;
   renderKpis(result.mrr || 0, result.arr || 0);
   renderClinics();
   renderAudit();
+  renderReadiness();
   renderLandingSettings();
 }
 
@@ -332,6 +399,7 @@ if (createClinicForm) {
         const msgs = {
           missing_fields: "الحقول المطلوبة غير مكتملة.",
           weak_password: "كلمة المرور ضعيفة (8 أحرف على الأقل).",
+          invalid_email: "أدخل بريدًا إلكترونيًا صحيحًا.",
           email_already_registered: "البريد الإلكتروني مسجّل مسبقاً."
         };
         throw new Error(msgs[result.error] || result.error || "حدث خطأ.");
@@ -660,6 +728,7 @@ document.addEventListener("click", async event => {
 
 searchInput.addEventListener("input", renderClinics);
 statusFilter.addEventListener("change", renderClinics);
+document.querySelector("[data-refresh-readiness]")?.addEventListener("click", loadReadiness);
 
 document.querySelector("[data-owner-logout]").addEventListener("click", async () => {
   await fetch("/api/auth/logout", {

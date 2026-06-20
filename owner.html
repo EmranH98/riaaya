@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@500;700;800&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="owner.css?v=20260620e">
+  <link rel="stylesheet" href="owner.css?v=20260620f">
 </head>
 <body>
   <header class="owner-header">
@@ -41,6 +41,47 @@
       <article class="warning"><span>موقوفة</span><strong data-owner-kpi="suspended">0</strong></article>
       <article class="revenue"><span>الإيرادات الشهرية (MRR)</span><strong data-owner-kpi="mrr">0 د.أ</strong></article>
       <article class="revenue"><span>الإيرادات السنوية (ARR)</span><strong data-owner-kpi="arr">0 د.أ</strong></article>
+    </section>
+
+    <section class="owner-panel readiness-panel" data-readiness-panel>
+      <div class="panel-heading">
+        <div>
+          <p>جاهزية الإنتاج</p>
+          <h2>Production Readiness</h2>
+        </div>
+        <span class="status-pill warn" data-readiness-badge>يتم الفحص</span>
+      </div>
+      <div class="readiness-layout">
+        <article class="readiness-summary">
+          <span>وضع التخزين</span>
+          <strong data-readiness-storage-mode>—</strong>
+          <p data-readiness-storage-detail>يتم التحقق من وضع النشر والتخزين والنسخ الاحتياطي.</p>
+          <div class="readiness-actions">
+            <button type="button" data-refresh-readiness>تحديث الفحص</button>
+            <a href="/api/owner/clinics" target="_blank" rel="noreferrer">فحص API العيادات</a>
+          </div>
+        </article>
+        <article class="readiness-summary backup">
+          <span>النسخ الاحتياطي</span>
+          <strong data-readiness-backup-title>—</strong>
+          <p data-readiness-backup-detail>لا تستخدم بيانات مرضى حقيقية قبل وجود نسخة احتياطية قابلة للاسترجاع.</p>
+        </article>
+        <article class="readiness-summary security">
+          <span>الأمان والتحكم</span>
+          <strong data-readiness-security-title>—</strong>
+          <p data-readiness-security-detail>راجع المصادقة الثنائية، أصل النشر، ومفتاح التشفير.</p>
+        </article>
+      </div>
+      <div class="readiness-columns">
+        <div>
+          <h3>قائمة جاهزية التشغيل</h3>
+          <div class="readiness-checklist" data-readiness-checks></div>
+        </div>
+        <div>
+          <h3>اختبار الاسترجاع قبل العيادة الحقيقية</h3>
+          <ol class="restore-checklist" data-readiness-restore></ol>
+        </div>
+      </div>
     </section>
 
     <!-- ── Create New Clinic ──────────────────────────────────────────────── -->
@@ -314,6 +355,6 @@
     </form>
   </dialog>
 
-  <script src="owner.js?v=20260620e"></script>
+  <script src="owner.js?v=20260620f"></script>
 </body>
 </html>

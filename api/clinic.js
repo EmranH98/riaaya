@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { audit, databasePath, db, defaultClinicModules, listClinicNotifications, nowIso, parseJson, publicClinic, publicUser } from "../lib/database.js";
 import { requireSession } from "./auth.js";
-import { clientIp, encryptSecret, hashPassword, normalizeEmail, safeText, validatePassword } from "../lib/security.js";
+import { clientIp, encryptSecret, hashPassword, isValidEmail, normalizeEmail, safeText, validatePassword } from "../lib/security.js";
 import { storageReadiness } from "../lib/storage-policy.js";
 
 const USER_ROLES = new Set(["admin", "data_entry", "doctor", "specialist"]);
@@ -125,6 +125,7 @@ function filterClinicState(rawState, user, accountRows, clinic) {
 
   if (!user.canViewSensitive) {
     state.reconciliations = {};
+    state.reconciliationHistory = [];
     state.salaryStatuses = {};
   }
   if (!can(user, "inventory") || !clinicModuleEnabled(clinic, "inventory")) {
@@ -289,6 +290,7 @@ function mergeClinicState(existing, incoming, user, clinic) {
   if (can(user, "import_data") && clinicModuleEnabled(clinic, "imports")) next.importHistory = incoming.importHistory || existing.importHistory;
   if (user.canViewSensitive) {
     next.reconciliations = incoming.reconciliations || existing.reconciliations;
+    next.reconciliationHistory = incoming.reconciliationHistory || existing.reconciliationHistory || [];
     next.salaryStatuses = incoming.salaryStatuses || existing.salaryStatuses;
   }
   if (can(user, "send_role_digests") && clinicModuleEnabled(clinic, "communications")) next.digestRules = incoming.digestRules || existing.digestRules;
@@ -553,6 +555,10 @@ function saveUser(req, res, userId = "") {
   }
   if (!input.email || !input.name) {
     sendJson(res, 400, { error: "missing_user_fields" });
+    return;
+  }
+  if (!isValidEmail(input.email)) {
+    sendJson(res, 400, { error: "invalid_email" });
     return;
   }
   const duplicate = db.prepare("select id from users where email = ? and id <> ?").get(input.email, userId || "");

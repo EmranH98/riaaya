@@ -1391,6 +1391,16 @@ function createSeedState() {
     normalizeExpense({ id: "expense-demo-2", groupId: "expense-group-payroll", subgroupId: "expense-sub-meals", amount: 8, date: dateOffset(-1), paymentMethod: "cash", notes: "ضيافة الفريق" }),
     normalizeExpense({ id: "expense-demo-3", groupId: "expense-group-marketing", subgroupId: "expense-sub-ads", amount: 60, date: dateOffset(-3), paymentMethod: "card", vendor: "منصة إعلانات", reference: "AD-104" })
   ];
+  const seedReconciliations = {
+    ...createDemoReconciliations(),
+    [today]: {
+      countedCash: 135,
+      countedCard: 120,
+      countedTransfer: 45,
+      note: "إغلاق تجريبي محفوظ لعرض سجل المطابقة اليومي."
+    }
+  };
+  const reconciliationData = normalizeReconciliationData({ reconciliations: seedReconciliations }, entries);
   return {
     demoHistoryVersion: DEMO_HISTORY_VERSION,
     settings: {
@@ -1424,14 +1434,8 @@ function createSeedState() {
     notificationReads: communication.notificationReads,
     integrations: communication.integrations,
     salaryApprovals: {},
-    reconciliations: {
-      ...createDemoReconciliations(),
-      [today]: {
-        countedCash: 135,
-        countedCard: 120,
-        countedTransfer: 45
-      }
-    }
+    reconciliations: reconciliationData.reconciliations,
+    reconciliationHistory: reconciliationData.reconciliationHistory
   };
 }
 
@@ -1446,10 +1450,19 @@ function ensureDemoHistory(loadedState) {
     loadedState.patients || []
   );
 
+  const nextEntries = [...additions, ...loadedState.entries];
+  const reconciliationData = normalizeReconciliationData({
+    ...loadedState,
+    reconciliations: {
+      ...createDemoReconciliations(),
+      ...loadedState.reconciliations
+    }
+  }, nextEntries);
+
   return {
     ...loadedState,
     demoHistoryVersion: DEMO_HISTORY_VERSION,
-    entries: [...additions, ...loadedState.entries],
+    entries: nextEntries,
     accounts: (loadedState.accounts || []).map(account => {
       if (account.id === "account-data-entry") {
         return normalizeAccount({ ...account, permissionFeatures: uniqueValues([...(account.permissionFeatures || []), ...DEFAULT_FEATURES_BY_ROLE.data_entry, "see_mobile"]) });
@@ -1459,10 +1472,8 @@ function ensureDemoHistory(loadedState) {
       }
       return account;
     }),
-    reconciliations: {
-      ...createDemoReconciliations(),
-      ...loadedState.reconciliations
-    }
+    reconciliations: reconciliationData.reconciliations,
+    reconciliationHistory: reconciliationData.reconciliationHistory
   };
 }
 
@@ -1506,7 +1517,7 @@ function loadState() {
     if (mergedSettings.activeDate && mergedSettings.activeDate < today) {
       mergedSettings.activeDate = today;
     }
-    return ensureDemoHistory({
+    const loaded = {
       demoHistoryVersion: saved.demoHistoryVersion || 0,
       settings: mergedSettings,
       staff: Array.isArray(saved.staff) ? saved.staff.map(normalizeStaffMember) : seed.staff,
@@ -1537,7 +1548,14 @@ function loadState() {
         jofotara: { ...seed.integrations.jofotara, ...(saved.integrations?.jofotara || {}) }
       },
       salaryApprovals: saved.salaryApprovals || {},
-      reconciliations: saved.reconciliations || {}
+      reconciliations: saved.reconciliations || {},
+      reconciliationHistory: Array.isArray(saved.reconciliationHistory) ? saved.reconciliationHistory : []
+    };
+    const reconciliationData = normalizeReconciliationData(loaded, entries);
+    return ensureDemoHistory({
+      ...loaded,
+      reconciliations: reconciliationData.reconciliations,
+      reconciliationHistory: reconciliationData.reconciliationHistory
     });
   } catch {
     return createSeedState();
@@ -1588,7 +1606,8 @@ function emptyClinicState(clinic = {}) {
       }
     },
     salaryApprovals: {},
-    reconciliations: {}
+    reconciliations: {},
+    reconciliationHistory: []
   };
 }
 
@@ -1605,6 +1624,7 @@ function hydrateClinicState(saved, clinic, accounts) {
     Array.isArray(source.entries) ? source.entries.map(entry => normalizeEntry(entry, services)) : [],
     patients
   );
+  const reconciliationData = normalizeReconciliationData(source, entries);
   return {
     ...base,
     ...source,
@@ -1637,7 +1657,8 @@ function hydrateClinicState(saved, clinic, accounts) {
       jofotara: { ...base.integrations.jofotara, ...(source.integrations?.jofotara || {}) }
     },
     salaryApprovals: source.salaryApprovals || {},
-    reconciliations: source.reconciliations || {}
+    reconciliations: reconciliationData.reconciliations,
+    reconciliationHistory: reconciliationData.reconciliationHistory
   };
 }
 
@@ -3074,7 +3095,204 @@ function assignmentSummaryText(entries = activeEntries()) {
 }
 
 function activeReconciliation() {
-  return state.reconciliations[state.settings.activeDate] || null;
+  return latestReconciliationForDate(state.settings.activeDate);
+}
+
+function totalsForDateFromEntries(entries, date) {
+  return totalsFor((entries || []).filter(entry => entry.date === date));
+}
+
+function reconciliationStatusFromDiffs(cashDiff, cardDiff, transferDiff) {
+  return [cashDiff, cardDiff, transferDiff].every(value => Math.abs(numberValue(value)) < 0.01)
+    ? "matched"
+    : "mismatch";
+}
+
+function reconciliationStatusLabel(status) {
+  if (currentLanguage() === "en") {
+    return status === "matched" ? "Matched" : "Needs review";
+  }
+  return status === "matched" ? "مطابق" : "يحتاج مراجعة";
+}
+
+function reconciliationStatusClass(status) {
+  return status === "matched" ? "good" : "bad";
+}
+
+function normalizeReconciliationRecord(record = {}, entries = [], fallbackDate = today) {
+  const date = record.date || fallbackDate || today;
+  const expectedTotals = totalsForDateFromEntries(entries, date);
+  const countedCash = numberValue(record.countedCash);
+  const countedCard = numberValue(record.countedCard);
+  const countedTransfer = numberValue(record.countedTransfer);
+  const expectedCash = numberValue(record.expectedCash ?? expectedTotals.cash);
+  const expectedCard = numberValue(record.expectedCard ?? expectedTotals.card);
+  const expectedTransfer = numberValue(record.expectedTransfer ?? expectedTotals.transfer);
+  const diffCash = numberValue(record.diffCash ?? countedCash - expectedCash);
+  const diffCard = numberValue(record.diffCard ?? countedCard - expectedCard);
+  const diffTransfer = numberValue(record.diffTransfer ?? countedTransfer - expectedTransfer);
+  const createdAtDate = record.createdAt ? new Date(record.createdAt) : new Date(`${date}T18:00:00`);
+  const createdAt = Number.isNaN(createdAtDate.getTime()) ? new Date().toISOString() : createdAtDate.toISOString();
+  const totalExpected = expectedCash + expectedCard + expectedTransfer;
+  const totalCounted = countedCash + countedCard + countedTransfer;
+  const totalDiff = numberValue(record.totalDiff ?? diffCash + diffCard + diffTransfer);
+  const status = record.status || reconciliationStatusFromDiffs(diffCash, diffCard, diffTransfer);
+
+  return {
+    id: record.id || `reconciliation-${date}-${createdAt.replace(/[^0-9]/g, "").slice(0, 12)}`,
+    date,
+    createdAt,
+    createdBy: String(record.createdBy || record.userName || "النظام").trim(),
+    note: String(record.note || record.notes || "").trim(),
+    countedCash,
+    countedCard,
+    countedTransfer,
+    expectedCash,
+    expectedCard,
+    expectedTransfer,
+    diffCash,
+    diffCard,
+    diffTransfer,
+    totalExpected,
+    totalCounted,
+    totalDiff,
+    status
+  };
+}
+
+function normalizeReconciliationData(source = {}, entries = []) {
+  const records = [];
+  const seen = new Set();
+  const pushRecord = (record, fallbackDate) => {
+    const normalized = normalizeReconciliationRecord(record, entries, fallbackDate);
+    if (seen.has(normalized.id)) return;
+    seen.add(normalized.id);
+    records.push(normalized);
+  };
+
+  Object.entries(source.reconciliations || {}).forEach(([date, record]) => {
+    pushRecord({
+      ...record,
+      id: record?.id || `reconciliation-legacy-${date}`,
+      date,
+      createdAt: record?.createdAt || `${date}T18:00:00`,
+      createdBy: record?.createdBy || "legacy",
+      note: record?.note || "إغلاق محفوظ من نسخة أقدم."
+    }, date);
+  });
+
+  (Array.isArray(source.reconciliationHistory) ? source.reconciliationHistory : [])
+    .forEach(record => pushRecord(record, record?.date || today));
+
+  records.sort((a, b) => `${a.date} ${a.createdAt}`.localeCompare(`${b.date} ${b.createdAt}`));
+  const latest = {};
+  records.forEach(record => {
+    latest[record.date] = record;
+  });
+  return {
+    reconciliations: latest,
+    reconciliationHistory: records
+  };
+}
+
+function reconciliationRecordsForDate(date) {
+  return (state.reconciliationHistory || [])
+    .map(record => normalizeReconciliationRecord(record, state.entries || [], record.date || date))
+    .filter(record => record.date === date)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+function latestReconciliationForDate(date) {
+  return reconciliationRecordsForDate(date)[0] || null;
+}
+
+function reconciliationRecordsForDateRange(fromDate, toDate, filters = {}) {
+  const { from, to } = normalizeDateRange(fromDate, toDate);
+  return (state.reconciliationHistory || [])
+    .map(record => normalizeReconciliationRecord(record, state.entries || [], record.date || from))
+    .filter(record => isDateInRange(record.date, from, to))
+    .filter(record => reconciliationRecordMatchesFilters(record, filters))
+    .sort((a, b) => `${b.date} ${b.createdAt}`.localeCompare(`${a.date} ${a.createdAt}`));
+}
+
+function reconciliationRecordMatchesFilters(record, filters = {}) {
+  const method = filters.paymentMethod;
+  const methodMatches = !method
+    || numberValue(record[`expected${capitalize(method)}`])
+    || numberValue(record[`counted${capitalize(method)}`])
+    || numberValue(record[`diff${capitalize(method)}`]);
+  const statusFilter = String(filters.status || "");
+  const statusMatches = !statusFilter
+    || !["matched", "mismatch"].includes(statusFilter)
+    || record.status === statusFilter;
+  return methodMatches
+    && statusMatches
+    && matchesSmartQuery([
+      record.date,
+      record.createdAt,
+      record.createdBy,
+      record.note,
+      record.status,
+      reconciliationStatusLabel(record.status),
+      money(record.totalExpected),
+      money(record.totalCounted),
+      money(record.totalDiff)
+    ], filters.query);
+}
+
+function capitalize(value) {
+  const text = String(value || "");
+  return text ? `${text[0].toUpperCase()}${text.slice(1)}` : "";
+}
+
+function displayDateTimeMinute(value) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleString(currentLanguage() === "en" ? "en-US" : "ar-JO", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
+function displayClockMinute(value) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleTimeString(currentLanguage() === "en" ? "en-US" : "ar-JO", {
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
+function createReconciliationRecordFromForm(data, totals) {
+  const countedCash = numberValue(data.countedCash);
+  const countedCard = numberValue(data.countedCard);
+  const countedTransfer = numberValue(data.countedTransfer);
+  const diffCash = countedCash - totals.cash;
+  const diffCard = countedCard - totals.card;
+  const diffTransfer = countedTransfer - totals.transfer;
+  const account = currentAccount();
+  return normalizeReconciliationRecord({
+    id: nextId("reconciliation"),
+    date: state.settings.activeDate,
+    createdAt: new Date().toISOString(),
+    createdBy: accountDisplayName(account),
+    note: data.note,
+    countedCash,
+    countedCard,
+    countedTransfer,
+    expectedCash: totals.cash,
+    expectedCard: totals.card,
+    expectedTransfer: totals.transfer,
+    diffCash,
+    diffCard,
+    diffTransfer,
+    status: reconciliationStatusFromDiffs(diffCash, diffCard, diffTransfer)
+  }, state.entries || [], state.settings.activeDate);
 }
 
 function totalsFor(entries) {
@@ -6512,6 +6730,30 @@ function universalReportItems(from, to) {
       searchValues: [member.name, roleLabel(member.role), member.role]
     });
   });
+  reconciliationRecordsForDateRange(from, to).forEach(record => {
+    sources.push({
+      id: record.id,
+      source: "reconciliation",
+      date: record.date,
+      title: reconciliationStatusLabel(record.status),
+      details: `${displayDateTimeMinute(record.createdAt)} | ${record.createdBy || "-"} | ${record.note || "-"}`,
+      status: record.status,
+      statusLabel: reconciliationStatusLabel(record.status),
+      paymentMethod: "mixed",
+      value: record.totalDiff,
+      searchValues: [
+        record.date,
+        record.createdAt,
+        record.createdBy,
+        record.note,
+        record.status,
+        reconciliationStatusLabel(record.status),
+        money(record.totalExpected),
+        money(record.totalCounted),
+        money(record.totalDiff)
+      ]
+    });
+  });
 
   return sources
     .filter(item => !filters.source || item.source === filters.source)
@@ -6525,8 +6767,8 @@ function universalReportItems(from, to) {
 
 function reportSourceLabel(source) {
   const labels = currentLanguage() === "en"
-    ? { operation: "Operation", booking: "Booking", patient: "Patient / Visitor", expense: "Expense", inventory: "Inventory", service: "Service", supplier: "Supplier", staff: "Staff" }
-    : { operation: "عملية", booking: "حجز", patient: "مريض / زائر", expense: "مصروف", inventory: "مخزون", service: "خدمة", supplier: "مورد", staff: "موظف" };
+    ? { operation: "Operation", booking: "Booking", patient: "Patient / Visitor", expense: "Expense", inventory: "Inventory", service: "Service", supplier: "Supplier", staff: "Staff", reconciliation: "Daily Close" }
+    : { operation: "عملية", booking: "حجز", patient: "مريض / زائر", expense: "مصروف", inventory: "مخزون", service: "خدمة", supplier: "مورد", staff: "موظف", reconciliation: "مطابقة يومية" };
   return labels[source] || source;
 }
 
@@ -6539,7 +6781,7 @@ function renderUniversalReport(items) {
       <td>${item.source === "patient" ? `<button class="table-link" type="button" data-open-patient="${item.id}">${item.title}</button>` : item.title}</td>
       <td>${item.details}</td>
       <td>${item.statusLabel || "-"}</td>
-      <td>${canViewSensitive() && ["operation", "booking", "expense"].includes(item.source) ? money(item.value) : item.source === "patient" ? `${item.value} ${isEnglish ? "operations" : "عملية"}` : item.value || "-"}</td>
+      <td>${canViewSensitive() && ["operation", "booking", "expense", "reconciliation"].includes(item.source) ? money(item.value) : item.source === "patient" ? `${item.value} ${isEnglish ? "operations" : "عملية"}` : item.value || "-"}</td>
     </tr>
   `).join("") : `<tr><td colspan="6">${isEnglish ? "No matching results." : "لا توجد نتائج مطابقة."}</td></tr>`;
 
@@ -6868,6 +7110,130 @@ function renderReconciliationReport(entries) {
       <span class="match">${label.match}</span>
       <span class="overpaid">${label.overpaid}</span>
       <span class="underpaid">${label.underpaid}</span>
+    </div>
+  `;
+}
+
+function renderCashReconciliationReport(records, allRecords = records) {
+  const isEnglish = currentLanguage() === "en";
+  const label = isEnglish
+    ? {
+      title: "Daily Cash Reconciliation Ledger",
+      subtitle: "Every close attempt is registered with exact time, expected totals, counted money, and the reason to review mismatches.",
+      attempts: "Close attempts",
+      matched: "Matched",
+      mismatch: "Needs review",
+      totalDiff: "Total difference",
+      dateTime: "Date / time",
+      status: "Status",
+      cash: "Cash",
+      card: "Card",
+      transfer: "Transfer",
+      total: "Total diff",
+      by: "By",
+      note: "Note",
+      why: "Why",
+      expected: "Expected",
+      counted: "Counted",
+      diff: "Diff",
+      empty: "No daily closes in this range yet.",
+      details: "Mismatch details",
+      currentDay: "Current day operations now"
+    }
+    : {
+      title: "سجل المطابقة اليومية",
+      subtitle: "كل محاولة إغلاق محفوظة بالوقت الدقيق، والمتوقع، والموجود، وسبب المراجعة عند وجود فرق.",
+      attempts: "محاولات الإغلاق",
+      matched: "مطابق",
+      mismatch: "يحتاج مراجعة",
+      totalDiff: "إجمالي الفرق",
+      dateTime: "التاريخ / الوقت",
+      status: "الحالة",
+      cash: "الكاش",
+      card: "الفيزا",
+      transfer: "التحويل",
+      total: "فرق الإجمالي",
+      by: "بواسطة",
+      note: "الملاحظة",
+      why: "سبب الفرق",
+      expected: "المتوقع",
+      counted: "الموجود",
+      diff: "الفرق",
+      empty: "لا توجد إغلاقات يومية ضمن هذا النطاق بعد.",
+      details: "تفاصيل الفرق",
+      currentDay: "عمليات هذا اليوم حالياً"
+    };
+  const matched = allRecords.filter(record => record.status === "matched").length;
+  const mismatch = allRecords.length - matched;
+  const totalDiff = allRecords.reduce((sum, record) => sum + numberValue(record.totalDiff), 0);
+  const methodCell = (expected, counted, diff) => `
+    <div class="reconcile-method-cell">
+      <span>${label.expected}: ${money(expected)}</span>
+      <span>${label.counted}: ${money(counted)}</span>
+      <strong class="${Math.abs(numberValue(diff)) < 0.01 ? "match" : "mismatch"}">${label.diff}: ${money(diff)}</strong>
+    </div>
+  `;
+  const rows = records.length ? records.map(record => {
+    const currentTotals = totalsForDateFromEntries(state.entries || [], record.date);
+    const details = [
+      `${label.cash}: ${label.expected} ${money(record.expectedCash)} | ${label.counted} ${money(record.countedCash)} | ${label.diff} ${money(record.diffCash)}`,
+      `${label.card}: ${label.expected} ${money(record.expectedCard)} | ${label.counted} ${money(record.countedCard)} | ${label.diff} ${money(record.diffCard)}`,
+      `${label.transfer}: ${label.expected} ${money(record.expectedTransfer)} | ${label.counted} ${money(record.countedTransfer)} | ${label.diff} ${money(record.diffTransfer)}`,
+      `${label.currentDay}: ${currentTotals.count} / ${money(currentTotals.paid)}`
+    ];
+    return `
+      <tr class="${record.status === "matched" ? "match" : "mismatch"}">
+        <td>
+          <strong>${displayDate(record.date)}</strong>
+          <small>${displayDateTimeMinute(record.createdAt)}</small>
+        </td>
+        <td><span class="status-pill ${reconciliationStatusClass(record.status)}">${reconciliationStatusLabel(record.status)}</span></td>
+        <td>${methodCell(record.expectedCash, record.countedCash, record.diffCash)}</td>
+        <td>${methodCell(record.expectedCard, record.countedCard, record.diffCard)}</td>
+        <td>${methodCell(record.expectedTransfer, record.countedTransfer, record.diffTransfer)}</td>
+        <td><strong>${money(record.totalDiff)}</strong></td>
+        <td>${record.createdBy || "-"}</td>
+        <td>${record.note || "-"}</td>
+        <td>
+          <details class="reconcile-audit-details">
+            <summary>${label.details}</summary>
+            ${details.map(item => `<p>${item}</p>`).join("")}
+          </details>
+        </td>
+      </tr>
+    `;
+  }).join("") : `<tr><td colspan="9">${label.empty}</td></tr>`;
+
+  return `
+    ${reportHeader(label.title, label.subtitle)}
+    ${reportKpis([
+      { label: label.attempts, value: allRecords.length },
+      { label: label.matched, value: matched },
+      { label: label.mismatch, value: mismatch },
+      { label: label.totalDiff, value: money(totalDiff), note: mismatch ? label.mismatch : label.matched }
+    ])}
+    <div class="report-note reconciliation-report-note">
+      ${isEnglish
+        ? "Each row is a snapshot at close time. If later operations change, register a new close instead of editing the old one."
+        : "كل صف هو لقطة وقت الإغلاق. إذا تغيرت عمليات اليوم لاحقاً، سجّل إغلاقاً جديداً بدلاً من تعديل الإغلاق القديم."}
+    </div>
+    <div class="table-wrap report-table reconciliation-report-table">
+      <table>
+        <thead>
+          <tr>
+            <th>${label.dateTime}</th>
+            <th>${label.status}</th>
+            <th>${label.cash}</th>
+            <th>${label.card}</th>
+            <th>${label.transfer}</th>
+            <th>${label.total}</th>
+            <th>${label.by}</th>
+            <th>${label.note}</th>
+            <th>${label.why}</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
     </div>
   `;
 }
@@ -7414,6 +7780,9 @@ function renderReports() {
   const allExpenses = (!filters.source || filters.source === "expense")
     ? expensesForDateRange(from, to).filter(expense => expenseMatchesReportFilters(expense, filters))
     : [];
+  const allReconciliations = (!filters.source || filters.source === "operation" || filters.source === "reconciliation")
+    ? reconciliationRecordsForDateRange(from, to, filters)
+    : [];
   const universalItems = universalReportItems(from, to);
   const reportType = els.reportSelect.value || "reconciliation";
   const financialReports = ["profit", "reconciliation", "patientBalance", "byPatient", "perProcedure", "costs", "expenses", "retention"];
@@ -7453,8 +7822,8 @@ function renderReports() {
     pagination = paginateItems(allEntries, 1, Math.max(allEntries.length, 1));
     content = renderProfitReport(allEntries, allExpenses);
   } else if (reportType === "reconciliation") {
-    pagination = paginateItems(allEntries, 1, Math.max(allEntries.length, 1));
-    content = renderReconciliationReport(allEntries);
+    pagination = paginateItems(allReconciliations, reportPage, pageSize);
+    content = renderCashReconciliationReport(pagination.items, allReconciliations);
   } else if (reportType === "costs") {
     const matchingServices = state.services.filter(service => matchesSmartQuery([
       service.name,
@@ -7869,18 +8238,14 @@ function renderReconciliation(totals, reconciliation, diffs) {
     ["الفيزا", totals.card, reconciliation?.countedCard, diffs?.cardDiff],
     ["التحويل", totals.transfer, reconciliation?.countedTransfer, diffs?.transferDiff]
   ];
+  const history = reconciliationRecordsForDate(state.settings.activeDate);
 
-  if (reconciliation) {
-    els.reconcileForm.elements.countedCash.value = reconciliation.countedCash;
-    els.reconcileForm.elements.countedCard.value = reconciliation.countedCard;
-    els.reconcileForm.elements.countedTransfer.value = reconciliation.countedTransfer;
-  } else {
-    els.reconcileForm.elements.countedCash.value = totals.cash;
-    els.reconcileForm.elements.countedCard.value = totals.card;
-    els.reconcileForm.elements.countedTransfer.value = totals.transfer;
-  }
+  els.reconcileForm.elements.countedCash.value = totals.cash;
+  els.reconcileForm.elements.countedCard.value = totals.card;
+  els.reconcileForm.elements.countedTransfer.value = totals.transfer;
+  if (els.reconcileForm.elements.note) els.reconcileForm.elements.note.value = "";
 
-  els.reconcileResult.innerHTML = rows.map(([label, expected, counted, diff]) => {
+  const latestCards = rows.map(([label, expected, counted, diff]) => {
     const hasDiff = Math.abs(numberValue(diff)) >= 0.01;
     const status = !reconciliation ? "warn" : hasDiff ? "bad" : "good";
     const statusText = !reconciliation ? "غير محفوظ" : hasDiff ? "فرق" : "مطابق";
@@ -7892,6 +8257,35 @@ function renderReconciliation(totals, reconciliation, diffs) {
       </div>
     `;
   }).join("");
+  const historyRows = history.length ? history.slice(0, 8).map(record => `
+    <tr>
+      <td>${displayClockMinute(record.createdAt)}</td>
+      <td><span class="status-pill ${reconciliationStatusClass(record.status)}">${reconciliationStatusLabel(record.status)}</span></td>
+      <td>${money(record.totalExpected)}</td>
+      <td>${money(record.totalCounted)}</td>
+      <td><strong>${money(record.totalDiff)}</strong></td>
+      <td>${record.createdBy || "-"}</td>
+      <td>${record.note || "-"}</td>
+    </tr>
+  `).join("") : `<tr><td colspan="7">لا يوجد إغلاق محفوظ لهذا اليوم بعد.</td></tr>`;
+
+  els.reconcileResult.innerHTML = `
+    <div class="reconciliation-latest">
+      <h3>${reconciliation ? `آخر إغلاق: ${displayDateTimeMinute(reconciliation.createdAt)}` : "لم يتم حفظ إغلاق لهذا اليوم"}</h3>
+      ${latestCards}
+    </div>
+    <div class="reconciliation-history">
+      <h3>سجل إغلاقات اليوم</h3>
+      <div class="table-wrap compact-table">
+        <table>
+          <thead>
+            <tr><th>الوقت</th><th>الحالة</th><th>المتوقع</th><th>الموجود</th><th>الفرق</th><th>بواسطة</th><th>الملاحظة</th></tr>
+          </thead>
+          <tbody>${historyRows}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
 }
 
 function renderLeads() {
@@ -8880,9 +9274,13 @@ if (els.accountForm) {
       saveState();
       render();
     } catch (error) {
-      alert(error.message === "weak_password"
-        ? "كلمة المرور يجب أن تكون 12 حرفاً على الأقل وتحتوي أحرفاً كبيرة وصغيرة ورقماً ورمزاً."
-        : "تعذر حفظ المستخدم. تحقق من البريد وكلمة المرور ثم حاول مرة أخرى.");
+      const messages = {
+        weak_password: "كلمة المرور يجب أن تكون 12 حرفاً على الأقل وتحتوي أحرفاً كبيرة وصغيرة ورقماً ورمزاً.",
+        invalid_email: "أدخل بريدًا إلكترونيًا صحيحًا.",
+        email_already_registered: "هذا البريد الإلكتروني مسجل مسبقاً.",
+        missing_user_fields: "أدخل البريد الإلكتروني واسم المستخدم."
+      };
+      alert(messages[error.message] || "تعذر حفظ المستخدم. تحقق من البريد وكلمة المرور ثم حاول مرة أخرى.");
     }
   });
 }
@@ -10340,11 +10738,10 @@ els.reconcileForm.addEventListener("submit", event => {
   event.preventDefault();
   if (!canViewSensitive()) return;
   const data = Object.fromEntries(new FormData(els.reconcileForm).entries());
-  state.reconciliations[state.settings.activeDate] = {
-    countedCash: numberValue(data.countedCash),
-    countedCard: numberValue(data.countedCard),
-    countedTransfer: numberValue(data.countedTransfer)
-  };
+  const totals = totalsFor(activeEntries());
+  const record = createReconciliationRecordFromForm(data, totals);
+  state.reconciliationHistory = [...(state.reconciliationHistory || []), record];
+  state.reconciliations[state.settings.activeDate] = record;
   saveState();
   render();
 });
@@ -11032,6 +11429,7 @@ document.querySelector("[data-clear-entries]").addEventListener("click", async (
   if (!await showConfirm("سيتم مسح سجل التاريخ المحدد فقط. هل أنت متأكد؟", { title: "مسح سجل اليوم", okLabel: "مسح السجل" })) return;
   state.entries = state.entries.filter(entry => entry.date !== state.settings.activeDate);
   delete state.reconciliations[state.settings.activeDate];
+  state.reconciliationHistory = (state.reconciliationHistory || []).filter(record => record.date !== state.settings.activeDate);
   saveState();
   render();
 });
@@ -11095,7 +11493,8 @@ function backupRestoreSummary(restoredState) {
     `الحجوزات: ${restoredState.bookings?.length || 0}`,
     `الخدمات: ${restoredState.services?.length || 0}`,
     `المصروفات: ${restoredState.expenses?.length || 0}`,
-    `المخزون: ${restoredState.inventory?.length || 0}`
+    `المخزون: ${restoredState.inventory?.length || 0}`,
+    `سجل المطابقة اليومية: ${restoredState.reconciliationHistory?.length || 0}`
   ].join("\n");
 }
 
@@ -11258,6 +11657,29 @@ function exportClinicCsvBundle() {
         transfer: entryPaymentBreakdown(entry).transfer,
         status: entry.status,
         notes: entry.notes
+      }))
+    },
+    {
+      name: "daily-reconciliations",
+      rows: (state.reconciliationHistory || []).map(record => normalizeReconciliationRecord(record, state.entries || [], record.date)).map(record => ({
+        id: record.id,
+        date: record.date,
+        createdAt: record.createdAt,
+        createdBy: record.createdBy,
+        status: reconciliationStatusLabel(record.status),
+        expectedCash: record.expectedCash,
+        countedCash: record.countedCash,
+        cashDiff: record.diffCash,
+        expectedCard: record.expectedCard,
+        countedCard: record.countedCard,
+        cardDiff: record.diffCard,
+        expectedTransfer: record.expectedTransfer,
+        countedTransfer: record.countedTransfer,
+        transferDiff: record.diffTransfer,
+        totalExpected: record.totalExpected,
+        totalCounted: record.totalCounted,
+        totalDiff: record.totalDiff,
+        note: record.note
       }))
     },
     {

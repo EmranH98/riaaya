@@ -2462,6 +2462,76 @@ td {
   font-size: 13px;
 }
 
+.reconciliation-latest,
+.reconciliation-history {
+  display: grid;
+  gap: 10px;
+}
+
+.reconciliation-latest h3,
+.reconciliation-history h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 16px;
+}
+
+.compact-table table {
+  min-width: 760px;
+}
+
+.reconcile-method-cell {
+  display: grid;
+  gap: 3px;
+  min-width: 150px;
+}
+
+.reconcile-method-cell span,
+.reconcile-method-cell strong,
+.report-table td small {
+  display: block;
+}
+
+.reconcile-method-cell span,
+.report-table td small {
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.reconcile-method-cell .match {
+  color: var(--teal);
+}
+
+.reconcile-method-cell .mismatch,
+.reconciliation-report-table tr.mismatch td strong {
+  color: var(--danger);
+}
+
+.reconcile-audit-details {
+  min-width: 180px;
+}
+
+.reconcile-audit-details summary {
+  color: var(--teal);
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.reconcile-audit-details p {
+  margin: 5px 0 0;
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
+.report-note {
+  border: 1px solid #dcebe5;
+  background: #f6fbf8;
+  color: var(--ink-soft);
+  padding: 12px 14px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
 .alert.warning {
   background: var(--gold-pale);
   border-color: rgba(200,150,10,0.28);
@@ -2797,6 +2867,30 @@ td {
   gap: 10px;
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+.storage-restore-checklist {
+  margin-top: 14px;
+  border: 1px solid #dcebe5;
+  background: #fbf7ee;
+  padding: 14px;
+}
+
+.storage-restore-checklist strong {
+  display: block;
+  color: var(--ink);
+  margin-bottom: 8px;
+}
+
+.storage-restore-checklist ol {
+  margin: 0;
+  padding-inline-start: 20px;
+  color: var(--ink-soft);
+  font-weight: 800;
+}
+
+.storage-restore-checklist li + li {
+  margin-top: 6px;
 }
 
 .practical-form {

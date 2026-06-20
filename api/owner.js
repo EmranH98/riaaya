@@ -1,7 +1,10 @@
 import { randomUUID } from "node:crypto";
+import { readdirSync, statSync } from "node:fs";
+import { basename, join } from "node:path";
 import {
   audit,
   CLINIC_MODULES,
+  databasePath,
   db,
   DEFAULT_LANDING_SETTINGS,
   defaultClinicLimits,
@@ -14,7 +17,8 @@ import {
   slugifyClinic
 } from "../lib/database.js";
 import { requireSession } from "./auth.js";
-import { clientIp, hashPassword, safeText, temporaryPassword, validatePassword } from "../lib/security.js";
+import { clientIp, hashPassword, isValidEmail, normalizeEmail, safeText, temporaryPassword, validatePassword } from "../lib/security.js";
+import { storageReadiness } from "../lib/storage-policy.js";
 
 function sendJson(res, statusCode, payload) {
   res.statusCode = statusCode;
@@ -194,6 +198,148 @@ function listClinics(req, res) {
   sendJson(res, 200, { ok: true, clinics, auditLogs: auditRows, mrr, arr: mrr * 12 });
 }
 
+function backupStatus() {
+  const backupPath = process.env.RIAAYA_BACKUP_DIR || "";
+  const retentionDays = Number(process.env.RIAAYA_BACKUP_RETENTION || process.env.RIAAYA_BACKUP_RETENTION_DAYS || 30);
+  if (!backupPath) {
+    return {
+      configured: false,
+      path: "",
+      count: 0,
+      latestBackup: null,
+      retentionDays,
+      warning: "RIAAYA_BACKUP_DIR غير مضبوط. لا تستخدم بيانات مرضى حقيقية قبل تفعيل النسخ الاحتياطي."
+    };
+  }
+
+  try {
+    const backups = readdirSync(backupPath)
+      .filter(name => name.endsWith(".sqlite") || name.endsWith(".db") || name.endsWith(".sqlite3"))
+      .map(name => {
+        const fullPath = join(backupPath, name);
+        const stat = statSync(fullPath);
+        return {
+          name,
+          path: fullPath,
+          sizeBytes: stat.size,
+          modifiedAt: stat.mtime.toISOString()
+        };
+      })
+      .sort((a, b) => b.modifiedAt.localeCompare(a.modifiedAt));
+    return {
+      configured: true,
+      path: backupPath,
+      count: backups.length,
+      latestBackup: backups[0] || null,
+      retentionDays,
+      warning: backups.length
+        ? ""
+        : "مسار النسخ الاحتياطي مضبوط، لكن لا توجد نسخ SQLite محفوظة بعد."
+    };
+  } catch (error) {
+    return {
+      configured: true,
+      path: backupPath,
+      count: 0,
+      latestBackup: null,
+      retentionDays,
+      warning: `تعذر قراءة مسار النسخ الاحتياطي: ${error.message}`
+    };
+  }
+}
+
+function productionReadiness(req, res) {
+  const auth = requireSession(req, res, { owner: true });
+  if (!auth) return;
+  const backup = backupStatus();
+  const readiness = storageReadiness({
+    databasePath,
+    backupPath: process.env.RIAAYA_BACKUP_DIR || ""
+  });
+  const ownerRows = db.prepare("select * from users where role = 'platform_owner' order by created_at asc").all();
+  const ownerTwoFactorCount = ownerRows.filter(row => Number(row.totp_enabled) === 1).length;
+  const clinicRows = db.prepare("select status, state_json from clinics").all();
+  const clinicCount = clinicRows.length;
+  const realClinicCandidates = clinicRows.filter(row => ["active", "trial"].includes(row.status)).length;
+  const exportedAt = new Date().toISOString();
+  const checks = [
+    {
+      id: "production-mode",
+      label: "وضع النشر Production",
+      ok: readiness.deploymentMode === "production",
+      detail: `الوضع الحالي: ${readiness.deploymentMode}`
+    },
+    {
+      id: "durable-database",
+      label: "قاعدة البيانات على تخزين دائم",
+      ok: readiness.safeForRealData,
+      detail: `المسار: ${databasePath} | النوع: ${readiness.databaseMode}`
+    },
+    {
+      id: "backup-target",
+      label: "مسار نسخ احتياطي قابل للاستخدام",
+      ok: backup.configured && !backup.warning,
+      detail: backup.latestBackup
+        ? `آخر نسخة: ${basename(backup.latestBackup.name)} في ${backup.latestBackup.modifiedAt}`
+        : backup.warning || "لا توجد نسخة حديثة بعد"
+    },
+    {
+      id: "owner-2fa",
+      label: "المصادقة الثنائية لحسابات المالك",
+      ok: ownerRows.length > 0 && ownerTwoFactorCount === ownerRows.length,
+      detail: `${ownerTwoFactorCount} من ${ownerRows.length} حساب مالك مفعّل عليه 2FA`
+    },
+    {
+      id: "encryption-key",
+      label: "مفتاح تشفير أسرار التكاملات",
+      ok: String(process.env.RIAAYA_ENCRYPTION_KEY || "").length >= 32,
+      detail: String(process.env.RIAAYA_ENCRYPTION_KEY || "").length >= 32
+        ? "موجود بطول مناسب"
+        : "غير مضبوط أو قصير"
+    },
+    {
+      id: "allowed-origin",
+      label: "حصر الأصل المسموح",
+      ok: String(process.env.ALLOWED_ORIGIN || "").startsWith("https://"),
+      detail: process.env.ALLOWED_ORIGIN || "غير مضبوط"
+    }
+  ];
+  const readyForPilot = checks.every(check => check.ok);
+  sendJson(res, 200, {
+    ok: true,
+    checkedAt: exportedAt,
+    readyForPilot,
+    storage: {
+      deploymentMode: readiness.deploymentMode,
+      databaseMode: readiness.databaseMode,
+      backupMode: readiness.backupMode,
+      provider: process.env.RIAAYA_STORAGE_PROVIDER || (readiness.managedDatabase ? "managed_cloud_database" : "server_sqlite"),
+      databaseLocation: databasePath,
+      safeForRealData: readiness.safeForRealData,
+      demoOnly: readiness.demoOnly || readiness.deploymentMode === "preview"
+    },
+    backup,
+    security: {
+      ownerAccounts: ownerRows.length,
+      ownerTwoFactorCount,
+      nodeEnv: process.env.NODE_ENV || "",
+      allowedOrigin: process.env.ALLOWED_ORIGIN || ""
+    },
+    counts: {
+      clinics: clinicCount,
+      activeOrTrialClinics: realClinicCandidates
+    },
+    checks,
+    restoreChecklist: [
+      "نزّل تصدير JSON كامل للعيادة قبل أي تعديل كبير.",
+      "شغّل npm run backup أو تأكد من وجود نسخة SQLite حديثة.",
+      "جرّب استرجاع النسخة على بيئة ثانية غير الإنتاج.",
+      "قارن أعداد المرضى والعمليات والحجوزات والإيصالات بعد الاسترجاع.",
+      "وثّق وقت الاختبار واسم الشخص الذي نفذه قبل إدخال بيانات حقيقية."
+    ]
+  });
+}
+
 function getLandingSettings(req, res) {
   const auth = requireSession(req, res, { owner: true });
   if (!auth) return;
@@ -225,11 +371,15 @@ function createClinic(req, res) {
   const phone = safeText(req.body?.phone || "", 40);
   const plan = ["starter", "professional", "enterprise"].includes(req.body?.plan) ? req.body.plan : "professional";
   const adminName = safeText(req.body?.adminName, 120);
-  const adminEmail = String(req.body?.adminEmail || "").trim().toLowerCase();
+  const adminEmail = normalizeEmail(req.body?.adminEmail);
   const adminPassword = String(req.body?.adminPassword || "");
 
   if (!clinicName || !adminName || !adminEmail) {
     sendJson(res, 400, { error: "missing_fields" });
+    return;
+  }
+  if (!isValidEmail(adminEmail)) {
+    sendJson(res, 400, { error: "invalid_email" });
     return;
   }
   if (!validatePassword(adminPassword)) {
@@ -564,6 +714,7 @@ function overrideClinicSettings(req, res, clinicId) {
 
 export default async function ownerHandler(req, res, url) {
   if (url.pathname === "/api/owner/clinics" && req.method === "GET") return listClinics(req, res);
+  if (url.pathname === "/api/owner/readiness" && req.method === "GET") return productionReadiness(req, res);
   if (url.pathname === "/api/owner/clinics" && req.method === "POST") return createClinic(req, res);
   if (url.pathname === "/api/owner/landing-settings" && req.method === "GET") return getLandingSettings(req, res);
   if (url.pathname === "/api/owner/landing-settings" && req.method === "PUT") return updateLandingSettings(req, res);
