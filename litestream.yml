@@ -1,0 +1,25 @@
+# Litestream — continuous off-site replication of the SQLite database.
+# Activates only when the env vars below are set; safe to commit (no secrets here).
+#
+# To enable on Render:
+#   1. Create an S3 / Backblaze B2 / Cloudflare R2 bucket.
+#   2. Set env: LITESTREAM_ACCESS_KEY_ID, LITESTREAM_SECRET_ACCESS_KEY,
+#      LITESTREAM_BUCKET, LITESTREAM_ENDPOINT (for B2/R2).
+#   3. Run the app under litestream (see Dockerfile note) so it replicates live
+#      and can `litestream restore` after a disk loss.
+#
+# Restore after disk loss:
+#   litestream restore -o /data/riaaya.sqlite "s3://${LITESTREAM_BUCKET}/riaaya"
+
+dbs:
+  - path: ${RIAAYA_DB_PATH}
+    replicas:
+      - type: s3
+        bucket: ${LITESTREAM_BUCKET}
+        path: riaaya
+        endpoint: ${LITESTREAM_ENDPOINT}
+        access-key-id: ${LITESTREAM_ACCESS_KEY_ID}
+        secret-access-key: ${LITESTREAM_SECRET_ACCESS_KEY}
+        retention: 720h          # keep 30 days of point-in-time history
+        snapshot-interval: 6h
+        validation-interval: 24h

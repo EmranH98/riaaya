@@ -8,6 +8,7 @@ import clinicHandler from "./api/clinic.js";
 import ownerHandler from "./api/owner.js";
 import publicHandler from "./api/public.js";
 import { db } from "./lib/database.js";
+import { startBackupScheduler } from "./lib/backup-scheduler.js";
 
 const root = fileURLToPath(new URL(".", import.meta.url));
 const port = Number(process.env.PORT || 4174);
@@ -264,6 +265,7 @@ const server = createServer((req, res) => {
 
 server.listen(port, () => {
   console.log(`رعاية is running at http://localhost:${port}`);
+  startBackupScheduler();
 });
 
 function shutdown(signal) {
