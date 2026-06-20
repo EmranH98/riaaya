@@ -28,11 +28,14 @@ services:
         value: 30
       - key: RIAAYA_OWNER_SYNC
         value: true
+      # SECRETS — never commit real values to this PUBLIC repo. Set them in the
+      # Render dashboard (Environment tab). `sync: false` tells Render to keep the
+      # dashboard value and never overwrite it from this file.
       - key: RIAAYA_OWNER_EMAIL
-        value: preview-owner@riaaya.local
+        sync: false
       - key: RIAAYA_OWNER_PASSWORD
-        value: PreviewOwner1!
+        sync: false
       - key: RIAAYA_ENCRYPTION_KEY
-        value: preview-free-riaaya-encryption-key-change-before-production
+        sync: false
       - key: ALLOWED_ORIGIN
         value: https://riaaya.onrender.com

@@ -148,6 +148,10 @@ const server = createServer(async (req, res) => {
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
   res.setHeader("X-Frame-Options", "DENY");
   res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  // Force HTTPS for a year (incl. subdomains) so sessions can't be downgraded to http.
+  if (process.env.NODE_ENV === "production") {
+    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  }
   res.setHeader(
     "Content-Security-Policy",
     "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self'; img-src 'self' data:; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
