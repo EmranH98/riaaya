@@ -154,6 +154,36 @@ async function run() {
   const newPw = await login(jar(), "admin-a@e2e.local", resetBody.temporaryPassword);
   ok(newPw.status === 200, "temporary password works after reset");
 
+  // ── Self-service password reset (email mock logs the link) ────────────────
+  const forgot = await (jar()).fetch("/api/auth/forgot-password", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: "reception-a@e2e.local" })
+  });
+  ok(forgot.status === 200, "forgot-password returns 200 (no account enumeration)");
+  // Unknown emails also return 200 (must not leak which emails exist).
+  const forgotUnknown = await (jar()).fetch("/api/auth/forgot-password", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: "nobody@e2e.local" })
+  });
+  ok(forgotUnknown.status === 200, "forgot-password for unknown email also returns 200");
+
+  await new Promise(r => setTimeout(r, 300)); // let the mock email log flush
+  const link = [...serverLog.matchAll(/link: (http\S+token=\S+)/g)].pop()?.[1];
+  ok(Boolean(link), "reset link is generated and logged in mock mode");
+  const resetToken = new URL(link).searchParams.get("token");
+  const doReset = await (jar()).fetch("/api/auth/reset-password", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token: resetToken, password: "FreshReset!2026X" })
+  });
+  ok(doReset.status === 200, "reset-password with a valid token + strong password succeeds");
+  const afterReset = await login(jar(), "reception-a@e2e.local", "FreshReset!2026X");
+  ok(afterReset.status === 200, "the new password logs in after self-service reset");
+  const reuse = await (jar()).fetch("/api/auth/reset-password", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token: resetToken, password: "Another!Pass2026X" })
+  });
+  ok(reuse.status === 401, "reset token is single-use (reuse rejected)");
+
   // ── Backup + restore round-trips against the live DB ──────────────────────
   const backup = createBackup({ databasePath: dbPath, directory: backupDir });
   ok(backup.userCount >= 3, "backup captures the seeded users");

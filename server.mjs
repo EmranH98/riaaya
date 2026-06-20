@@ -238,6 +238,10 @@ async function handleRequest(req, res) {
     url.pathname = "/auth.html";
   }
 
+  if (url.pathname === "/reset-password") {
+    url.pathname = "/reset-password.html";
+  }
+
   if (url.pathname === "/owner") {
     url.pathname = "/owner.html";
   }

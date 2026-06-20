@@ -246,11 +246,19 @@ h1 {
   margin-bottom: 14px;
   font-weight: 500;
 }
+/* The class sets display:flex, which would otherwise defeat the [hidden] attribute. */
+.auth-notice[hidden] { display: none !important; }
 .auth-notice--warn {
   background: rgba(180,110,0,0.08);
   border: 1px solid rgba(180,110,0,0.3);
   color: #7a4e00;
 }
+.auth-notice--ok {
+  background: rgba(10,124,92,0.08);
+  border: 1px solid rgba(10,124,92,0.3);
+  color: #0a6a4f;
+}
+.auth-notice a { color: inherit; font-weight: 800; }
 
 /* ── 2FA login step ───────────────────────────────────────────────────── */
 .twofactor-hint { color: #5a6a72; font-size: 13px; margin: 4px 0 14px; line-height: 1.7; }
