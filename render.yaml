@@ -24,8 +24,12 @@ services:
         value: /data/backups
       - key: RIAAYA_BACKUP_RETENTION
         value: 30
+      - key: RIAAYA_BACKUP_INTERVAL_HOURS
+        value: 6
       - key: RIAAYA_OWNER_SYNC
         value: true
+      - key: RIAAYA_ORIGIN
+        value: https://riaaya.onrender.com
       # SECRETS — never commit real values to this PUBLIC repo. Set them in the
       # Render dashboard (Environment tab). `sync: false` tells Render to keep the
       # dashboard value and never overwrite it from this file.
@@ -34,6 +38,20 @@ services:
       - key: RIAAYA_OWNER_PASSWORD
         sync: false
       - key: RIAAYA_ENCRYPTION_KEY
+        sync: false
+      - key: RIAAYA_RESEND_API_KEY
+        sync: false
+      - key: RIAAYA_EMAIL_FROM
+        sync: false
+      - key: RIAAYA_ALERT_WEBHOOK
+        sync: false
+      - key: LITESTREAM_ACCESS_KEY_ID
+        sync: false
+      - key: LITESTREAM_SECRET_ACCESS_KEY
+        sync: false
+      - key: LITESTREAM_BUCKET
+        sync: false
+      - key: LITESTREAM_ENDPOINT
         sync: false
       - key: ALLOWED_ORIGIN
         value: https://riaaya.onrender.com
