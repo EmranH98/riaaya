@@ -1,0 +1,24 @@
+name: CI
+
+# Runs syntax checks and the end-to-end test on every push/PR so regressions
+# (auth, tenant isolation, money model, backup/restore) are caught before deploy.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Install (no runtime deps; ignore scripts)
+        run: npm install --omit=dev --ignore-scripts || true
+      - name: Syntax + lint checks
+        run: npm run check
+      - name: End-to-end test
+        run: npm run e2e
