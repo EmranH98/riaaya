@@ -3014,6 +3014,7 @@ function filterBookingsForAccount(bookings) {
   const account = currentAccount();
   return bookings.filter(booking => (
     calendarDateAllowed(account, booking.date)
+    && bookingColumnAllowedForAccount(booking, account)
     && (
       (!account.ownEntriesOnly && account.calendarScope !== "assigned")
       || (account.staffId && (booking.doctorId === account.staffId || booking.specialistId === account.staffId))
@@ -3768,15 +3769,17 @@ function scheduleColumnIdFromLabel(label) {
 
 function renderScheduleColumnControls() {
   const columns = activeScheduleColumns();
+  const formColumns = scheduleColumnsForAccount();
   const slotMinutes = scheduleSlotMinutes();
   if (els.bookingColumnSelect) {
     const current = els.bookingColumnSelect.value;
-    els.bookingColumnSelect.innerHTML = columns
-      .map(column => `<option value="${column.id}">${column.label}</option>`)
-      .join("");
-    els.bookingColumnSelect.value = columns.some(column => column.id === current)
+    els.bookingColumnSelect.disabled = !formColumns.length;
+    els.bookingColumnSelect.innerHTML = formColumns.length
+      ? formColumns.map(column => `<option value="${column.id}">${column.label}</option>`).join("")
+      : `<option value="">لا توجد أعمدة تقويم متاحة لهذا الحساب</option>`;
+    els.bookingColumnSelect.value = formColumns.some(column => column.id === current)
       ? current
-      : columns[0]?.id || "";
+      : formColumns[0]?.id || "";
   }
 
   if (els.scheduleColumnList) {
@@ -5799,6 +5802,27 @@ function bookingScheduleColumns() {
   }));
 }
 
+function scheduleColumnsForAccount(account = currentAccount()) {
+  const columns = bookingScheduleColumns();
+  const allowedIds = Array.isArray(account?.allowedColumnIds) ? account.allowedColumnIds : [];
+  if (account?.role === "admin" || !allowedIds.length) return columns;
+  return columns.filter(column => allowedIds.includes(column.id));
+}
+
+function scheduleColumnAllowedForAccount(columnId, account = currentAccount()) {
+  if (!columnId || !bookingScheduleColumns().some(column => column.id === columnId)) return false;
+  const allowedIds = Array.isArray(account?.allowedColumnIds) ? account.allowedColumnIds : [];
+  if (account?.role === "admin" || !allowedIds.length) return true;
+  return allowedIds.includes(columnId);
+}
+
+function bookingColumnAllowedForAccount(booking, account = currentAccount()) {
+  const allowedIds = Array.isArray(account?.allowedColumnIds) ? account.allowedColumnIds : [];
+  if (account?.role === "admin" || !allowedIds.length) return true;
+  const columnId = bookingScheduleColumnId(booking, bookingScheduleColumns());
+  return allowedIds.includes(columnId);
+}
+
 function bookingScheduleColumnId(booking, columns) {
   if (columns.some(column => column.id === booking.scheduleColumnId)) return booking.scheduleColumnId;
   if (columns.some(column => column.id === "doctor") && booking.doctorId) return "doctor";
@@ -5859,11 +5883,7 @@ function renderBookingDayCalendar() {
   if (!els.bookingDayCalendar) return;
   const isEnglish = currentLanguage() === "en";
   const bookings = activeBookings();
-  const allColumns = bookingScheduleColumns();
-  const allowedIds = currentAccount()?.allowedColumnIds || [];
-  const columns = allowedIds.length
-    ? allColumns.filter(col => allowedIds.includes(col.id))
-    : allColumns;
+  const columns = scheduleColumnsForAccount();
   const slots = dayScheduleSlots(bookings);
   const grouped = new Map();
 
@@ -5916,18 +5936,28 @@ function renderBookingDayCalendar() {
     ? `${bookings.length} bookings on ${displayDate(state.settings.activeDate)}`
     : `${bookings.length} حجز في ${displayDate(state.settings.activeDate)}`;
   const slotMinutes = scheduleSlotMinutes();
-  const empty = bookings.length
+  const empty = !columns.length
+    ? `<div class="day-schedule-empty">${isEnglish ? "No calendar columns are available for this account." : "لا توجد أعمدة تقويم متاحة لهذا الحساب."}</div>`
+    : bookings.length
     ? ""
     : `<div class="day-schedule-empty">${isEnglish ? "No bookings are scheduled for this day yet." : "لا توجد حجوزات مجدولة لهذا اليوم بعد."}</div>`;
 
-  els.bookingDayCalendar.innerHTML = `
+  const titleHtml = `
     <div class="day-schedule-title">
       <div>
         <strong>${isEnglish ? "Day Calendar" : "تقويم اليوم"}</strong>
         <span>${summary}</span>
       </div>
       <span>${isEnglish ? `${slotMinutes}-minute slots` : `خانات كل ${slotMinutes} دقيقة`}</span>
-    </div>
+    </div>`;
+
+  if (!columns.length) {
+    els.bookingDayCalendar.innerHTML = `${titleHtml}${empty}`;
+    return;
+  }
+
+  els.bookingDayCalendar.innerHTML = `
+    ${titleHtml}
     ${empty}
     <div class="day-schedule-scroll">
       <div class="day-schedule-grid" style="--schedule-column-count: ${columns.length};">
@@ -5955,7 +5985,7 @@ function renderBookingList() {
   if (!els.bookingList) return;
 
   /* Pending online bookings (all dates, shown as inbox at top) */
-  const allBookings = state.bookings || [];
+  const allBookings = filterBookingsForAccount(state.bookings || []);
   const pendingOnline = allBookings.filter(b => b.status === "pending_confirmation");
   const pendingHtml = pendingOnline.length
     ? `<div class="pending-online-section">
@@ -9560,12 +9590,13 @@ if (els.bookingForm) {
       const service = getService(els.bookingServiceSelect.value);
       if (service) {
         els.bookingForm.elements.expectedAmount.value = service.defaultPrice || "";
+        const allowedColumns = scheduleColumnsForAccount();
         const suggestedColumn = bookingScheduleColumnId({
           serviceId: service.id,
           service: service.name,
           patient: els.bookingForm.elements.patient.value,
           notes: ""
-        }, bookingScheduleColumns());
+        }, allowedColumns);
         if (suggestedColumn) els.bookingForm.elements.scheduleColumnId.value = suggestedColumn;
       }
     }
@@ -9577,6 +9608,11 @@ if (els.bookingForm) {
     const data = Object.fromEntries(new FormData(els.bookingForm).entries());
     const service = getService(data.serviceId);
     const account = currentAccount();
+    if (!scheduleColumnAllowedForAccount(data.scheduleColumnId, account)) {
+      alert("هذا الحساب لا يملك صلاحية الحجز في عمود التقويم المختار.");
+      renderScheduleColumnControls();
+      return;
+    }
     if (!calendarDateAllowed(currentAccount(), data.date)) {
       alert("هذا التاريخ خارج نطاق التقويم المسموح لهذا الحساب.");
       return;
@@ -9634,7 +9670,7 @@ if (els.bookingForm) {
     els.bookingForm.elements.date.value = state.settings.activeDate;
     const selectedService = getService(els.bookingServiceSelect.value) || activeServices()[0];
     if (selectedService) els.bookingForm.elements.expectedAmount.value = selectedService.defaultPrice || "";
-    const firstColumn = activeScheduleColumns()[0];
+    const firstColumn = scheduleColumnsForAccount()[0];
     if (firstColumn) els.bookingForm.elements.scheduleColumnId.value = firstColumn.id;
     saveState();
     render();
@@ -11440,6 +11476,10 @@ document.querySelector("[data-print-payroll-report]")?.addEventListener("click",
     draggingId = null;
 
     if (!id || !newTime) return;
+    if (!scheduleColumnAllowedForAccount(newColumn)) {
+      showToast("لا تملك صلاحية نقل الحجز إلى هذا العمود.", "error");
+      return;
+    }
     const booking = (state.bookings || []).find(b => b.id === id);
     if (!booking) return;
 
