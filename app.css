@@ -1905,6 +1905,12 @@ td {
   font-weight: 900;
 }
 
+.payment-remaining-field input {
+  border-color: #f3c9c0;
+  background: #fff7f5;
+  color: #9a4435;
+}
+
 .payment-remaining {
   display: flex;
   flex-direction: column;

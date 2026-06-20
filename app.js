@@ -971,16 +971,21 @@ function asNumber(value) {
 }
 
 function cleanPaymentBreakdown(input = {}, fallbackMethod = "cash", fallbackAmount = 0) {
-  const raw = Array.isArray(input)
+  const isArray = Array.isArray(input);
+  const raw = isArray
     ? input.reduce((totals, row) => {
         const method = row.method || row.type || row.paymentMethod;
         if (PAYMENT_METHODS.includes(method)) totals[method] = numberValue(totals[method]) + numberValue(row.amount);
         return totals;
       }, {})
     : input && typeof input === "object" ? input : {};
+  // An explicit breakdown (even all-zeros, e.g. an unpaid visit) must be respected,
+  // so "لم يُدفع بعد" really records 0 paid instead of being assumed paid in full.
+  const hasExplicitBreakdown = isArray || PAYMENT_METHODS.some(method => raw[method] !== undefined);
   const breakdown = Object.fromEntries(PAYMENT_METHODS.map(method => [method, Math.max(numberValue(raw[method]), 0)]));
   const total = PAYMENT_METHODS.reduce((sum, method) => sum + breakdown[method], 0);
-  if (total > 0.009) return breakdown;
+  if (total > 0.009 || hasExplicitBreakdown) return breakdown;
+  // No payment data at all (legacy entry) → assume it was paid in full via the fallback method.
   const method = PAYMENT_METHODS.includes(fallbackMethod) ? fallbackMethod : "cash";
   return { cash: 0, card: 0, transfer: 0, [method]: Math.max(numberValue(fallbackAmount), 0) };
 }
@@ -1690,9 +1695,9 @@ const els = {
   operationModal: document.querySelector("[data-operation-modal]"),
   entryForm: document.querySelector("[data-entry-form]"),
   paymentQuickRow: document.querySelector("[data-payment-quick-row]"),
-  paymentRemaining: document.querySelector("[data-payment-remaining]"),
-  paymentRemainingValue: document.querySelector("[data-payment-remaining-value]"),
   paidAmountField: document.querySelector("[data-paid-amount-field]"),
+  remainingField: document.querySelector("[data-remaining-field]"),
+  remainingInput: document.querySelector("[data-remaining-input]"),
   operationPatientOptions: document.querySelector("[data-operation-patient-options]"),
   entryFilterForm: document.querySelector("[data-entry-filter-form]"),
   entryFilterService: document.querySelector("[data-entry-filter-service]"),
@@ -7591,10 +7596,10 @@ function allocatePaymentBreakdown(line, visitPayments, visitTotal) {
   return Object.fromEntries(PAYMENT_METHODS.map(method => [method, numberValue(visitPayments[method]) * ratio]));
 }
 
-// Show/hide the "paid now" box based on the payment-status toggle.
-//   completed → optional (empty = paid in full)
-//   partial   → primary input (what was collected so far)
-//   pending   → hidden (nothing collected)
+// Show/hide the paid/remaining boxes based on the payment-status toggle.
+//   completed → paid optional (empty = paid in full), no remaining
+//   partial   → paid + remaining both shown
+//   pending   → paid hidden (nothing collected), remaining = full balance owed
 function updatePaymentFieldsForStatus() {
   if (!els.entryForm) return;
   const status = els.entryForm.elements.status?.value || "completed";
@@ -7604,6 +7609,41 @@ function updatePaymentFieldsForStatus() {
     if (status === "pending_payment") paidInput.value = "";
     paidInput.placeholder = status === "completed" ? "كامل المبلغ" : "0";
   }
+  if (els.remainingField) els.remainingField.hidden = status === "completed";
+  if (status === "completed" && els.remainingInput && !els.remainingInput.dataset.touched) {
+    els.remainingInput.value = "";
+  }
+  syncRemainingField();
+}
+
+// Auto-fill the remaining box from (price − paid) while the user hasn't typed
+// their own remaining. Once they edit it, their value sticks.
+function syncRemainingField() {
+  if (!els.remainingInput || !els.entryForm) return;
+  const status = els.entryForm.elements.status?.value || "completed";
+  if (status === "completed") return;
+  if (els.remainingInput.dataset.touched) return;
+  const priceTotal = visitNetForLines();
+  if (!canViewSensitive() || priceTotal <= 0) return; // no catalog price → user types remaining
+  const paid = numberValue(els.entryForm.elements.paidAmount?.value);
+  els.remainingInput.value = Math.max(priceTotal - paid, 0).toFixed(2);
+}
+
+// Single source of truth for the visit's money figures from the form.
+function visitTotalsFromForm(lines = currentOperationLines()) {
+  const paid = paymentTotal(paymentBreakdownFromForm(lines));
+  const status = els.entryForm?.elements.status?.value || "completed";
+  const remainingRaw = String(els.entryForm?.elements.remainingAmount?.value ?? "").trim();
+  const hasRemaining = remainingRaw !== "" && status !== "completed";
+  const manualRemaining = hasRemaining ? Math.max(numberValue(remainingRaw), 0) : 0;
+  const priceTotal = visitNetForLines(lines);
+  // Total charged: explicit (paid + remaining) wins when the user gives a remaining;
+  // otherwise fall back to the catalog price, or just what was paid.
+  let total;
+  if (hasRemaining) total = paid + manualRemaining;
+  else if (canViewSensitive() && priceTotal > 0) total = priceTotal;
+  else total = paid;
+  return { paid, remaining: Math.max(total - paid, 0), total, priceTotal, hasRemaining };
 }
 
 function resetEntryFormDefaults() {
@@ -7614,6 +7654,8 @@ function resetEntryFormDefaults() {
   els.entryForm.elements.discount.value = 0;
   els.entryForm.elements.paymentMethod.value = "cash";
   if (els.entryForm.elements.paidAmount) els.entryForm.elements.paidAmount.value = "";
+  if (els.entryForm.elements.remainingAmount) els.entryForm.elements.remainingAmount.value = "";
+  if (els.remainingInput) delete els.remainingInput.dataset.touched;
   els.entryForm.elements.paidCash.value = "";
   els.entryForm.elements.paidCard.value = "";
   els.entryForm.elements.paidTransfer.value = "";
@@ -7680,26 +7722,17 @@ function closeOperationModal({ restoreView = "" } = {}) {
   if (target && target !== "entries" && canView(target)) setView(target);
 }
 
-function updatePaymentRemainingDisplay(net = 0, unpaid = 0) {
-  if (!els.paymentRemaining) return;
-  // Show a live "remaining" figure only when there is a known charge to subtract from.
-  const showRemaining = canViewSensitive() && net > 0.009;
-  els.paymentRemaining.hidden = !showRemaining;
-  if (showRemaining && els.paymentRemainingValue) {
-    els.paymentRemainingValue.textContent = money(unpaid);
-    els.paymentRemaining.classList.toggle("settled", unpaid <= 0.009);
-  }
-}
-
 function updateEntryPreview() {
   if (!els.entryPreview || !els.entryForm) return;
   const lines = currentOperationLines();
   if (!lines.length) {
     els.entryPreview.classList.remove("warning");
     els.entryPreview.textContent = "اختر خدمة وأضفها إلى الزيارة.";
-    updatePaymentRemainingDisplay(0, 0);
     return;
   }
+
+  // Keep the remaining box in sync with price − paid (until the user types their own).
+  syncRemainingField();
 
   const data = Object.fromEntries(new FormData(els.entryForm).entries());
   const account = currentAccount();
@@ -7714,17 +7747,16 @@ function updateEntryPreview() {
     specialistId,
     paymentMethod: data.paymentMethod || "cash"
   }, state.services));
-  const net = previewEntries.reduce((sum, entry) => sum + netAmount(entry), 0);
-  const payments = paymentBreakdownFromForm(lines);
-  const paid = paymentTotal(payments);
-  const unpaid = Math.max(net - paid, 0);
+  const totals = visitTotalsFromForm(lines);
+  const net = totals.total;
+  const paid = totals.paid;
+  const unpaid = totals.remaining;
   const overpaid = paid - net > 0.009;
   els.entryPreview.classList.toggle("warning", overpaid);
-  updatePaymentRemainingDisplay(net, unpaid);
 
   if (!canViewSensitive()) {
-    els.entryPreview.textContent = overpaid
-      ? `المدفوع ${money(paid)} — أعلى من قيمة الخدمات. سيُسجَّل المبلغ الفعلي.`
+    els.entryPreview.textContent = unpaid > 0.009
+      ? `المدفوع ${money(paid)} | المتبقي ${money(unpaid)}.`
       : `${lines.length} ${lines.length === 1 ? "عملية" : "عمليات"} في هذه الزيارة. المدفوع ${money(paid)}.`;
     return;
   }
@@ -7734,9 +7766,9 @@ function updateEntryPreview() {
     .reduce((sum, row) => sum + row.payout, 0);
   els.entryPreview.innerHTML = `
     <span>${lines.length} ${lines.length === 1 ? "عملية" : "عمليات"}</span>
-    <span>قيمة الخدمات <strong>${money(net)}</strong></span>
+    <span>الإجمالي <strong>${money(net)}</strong></span>
     <span>المدفوع <strong>${money(paid)}</strong>${unpaid ? ` | المتبقي ${money(unpaid)}` : ""}</span>
-    ${overpaid ? `<span>تنبيه: المدفوع أعلى من قيمة الزيارة بـ <strong>${money(paid - net)}</strong></span>` : ""}
+    ${overpaid ? `<span>تنبيه: المدفوع أعلى من الإجمالي بـ <strong>${money(paid - net)}</strong></span>` : ""}
     <span>مستحقات الفريق <strong>${money(payoutTotal)}</strong></span>
   `;
 }
@@ -9345,7 +9377,11 @@ function initPaymentStatusToggle() {
 initPaymentStatusToggle();
 
 if (els.entryForm) {
-  els.entryForm.addEventListener("input", updateEntryPreview);
+  els.entryForm.addEventListener("input", event => {
+    // Once the user types their own remaining, stop auto-filling it from price − paid.
+    if (event.target === els.remainingInput) els.remainingInput.dataset.touched = "1";
+    updateEntryPreview();
+  });
   els.entryForm.addEventListener("change", event => {
     if (event.target === els.serviceSelect) {
       const service = getService(els.serviceSelect.value);
@@ -9358,6 +9394,8 @@ if (els.entryForm) {
         }
         const costInput = els.entryForm.querySelector("[data-cost-input]");
         if (costInput) costInput.value = service.defaultCost || 0;
+        // New service → let the remaining auto-recompute from the new price.
+        if (els.remainingInput) delete els.remainingInput.dataset.touched;
       }
     }
     if (event.target === els.doctorSelect) {
@@ -9632,21 +9670,21 @@ els.entryForm.addEventListener("submit", event => {
   const visitId = nextId("visit");
   const createdAt = new Date().toISOString();
   const visitPayments = paymentBreakdownFromForm(lines);
-  const totalPaid = paymentTotal(visitPayments);
-  // For non-managers: amount = what was actually paid (no catalog price enforced).
-  // For managers: amount = the set price (may differ from paid for partial/outstanding tracking).
-  const effectiveVisitTotal = canViewSensitive()
-    ? visitNetForLines(lines) || totalPaid
-    : totalPaid;
+  const totals = visitTotalsFromForm(lines);
+  const totalPaid = totals.paid;
+  const effectiveVisitTotal = totals.total;
+  // Use the explicit paid+remaining total when the user gave a remaining (the simple
+  // model the user asked for), or for non-managers. Managers without a remaining keep
+  // per-line catalog pricing so multi-service receipts stay itemised.
+  const useExplicitTotal = totals.hasRemaining || !canViewSensitive();
   const newEntries = lines.map(line => {
-    const lineWeight = effectiveVisitTotal
-      ? (canViewSensitive()
-          ? Math.max(numberValue(line.amount) - numberValue(line.discount), 0)
-          : 1 / lines.length)
-      : 1 / lines.length;
-    const lineAmount = canViewSensitive()
-      ? line.amount
-      : totalPaid * lineWeight * lines.length; // distribute evenly for non-managers
+    const linePrice = Math.max(numberValue(line.amount) - numberValue(line.discount), 0);
+    const weight = totals.priceTotal > 0 ? (linePrice / totals.priceTotal) : (1 / lines.length);
+    const lineAmount = useExplicitTotal ? effectiveVisitTotal * weight : line.amount;
+    const lineDiscount = useExplicitTotal ? 0 : line.discount;
+    const linePayments = Object.fromEntries(
+      PAYMENT_METHODS.map(method => [method, numberValue(visitPayments[method]) * weight])
+    );
     return normalizeEntry({
     ...line,
     id: nextId("entry"),
@@ -9661,11 +9699,11 @@ els.entryForm.addEventListener("submit", event => {
     doctorRate: doctorRateOverride || 0,
     doctorModel: doctorRateOverride > 0 ? doctorModelOverride : "",
     quantity: line.quantity,
-    unitPrice: canViewSensitive() ? line.unitPrice : lineAmount / (line.quantity || 1),
+    unitPrice: lineAmount / (line.quantity || 1),
     amount: lineAmount,
     cost: line.cost,
-    discount: canViewSensitive() ? line.discount : 0,
-    paymentBreakdown: allocatePaymentBreakdown(line, visitPayments, effectiveVisitTotal),
+    discount: lineDiscount,
+    paymentBreakdown: linePayments,
     paymentMethod: paymentMethodFromBreakdown(visitPayments, data.paymentMethod),
     status,
     bookingId: data.bookingId || "",
@@ -9886,6 +9924,8 @@ function fillEntryFromBooking(bookingId) {
   els.entryForm.elements.discount.value = 0;
   els.entryForm.elements.paymentMethod.value = "cash";
   if (els.entryForm.elements.paidAmount) els.entryForm.elements.paidAmount.value = "";
+  if (els.entryForm.elements.remainingAmount) els.entryForm.elements.remainingAmount.value = "";
+  if (els.remainingInput) delete els.remainingInput.dataset.touched;
   els.entryForm.elements.paidCash.value = "";
   els.entryForm.elements.paidCard.value = "";
   els.entryForm.elements.paidTransfer.value = "";

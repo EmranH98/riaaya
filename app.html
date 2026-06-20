@@ -447,10 +447,10 @@
                     المدفوع الآن
                     <input name="paidAmount" type="number" min="0" step="0.01" placeholder="0">
                   </label>
-                  <div class="payment-remaining" data-payment-remaining hidden>
-                    <span>المتبقي</span>
-                    <strong data-payment-remaining-value>0</strong>
-                  </div>
+                  <label class="payment-remaining-field" data-remaining-field hidden>
+                    المتبقي على المريض
+                    <input name="remainingAmount" type="number" min="0" step="0.01" placeholder="0" data-remaining-input>
+                  </label>
                 </div>
                 <details class="payment-split-advanced">
                   <summary>دفع بأكثر من طريقة؟ (اختياري)</summary>
