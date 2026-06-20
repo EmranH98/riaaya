@@ -1,5 +1,10 @@
-# Litestream — continuous off-site replication of the SQLite database.
-# Activates only when the env vars below are set; safe to commit (no secrets here).
+# Optional Litestream config for future continuous SQLite replication.
+# Current production off-site backups are handled by lib/offsite-backup.js:
+# every verified backup snapshot is uploaded to the S3-compatible bucket
+# configured with the env vars below.
+#
+# This file is kept for a later upgrade to point-in-time Litestream restore.
+# It does not activate by itself.
 #
 # To enable on Render:
 #   1. Create an S3 / Backblaze B2 / Cloudflare R2 bucket.

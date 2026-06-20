@@ -15,9 +15,22 @@ RIAAYA_BACKUP_INTERVAL_HOURS=6
 The server then snapshots ~1 min after boot and every 6h. Failures are logged as `[backup-scheduler] ✗ BACKUP FAILED` — wire a log alert to that string.
 
 ### Off-site copies (required before 100 clinics)
-On-disk backups die with the disk. Ship them off the box with **Litestream** (continuous SQLite replication to S3-compatible storage) — see `litestream.yml`. You provide:
-- An S3 (or Backblaze B2 / Cloudflare R2) bucket
-- `LITESTREAM_ACCESS_KEY_ID` / `LITESTREAM_SECRET_ACCESS_KEY` in Render env
+On-disk backups die with the disk. RIAAYA can upload each verified backup snapshot to an S3-compatible bucket after `VACUUM INTO` and integrity verification succeeds.
+
+Set these in Render:
+```
+LITESTREAM_BUCKET=your-bucket-name
+LITESTREAM_ENDPOINT=https://your-s3-compatible-endpoint
+LITESTREAM_ACCESS_KEY_ID=...
+LITESTREAM_SECRET_ACCESS_KEY=...
+LITESTREAM_REGION=auto
+LITESTREAM_PREFIX=riaaya/backups
+```
+
+Cloudflare R2 works well for a small pilot. Each backup upload writes:
+- `riaaya/backups/riaaya-<timestamp>.sqlite`
+- `riaaya/backups/latest.json`
+
 Until off-site is on, **also** download a backup weekly to your own laptop.
 
 ## 2. Restore
@@ -46,6 +59,6 @@ A backup you have never restored is not a backup. This exact flow is covered by 
 
 ## 4. What is NOT yet automated (your action)
 - [ ] Set `RIAAYA_BACKUP_INTERVAL_HOURS` in Render.
-- [ ] Provision an off-site bucket + Litestream creds.
+- [ ] Provision an off-site bucket + S3-compatible credentials.
 - [ ] Put a monthly restore-drill reminder on the calendar.
 - [ ] For 100 clinics, evaluate managed Postgres with point-in-time recovery (see roadmap).

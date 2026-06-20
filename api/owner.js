@@ -19,6 +19,7 @@ import {
 import { requireSession } from "./auth.js";
 import { clientIp, hashPassword, isValidEmail, normalizeEmail, safeText, temporaryPassword, validatePassword } from "../lib/security.js";
 import { storageReadiness } from "../lib/storage-policy.js";
+import { offsiteBackupStatus } from "../lib/offsite-backup.js";
 
 function sendJson(res, statusCode, payload) {
   res.statusCode = statusCode;
@@ -252,6 +253,7 @@ function productionReadiness(req, res) {
   const auth = requireSession(req, res, { owner: true });
   if (!auth) return;
   const backup = backupStatus();
+  const offsiteBackup = offsiteBackupStatus();
   const readiness = storageReadiness({
     databasePath,
     backupPath: process.env.RIAAYA_BACKUP_DIR || ""
@@ -282,6 +284,14 @@ function productionReadiness(req, res) {
       detail: backup.latestBackup
         ? `آخر نسخة: ${basename(backup.latestBackup.name)} في ${backup.latestBackup.modifiedAt}`
         : backup.warning || "لا توجد نسخة حديثة بعد"
+    },
+    {
+      id: "offsite-backup",
+      label: "نسخة احتياطية خارج الخادم",
+      ok: offsiteBackup.configured,
+      detail: offsiteBackup.configured
+        ? `مفعلة إلى ${offsiteBackup.bucket}/${offsiteBackup.prefix}`
+        : offsiteBackup.warning
     },
     {
       id: "owner-2fa",
@@ -319,6 +329,7 @@ function productionReadiness(req, res) {
       demoOnly: readiness.demoOnly || readiness.deploymentMode === "preview"
     },
     backup,
+    offsiteBackup,
     security: {
       ownerAccounts: ownerRows.length,
       ownerTwoFactorCount,

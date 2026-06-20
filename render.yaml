@@ -53,5 +53,9 @@ services:
         sync: false
       - key: LITESTREAM_ENDPOINT
         sync: false
+      - key: LITESTREAM_REGION
+        value: auto
+      - key: LITESTREAM_PREFIX
+        value: riaaya/backups
       - key: ALLOWED_ORIGIN
         value: https://riaaya.onrender.com
