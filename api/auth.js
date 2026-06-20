@@ -21,6 +21,7 @@ import {
   verifyPassword
 } from "../lib/security.js";
 import { generateBackupCodes, generateTotpSecret, otpauthUrl, verifyTotp } from "../lib/totp.js";
+import { sendEmail } from "../lib/email.js";
 
 // Short-lived challenges for the second factor: a verified password earns a
 // challenge id, which must be exchanged for a real session by submitting a code.
@@ -513,6 +514,91 @@ function disableTwoFactor(req, res) {
   sendJson(res, 200, { ok: true });
 }
 
+function forgotPassword(req, res) {
+  const email = normalizeEmail(req.body?.email || "");
+  if (!email) {
+    sendJson(res, 400, { error: "email_required" });
+    return;
+  }
+  const user = db.prepare("select id, email, clinic_id from users where email = ?").get(email);
+  if (!user) {
+    // Don't leak whether the email exists — say we sent it either way
+    sendJson(res, 200, { ok: true, message: "Check your email if an account exists" });
+    return;
+  }
+  const token = randomToken(32);
+  const hash = tokenHash(token);
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour
+  db.prepare(`
+    insert or replace into password_reset_tokens (token_hash, user_id, expires_at, created_at)
+    values (?, ?, ?, ?)
+  `).run(hash, user.id, expiresAt, nowIso());
+
+  // Clean up expired tokens
+  db.prepare("delete from password_reset_tokens where expires_at < ?").run(nowIso());
+
+  const resetLink = `${process.env.RIAAYA_ORIGIN || "https://riaaya.onrender.com"}/reset-password?token=${token}`;
+  const html = `
+    <p>مرحباً،</p>
+    <p>طلبت تغيير كلمة المرور الخاصة بك. اضغط الزر أدناه لإعادة تعيينها:</p>
+    <p><a href="${resetLink}" style="display:inline-block;padding:12px 24px;background:#0a7c5c;color:white;text-decoration:none;border-radius:6px;">إعادة تعيين كلمة المرور</a></p>
+    <p>الرابط صالح لمدة ساعة واحدة. إذا لم تطلب هذا، تجاهل هذا البريد.</p>
+    <p>—<br/>فريق رعاية</p>
+  `;
+
+  sendEmail({
+    to: user.email,
+    subject: "إعادة تعيين كلمة المرور — رعاية",
+    html
+  }).catch(err => {
+    console.error("[forgot-password] email send failed:", err.message);
+  });
+
+  sendJson(res, 200, { ok: true, message: "Check your email if an account exists" });
+}
+
+function resetPassword(req, res) {
+  const token = String(req.body?.token || "").trim();
+  const newPassword = String(req.body?.password || "");
+  if (!token || !newPassword) {
+    sendJson(res, 400, { error: "token_and_password_required" });
+    return;
+  }
+  if (!validatePassword(newPassword)) {
+    sendJson(res, 400, { error: "weak_password" });
+    return;
+  }
+  const hash = tokenHash(token);
+  const resetToken = db.prepare(`
+    select user_id, expires_at from password_reset_tokens where token_hash = ?
+  `).get(hash);
+  if (!resetToken || new Date(resetToken.expires_at) < new Date()) {
+    sendJson(res, 401, { error: "invalid_or_expired_token" });
+    return;
+  }
+  const user = db.prepare("select id, clinic_id from users where id = ?").get(resetToken.user_id);
+  if (!user) {
+    sendJson(res, 404, { error: "user_not_found" });
+    return;
+  }
+
+  db.prepare("update users set password_hash = ?, must_change_password = 0, updated_at = ? where id = ?")
+    .run(hashPassword(newPassword), nowIso(), user.id);
+  db.prepare("delete from password_reset_tokens where token_hash = ?").run(hash);
+  db.prepare("delete from sessions where user_id = ?").run(user.id);
+
+  audit({
+    clinicId: user.clinic_id,
+    userId: user.id,
+    action: "reset_password",
+    entity: "user",
+    entityId: user.id,
+    ipAddress: clientIp(req)
+  });
+
+  sendJson(res, 200, { ok: true });
+}
+
 export default async function authHandler(req, res, url) {
   if (req.method === "GET" && url.pathname === "/api/auth/session") {
     const auth = authenticateRequest(req);
@@ -551,6 +637,14 @@ export default async function authHandler(req, res, url) {
   }
   if (req.method === "POST" && url.pathname === "/api/auth/change-password") {
     changePassword(req, res);
+    return;
+  }
+  if (req.method === "POST" && url.pathname === "/api/auth/forgot-password") {
+    forgotPassword(req, res);
+    return;
+  }
+  if (req.method === "POST" && url.pathname === "/api/auth/reset-password") {
+    resetPassword(req, res);
     return;
   }
   sendJson(res, 404, { error: "auth_route_not_found" });

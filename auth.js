@@ -1,6 +1,7 @@
 const tabs = document.querySelectorAll("[data-auth-tab]");
 const loginForm = document.querySelector("[data-login-form]");
 const registerForm = document.querySelector("[data-register-form]");
+const forgotForm = document.querySelector("[data-forgot-form]");
 const twoFactorForm = document.querySelector("[data-twofactor-form]");
 
 function setTab(name) {
@@ -9,8 +10,10 @@ function setTab(name) {
   twoFactorForm.classList.remove("active");
   loginForm.hidden = false;
   registerForm.hidden = false;
+  if (forgotForm) forgotForm.hidden = false;
   loginForm.classList.toggle("active", name === "login");
   registerForm.classList.toggle("active", name === "register");
+  if (forgotForm) forgotForm.classList.toggle("active", name === "forgot");
 }
 
 tabs.forEach(tab => tab.addEventListener("click", () => setTab(tab.dataset.authTab)));
@@ -56,6 +59,7 @@ function errorLabel(error) {
     too_many_2fa_attempts: "محاولات كثيرة. سجّل الدخول من جديد.",
     invalid_challenge: "جلسة التحقق غير صالحة. سجّل الدخول من جديد.",
     invalid_2fa_setup: "إعداد المصادقة الثنائية يحتاج إعادة ضبط. استخدم رمز احتياط أو تواصل مع مدير النظام.",
+    email_required: "أدخل بريدك الإلكتروني.",
     server_error: "حدث خطأ في الخادم. حاول مرة أخرى بعد لحظات."
   };
   return labels[error.message] || "تعذر إكمال الطلب الآن.";
@@ -150,6 +154,27 @@ registerForm.addEventListener("submit", async event => {
     button.disabled = false;
   }
 });
+
+if (forgotForm) {
+  forgotForm.addEventListener("submit", async event => {
+    event.preventDefault();
+    const button = forgotForm.querySelector("button[type='submit']");
+    const status = document.querySelector("[data-forgot-status]");
+    button.disabled = true;
+    statusMessage(status, "جاري إرسال الرابط...");
+    try {
+      const data = Object.fromEntries(new FormData(forgotForm).entries());
+      await authRequest("/api/auth/forgot-password", data);
+      statusMessage(status, "تحقق من بريدك الإلكتروني — الرابط صالح لمدة ساعة واحدة.", true);
+      forgotForm.reset();
+    } catch (error) {
+      statusMessage(status, errorLabel(error));
+    } finally {
+      button.disabled = false;
+    }
+  });
+  forgotForm.querySelector("[data-forgot-cancel]")?.addEventListener("click", () => setTab("login"));
+}
 
 fetch("/api/auth/session")
   .then(response => response.json())

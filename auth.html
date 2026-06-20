@@ -43,6 +43,7 @@
       <div class="auth-tabs" role="tablist" aria-label="الدخول أو التسجيل">
         <button class="active" type="button" data-auth-tab="login">تسجيل الدخول</button>
         <button type="button" data-auth-tab="register">إنشاء حساب عيادة</button>
+        <button type="button" data-auth-tab="forgot">نسيت كلمة المرور؟</button>
       </div>
 
       <form class="auth-form active" data-login-form>
@@ -123,6 +124,21 @@
         </label>
         <button class="primary-action" type="submit">إنشاء الحساب وبدء التجربة</button>
         <p class="form-status" data-register-status aria-live="polite"></p>
+      </form>
+
+      <form class="auth-form" data-forgot-form hidden>
+        <div class="form-heading">
+          <p class="eyebrow">استعادة الدخول</p>
+          <h2>أدخل بريدك الإلكتروني</h2>
+        </div>
+        <p class="forgot-hint">سنرسل لك رابط لإعادة تعيين كلمة المرور. الرابط صالح لمدة ساعة واحدة.</p>
+        <label>
+          البريد الإلكتروني
+          <input name="email" type="email" autocomplete="username" required>
+        </label>
+        <button class="primary-action" type="submit">إرسال رابط الاستعادة</button>
+        <button class="ghost-action" type="button" data-forgot-cancel>رجوع إلى الدخول</button>
+        <p class="form-status" data-forgot-status aria-live="polite"></p>
       </form>
     </section>
   </main>

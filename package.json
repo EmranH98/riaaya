@@ -12,7 +12,7 @@
     "backup": "node scripts/backup-database.mjs",
     "restore": "node scripts/restore-database.mjs",
     "build": "node scripts/build-static.mjs",
-    "check": "node --check lib/security.js && node --check lib/storage-policy.js && node --check lib/totp.js && node --check lib/backup.js && node --check lib/backup-scheduler.js && node --check lib/database.js && node --check api/communications.js && node --check api/auth.js && node --check api/clinic.js && node --check api/owner.js && node --check api/public.js && node --check auth.js && node --check owner.js && node --check app.js && node --check scripts/backup-database.mjs && node --check scripts/restore-database.mjs && node --check scripts/preflight-production.mjs && node --check scripts/smoke-test.mjs && node --check scripts/e2e-test.mjs && node --check server.mjs",
+    "check": "node --check lib/security.js && node --check lib/storage-policy.js && node --check lib/totp.js && node --check lib/backup.js && node --check lib/backup-scheduler.js && node --check lib/email.js && node --check lib/database.js && node --check api/communications.js && node --check api/auth.js && node --check api/clinic.js && node --check api/owner.js && node --check api/public.js && node --check auth.js && node --check reset-password.js && node --check owner.js && node --check app.js && node --check scripts/backup-database.mjs && node --check scripts/restore-database.mjs && node --check scripts/preflight-production.mjs && node --check scripts/smoke-test.mjs && node --check scripts/e2e-test.mjs && node --check server.mjs",
     "smoke": "node scripts/smoke-test.mjs",
     "e2e": "node scripts/e2e-test.mjs",
     "test": "npm run check && npm run e2e",
