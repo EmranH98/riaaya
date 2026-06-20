@@ -403,10 +403,15 @@ function verifyTwoFactor(req, res) {
     sendJson(res, 401, { error: "invalid_challenge" });
     return;
   }
-  const secret = decryptSecret(user.totp_secret_cipher);
-  const ok = verifyTotp(secret, code) || consumeBackupCode(user, code);
+  let secret = "";
+  try {
+    secret = decryptSecret(user.totp_secret_cipher);
+  } catch (error) {
+    console.error("Unable to decrypt 2FA secret for user", user.id, error?.message || error);
+  }
+  const ok = (secret && verifyTotp(secret, code)) || consumeBackupCode(user, code);
   if (!ok) {
-    sendJson(res, 401, { error: "invalid_2fa_code" });
+    sendJson(res, 401, { error: secret ? "invalid_2fa_code" : "invalid_2fa_setup" });
     return;
   }
   twoFactorChallenges.delete(challengeId);

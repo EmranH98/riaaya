@@ -141,7 +141,22 @@ function sendHealth(res) {
   }
 }
 
-const server = createServer(async (req, res) => {
+function sendUnhandledError(req, res, error) {
+  console.error("Unhandled request error", req.method, req.url, error?.stack || error);
+  if (res.headersSent) {
+    res.end();
+    return;
+  }
+  const pathname = new URL(req.url || "/", `http://${req.headers.host}`).pathname;
+  const isApi = pathname.startsWith("/api/");
+  res.writeHead(500, {
+    "Content-Type": isApi ? "application/json; charset=utf-8" : "text/plain; charset=utf-8",
+    "Cache-Control": "no-store"
+  });
+  res.end(isApi ? JSON.stringify({ error: "server_error" }) : "Internal server error");
+}
+
+async function handleRequest(req, res) {
   const url = new URL(req.url || "/", `http://${req.headers.host}`);
 
   res.setHeader("X-Content-Type-Options", "nosniff");
@@ -241,6 +256,10 @@ const server = createServer(async (req, res) => {
     res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
     res.end("Not found");
   }
+}
+
+const server = createServer((req, res) => {
+  handleRequest(req, res).catch(error => sendUnhandledError(req, res, error));
 });
 
 server.listen(port, () => {

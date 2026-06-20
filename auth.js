@@ -1,9 +1,14 @@
 const tabs = document.querySelectorAll("[data-auth-tab]");
 const loginForm = document.querySelector("[data-login-form]");
 const registerForm = document.querySelector("[data-register-form]");
+const twoFactorForm = document.querySelector("[data-twofactor-form]");
 
 function setTab(name) {
   tabs.forEach(tab => tab.classList.toggle("active", tab.dataset.authTab === name));
+  twoFactorForm.hidden = true;
+  twoFactorForm.classList.remove("active");
+  loginForm.hidden = false;
+  registerForm.hidden = false;
   loginForm.classList.toggle("active", name === "login");
   registerForm.classList.toggle("active", name === "register");
 }
@@ -26,7 +31,13 @@ async function authRequest(path, payload) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
   });
-  const result = await response.json();
+  const text = await response.text();
+  let result = {};
+  try {
+    result = text ? JSON.parse(text) : {};
+  } catch {
+    result = { error: response.ok ? "" : "server_error" };
+  }
   if (!response.ok) throw new Error(result.error || "request_failed");
   return result;
 }
@@ -41,24 +52,33 @@ function errorLabel(error) {
     missing_registration_fields: "أكمل جميع الحقول المطلوبة.",
     invalid_2fa_code: "الرمز غير صحيح. حاول مرة أخرى.",
     challenge_expired: "انتهت مهلة التحقق. سجّل الدخول من جديد.",
-    too_many_2fa_attempts: "محاولات كثيرة. سجّل الدخول من جديد."
+    too_many_2fa_attempts: "محاولات كثيرة. سجّل الدخول من جديد.",
+    invalid_challenge: "جلسة التحقق غير صالحة. سجّل الدخول من جديد.",
+    invalid_2fa_setup: "إعداد المصادقة الثنائية يحتاج إعادة ضبط. استخدم رمز احتياط أو تواصل مع مدير النظام.",
+    server_error: "حدث خطأ في الخادم. حاول مرة أخرى بعد لحظات."
   };
   return labels[error.message] || "تعذر إكمال الطلب الآن.";
 }
 
-const twoFactorForm = document.querySelector("[data-twofactor-form]");
 let pendingChallengeId = "";
 
 function showTwoFactorStep() {
   loginForm.hidden = true;
+  registerForm.hidden = true;
+  loginForm.classList.remove("active");
+  registerForm.classList.remove("active");
   twoFactorForm.hidden = false;
+  twoFactorForm.classList.add("active");
   twoFactorForm.querySelector("input[name='code']").focus();
 }
 
 function showLoginStep() {
   pendingChallengeId = "";
   twoFactorForm.hidden = true;
+  twoFactorForm.classList.remove("active");
   loginForm.hidden = false;
+  registerForm.hidden = false;
+  setTab("login");
   twoFactorForm.reset();
 }
 
