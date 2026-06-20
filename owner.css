@@ -295,6 +295,20 @@ input, select { min-height: 42px; border: 1px solid var(--line); padding: 8px 10
 .dialog-actions button:last-of-type { border: 1px solid var(--line); min-height: 40px; padding: 0 14px; background: white; cursor: pointer; }
 .dialog-actions span { color: var(--muted); font-size: 13px; }
 
+/* ── Owner self 2FA panel ─────────────────────────────────── */
+.owner-2fa-panel .status-pill.suspended { background: #fff0ed; color: var(--danger) !important; }
+.owner-2fa-step { margin-top: 14px; display: grid; gap: 10px; max-width: 520px; }
+.owner-2fa-steps { margin: 0; padding-inline-start: 18px; color: var(--ink); font-size: 13px; line-height: 1.7; }
+.owner-2fa-primary { border: 0; min-height: 40px; padding: 0 18px; background: var(--teal); color: white; cursor: pointer; font-weight: 800; }
+.owner-2fa-primary:disabled { opacity: .6; cursor: wait; }
+.owner-2fa-secret { display: block; direction: ltr; text-align: center; font: 800 18px ui-monospace, Menlo, monospace; letter-spacing: 2px; background: #f4f8f6; border: 1px dashed var(--line); padding: 12px; user-select: all; }
+.owner-2fa-code-label { display: grid; gap: 5px; color: var(--muted); font-size: 12px; font-weight: 800; }
+.owner-2fa-code-label input { min-height: 42px; border: 1px solid var(--line); padding: 8px 10px; direction: ltr; text-align: center; font-size: 18px; letter-spacing: 3px; }
+.owner-2fa-warn { background: #e9f7ef; border: 1px solid #b6e2c8; padding: 12px; color: #0a5c43; font-size: 13px; }
+.owner-2fa-backup-codes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.owner-2fa-backup-codes code { direction: ltr; text-align: center; font: 800 15px ui-monospace, Menlo, monospace; background: #f4f8f6; border: 1px solid var(--line); padding: 8px; user-select: all; }
+[data-owner-2fa-otpauth] { direction: ltr; word-break: break-all; font-size: 11px; color: var(--muted); }
+
 .clinic-customizer {
   grid-column: 1 / -1;
   border-top: 1px solid var(--line);

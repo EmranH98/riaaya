@@ -57,28 +57,6 @@ const DEFAULT_LIMITS = {
   enterprise: { maxUsers: 100, maxPatients: 100000, maxMonthlySms: 10000, maxBranches: 20 }
 };
 
-let disableUser2faOpenLocked = false;
-
-function handleDisableUser2faOpen(event) {
-  const button = event.target.closest?.("[data-disable-user-2fa]");
-  if (!button) return;
-  event.preventDefault();
-  event.stopPropagation();
-  if (disableUser2faOpenLocked) return;
-  disableUser2faOpenLocked = true;
-  setTimeout(() => {
-    disableUser2faOpenLocked = false;
-  }, 500);
-  openDisableUser2faDialog(button.dataset.disableUser2fa);
-}
-
-document.addEventListener("pointerdown", handleDisableUser2faOpen, true);
-document.addEventListener("click", handleDisableUser2faOpen, true);
-document.addEventListener("keydown", event => {
-  if (event.key !== "Enter" && event.key !== " ") return;
-  handleDisableUser2faOpen(event);
-}, true);
-
 function statusLabel(status) {
   return { trial: "تجربة", active: "فعالة", suspended: "موقوفة", cancelled: "ملغاة" }[status] || status;
 }
@@ -161,7 +139,7 @@ function renderClinics() {
         <button type="button" data-save-clinic="${clinic.id}">حفظ التغييرات</button>
         <button class="secondary-control" type="button" data-reset-clinic-password="${clinic.id}">كلمة مرور مؤقتة للمدير</button>
         <button class="secondary-control" type="button" data-reset-user-password="${clinic.id}">إعادة كلمة مرور موظف</button>
-        <button class="secondary-control" type="button" data-disable-user-2fa="${clinic.id}">إيقاف 2FA لمستخدم</button>
+        <button class="secondary-control" type="button" data-disable-user-twofa="${clinic.id}">إيقاف 2FA لمستخدم</button>
         <button class="secondary-control" type="button" data-send-notify="${clinic.id}">إرسال إشعار</button>
         <button class="secondary-control" type="button" data-override-settings="${clinic.id}">تعديل إعدادات التطبيق</button>
         <a class="secondary-control" href="/api/owner/clinics/${clinic.id}/export" target="_blank" rel="noreferrer">تصدير البيانات</a>
@@ -202,13 +180,6 @@ function renderClinics() {
       </details>
     </div>
   `).join("") : `<div class="empty">لا توجد عيادات مطابقة.</div>`;
-  clinicList.querySelectorAll("[data-disable-user-2fa]").forEach(button => {
-    button.addEventListener("click", event => {
-      event.preventDefault();
-      event.stopPropagation();
-      openDisableUser2faDialog(button.dataset.disableUser2fa);
-    });
-  });
 }
 
 function renderAudit() {
@@ -374,7 +345,115 @@ async function loadOwner() {
   renderAudit();
   renderReadiness();
   renderLandingSettings();
+  renderOwner2fa(Boolean(ownerSession.user?.twoFactorEnabled));
 }
+
+// ── Owner account two-factor authentication (self-enrollment) ────────────────
+const owner2fa = {
+  panel: document.querySelector("[data-owner-2fa-panel]"),
+  badge: document.querySelector("[data-owner-2fa-badge]"),
+  disabled: document.querySelector("[data-owner-2fa-disabled]"),
+  enabled: document.querySelector("[data-owner-2fa-enabled]"),
+  enableStep: document.querySelector("[data-owner-2fa-enable]"),
+  backupStep: document.querySelector("[data-owner-2fa-backup]"),
+  disableStep: document.querySelector("[data-owner-2fa-disable]"),
+  secret: document.querySelector("[data-owner-2fa-secret]"),
+  otpauth: document.querySelector("[data-owner-2fa-otpauth]"),
+  enableCode: document.querySelector("[data-owner-2fa-enable-code]"),
+  enableStatus: document.querySelector("[data-owner-2fa-enable-status]"),
+  backupCodes: document.querySelector("[data-owner-2fa-backup-codes]"),
+  disablePassword: document.querySelector("[data-owner-2fa-disable-password]"),
+  disableCode: document.querySelector("[data-owner-2fa-disable-code]"),
+  disableStatus: document.querySelector("[data-owner-2fa-disable-status]")
+};
+
+function showEl(el, visible) {
+  if (el) el.hidden = !visible;
+}
+
+function renderOwner2fa(enabled) {
+  if (!owner2fa.panel) return;
+  if (owner2fa.badge) {
+    owner2fa.badge.textContent = enabled ? "مفعّلة" : "غير مفعّلة";
+    owner2fa.badge.classList.toggle("active", enabled);
+    owner2fa.badge.classList.toggle("suspended", !enabled);
+  }
+  showEl(owner2fa.disabled, !enabled);
+  showEl(owner2fa.enabled, enabled);
+  showEl(owner2fa.enableStep, false);
+  showEl(owner2fa.backupStep, false);
+  showEl(owner2fa.disableStep, false);
+}
+
+async function owner2faRequest(path, body) {
+  const response = await fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-CSRF-Token": ownerSession.csrfToken },
+    body: JSON.stringify(body || {})
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error || "request_failed");
+  return result;
+}
+
+document.querySelector("[data-owner-2fa-start-enable]")?.addEventListener("click", async () => {
+  try {
+    const result = await owner2faRequest("/api/auth/2fa/setup");
+    owner2fa.secret.textContent = result.secret;
+    owner2fa.otpauth.textContent = result.otpauthUrl;
+    owner2fa.enableCode.value = "";
+    owner2fa.enableStatus.textContent = "";
+    showEl(owner2fa.disabled, false);
+    showEl(owner2fa.enableStep, true);
+  } catch {
+    alert("تعذّر بدء إعداد المصادقة الثنائية.");
+  }
+});
+
+document.querySelector("[data-owner-2fa-enable-confirm]")?.addEventListener("click", async () => {
+  const code = owner2fa.enableCode.value.trim();
+  if (!/^\d{6}$/.test(code)) {
+    owner2fa.enableStatus.textContent = "أدخل رمزاً صحيحاً من 6 أرقام.";
+    return;
+  }
+  try {
+    const result = await owner2faRequest("/api/auth/2fa/enable", { code });
+    owner2fa.backupCodes.innerHTML = (result.backupCodes || []).map(code => `<code>${code}</code>`).join("");
+    showEl(owner2fa.enableStep, false);
+    showEl(owner2fa.backupStep, true);
+    if (ownerSession?.user) ownerSession.user.twoFactorEnabled = true;
+  } catch (error) {
+    owner2fa.enableStatus.textContent = error.message === "invalid_2fa_code"
+      ? "الرمز غير صحيح. حاول مرة أخرى." : "تعذّر التفعيل.";
+  }
+});
+
+document.querySelector("[data-owner-2fa-backup-done]")?.addEventListener("click", () => renderOwner2fa(true));
+
+document.querySelector("[data-owner-2fa-start-disable]")?.addEventListener("click", () => {
+  owner2fa.disablePassword.value = "";
+  owner2fa.disableCode.value = "";
+  owner2fa.disableStatus.textContent = "";
+  showEl(owner2fa.enabled, false);
+  showEl(owner2fa.disableStep, true);
+});
+
+document.querySelector("[data-owner-2fa-disable-confirm]")?.addEventListener("click", async () => {
+  const password = owner2fa.disablePassword.value;
+  const code = owner2fa.disableCode.value.trim();
+  if (!password || !code) {
+    owner2fa.disableStatus.textContent = "أدخل كلمة المرور والرمز.";
+    return;
+  }
+  try {
+    await owner2faRequest("/api/auth/2fa/disable", { password, code });
+    if (ownerSession?.user) ownerSession.user.twoFactorEnabled = false;
+    renderOwner2fa(false);
+  } catch (error) {
+    const messages = { invalid_password: "كلمة المرور غير صحيحة.", invalid_2fa_code: "الرمز غير صحيح." };
+    owner2fa.disableStatus.textContent = messages[error.message] || "تعذّر الإيقاف.";
+  }
+});
 
 // ── Create Clinic ──────────────────────────────────────────────────────────────
 const createClinicForm = document.querySelector("[data-create-clinic-form]");
@@ -680,7 +759,9 @@ document.addEventListener("click", async event => {
   }
 
   // Disable any user's two-factor authentication — open modal with user list
-  const disableUser2faId = target.dataset.disableUser2fa;
+  // NOTE: attribute is data-disable-user-twofa (not -2fa); a digit after a hyphen
+  // breaks dataset camelCasing, so dataset.disableUser2fa would read undefined.
+  const disableUser2faId = target.dataset.disableUserTwofa;
   if (disableUser2faId) {
     await openDisableUser2faDialog(disableUser2faId);
     return;

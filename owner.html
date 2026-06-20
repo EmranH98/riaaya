@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@500;700;800&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="owner.css?v=20260620f">
+  <link rel="stylesheet" href="owner.css?v=20260620h">
 </head>
 <body>
   <header class="owner-header">
@@ -80,6 +80,62 @@
         <div>
           <h3>اختبار الاسترجاع قبل العيادة الحقيقية</h3>
           <ol class="restore-checklist" data-readiness-restore></ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Owner Account 2FA ──────────────────────────────────────────────── -->
+    <section class="owner-panel owner-2fa-panel" data-owner-2fa-panel>
+      <div class="panel-heading">
+        <div><p>أمان حسابك</p><h2>المصادقة الثنائية لحساب المالك</h2></div>
+        <span class="status-pill" data-owner-2fa-badge>—</span>
+      </div>
+      <p class="owner-hint">طبقة حماية إضافية لحسابك: بعد كلمة المرور يلزم رمز من تطبيق مصادقة على هاتفك، فلا يكفي تسريب كلمة المرور للدخول.</p>
+
+      <div data-owner-2fa-disabled hidden>
+        <button type="button" class="owner-2fa-primary" data-owner-2fa-start-enable>تفعيل المصادقة الثنائية</button>
+      </div>
+
+      <div class="owner-2fa-step" data-owner-2fa-enable hidden>
+        <ol class="owner-2fa-steps">
+          <li>افتح تطبيق مصادقة مثل <strong>Google Authenticator</strong> أو <strong>Microsoft Authenticator</strong>.</li>
+          <li>أضف حساباً جديداً يدوياً وأدخل هذا المفتاح:</li>
+        </ol>
+        <code class="owner-2fa-secret" data-owner-2fa-secret></code>
+        <p class="owner-hint">أو استخدم الرابط: <span data-owner-2fa-otpauth></span></p>
+        <label class="owner-2fa-code-label">
+          أدخل الرمز المكوّن من 6 أرقام للتأكيد
+          <input type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="123456" data-owner-2fa-enable-code>
+        </label>
+        <div class="dialog-actions">
+          <button type="button" class="owner-2fa-primary" data-owner-2fa-enable-confirm>تأكيد التفعيل</button>
+          <span data-owner-2fa-enable-status></span>
+        </div>
+      </div>
+
+      <div class="owner-2fa-step" data-owner-2fa-backup hidden>
+        <p class="owner-2fa-warn">✅ تم التفعيل. احفظ رموز الاحتياط التالية في مكان آمن — كل رمز يُستخدم مرة واحدة عند فقدان هاتفك. <strong>لن تظهر مرة أخرى.</strong></p>
+        <div class="owner-2fa-backup-codes" data-owner-2fa-backup-codes></div>
+        <button type="button" class="owner-2fa-primary" data-owner-2fa-backup-done>حفظت الرموز — تم</button>
+      </div>
+
+      <div data-owner-2fa-enabled hidden>
+        <button type="button" class="secondary-control" data-owner-2fa-start-disable>إيقاف المصادقة الثنائية</button>
+      </div>
+
+      <div class="owner-2fa-step" data-owner-2fa-disable hidden>
+        <p class="owner-hint">لإيقاف المصادقة الثنائية أدخل كلمة المرور ورمزاً حالياً (أو رمز احتياط):</p>
+        <label class="owner-2fa-code-label">
+          كلمة المرور
+          <input type="password" autocomplete="current-password" data-owner-2fa-disable-password>
+        </label>
+        <label class="owner-2fa-code-label">
+          رمز المصادقة (أو رمز احتياط)
+          <input type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="123456" data-owner-2fa-disable-code>
+        </label>
+        <div class="dialog-actions">
+          <button type="button" class="danger-action" data-owner-2fa-disable-confirm>تأكيد الإيقاف</button>
+          <span data-owner-2fa-disable-status></span>
         </div>
       </div>
     </section>
@@ -355,6 +411,6 @@
     </form>
   </dialog>
 
-  <script src="owner.js?v=20260620f"></script>
+  <script src="owner.js?v=20260620h"></script>
 </body>
 </html>
