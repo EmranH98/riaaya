@@ -11205,6 +11205,29 @@ if (els.reportToday) {
   });
 }
 
+document.querySelectorAll("[data-report-preset]").forEach(button => {
+  button.addEventListener("click", () => {
+    const base = state.settings.activeDate || today;
+    let from = base;
+    const to = base;
+    if (button.dataset.reportPreset === "week") {
+      const start = new Date(base + "T00:00:00");
+      start.setDate(start.getDate() - 6);
+      from = start.toISOString().slice(0, 10);
+    } else if (button.dataset.reportPreset === "month") {
+      from = base.slice(0, 7) + "-01";
+    } else if (button.dataset.reportPreset === "year") {
+      from = base.slice(0, 4) + "-01-01";
+    }
+    state.settings.reportDateFrom = from;
+    state.settings.reportDateTo = to;
+    reportPage = 1;
+    saveState();
+    renderReportDateControls();
+    renderReports();
+  });
+});
+
 if (els.printSelectedReport) {
   els.printSelectedReport.addEventListener("click", () => {
     if (!canUseFeature("print_reports")) return;
@@ -11856,19 +11879,27 @@ if (els.ruleForm) {
   els.ruleForm.addEventListener("submit", event => {
     event.preventDefault();
     if (!canViewSensitive()) return;
-    const data = Object.fromEntries(new FormData(els.ruleForm).entries());
+    const formData = new FormData(els.ruleForm);
+    const data = Object.fromEntries(formData.entries());
     const target = parseRuleTarget(data.serviceId);
-    state.rules.push(normalizeRule({
-      id: nextId("rule"),
-      name: data.name.trim(),
-      appliesTo: data.appliesTo,
-      personId: data.personId,
-      serviceId: target.serviceId,
-      category: target.category,
-      model: data.model,
-      value: data.model === "member_rate" ? 0 : data.value,
-      active: true
-    }));
+    // One named rule can be applied to several employees at once (a template):
+    // empty selection = the whole role.
+    const personIds = formData.getAll("personId").filter(Boolean);
+    const targets = personIds.length ? personIds : [""];
+    targets.forEach(personId => {
+      state.rules.push(normalizeRule({
+        id: nextId("rule"),
+        name: data.name.trim(),
+        appliesTo: data.appliesTo,
+        personId,
+        serviceId: target.serviceId,
+        category: target.category,
+        model: data.model,
+        value: data.model === "member_rate" ? 0 : data.value,
+        active: true
+      }));
+    });
+    logEdit("إضافة قاعدة", `${data.name.trim()} — ${targets.length} موظف`);
     els.ruleForm.reset();
     saveState();
     render();

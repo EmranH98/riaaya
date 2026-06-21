@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260622h">
+  <link rel="stylesheet" href="app.css?v=20260622i">
 </head>
 <body>
 
@@ -1201,8 +1201,8 @@
                 </select>
               </label>
               <label>
-                الشخص
-                <select name="personId" data-rule-person-select></select>
+                الموظفون (اختر واحداً أو أكثر — فارغ = الكل)
+                <select name="personId" data-rule-person-select multiple size="4"></select>
               </label>
               <label>
                 الخدمة
@@ -1983,6 +1983,9 @@
               <label class="compact-field">من <input type="date" data-report-date-from></label>
               <label class="compact-field">إلى <input type="date" data-report-date-to></label>
               <button class="ghost-chip" type="button" data-report-today>اليوم</button>
+              <button class="ghost-chip" type="button" data-report-preset="week">الأسبوع</button>
+              <button class="ghost-chip" type="button" data-report-preset="month">الشهر</button>
+              <button class="ghost-chip" type="button" data-report-preset="year">السنة</button>
             </div>
             <div class="report-toolbar-actions">
               <button class="focus-icon-button" type="button" data-open-table-focus="report" aria-label="عرض التقرير بملء الشاشة">⛶</button>
@@ -2975,7 +2978,7 @@
       </form>
     </div>
   </div>
-  <script src="app.js?v=20260622h"></script>
+  <script src="app.js?v=20260622i"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>
