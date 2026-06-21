@@ -5510,32 +5510,69 @@ function outstandingByPatient() {
     .sort((a, b) => b.total - a.total);
 }
 
-function logEdit(action, detail) {
+function logEdit(action, detail, snapshot) {
   state.auditTrail = state.auditTrail || [];
   const account = currentAccount();
-  state.auditTrail.push({
+  const entry = {
     id: nextId("audit"),
     at: new Date().toISOString(),
     who: account?.name || account?.email || "—",
     action,
     detail: detail || ""
-  });
+  };
+  // snapshot = { type, record } — lets a deleted record be restored later.
+  if (snapshot && snapshot.type && snapshot.record) {
+    entry.restore = { type: snapshot.type, record: JSON.parse(JSON.stringify(snapshot.record)), restored: false };
+  }
+  state.auditTrail.push(entry);
   if (state.auditTrail.length > 500) state.auditTrail = state.auditTrail.slice(-500);
+}
+
+const AUDIT_RESTORE_TARGETS = {
+  entry: { list: "entries", label: "عملية" },
+  patient: { list: "patients", label: "ملف مريض" },
+  patientPackage: { list: "patientPackages", label: "باقة" },
+  service: { list: "services", label: "خدمة" },
+  packageTemplate: { list: "packageTemplates", label: "قالب باقة" }
+};
+
+function restoreAuditEntry(auditId) {
+  const item = (state.auditTrail || []).find(record => record.id === auditId);
+  if (!item || !item.restore || item.restore.restored) return;
+  const target = AUDIT_RESTORE_TARGETS[item.restore.type];
+  if (!target) return;
+  state[target.list] = state[target.list] || [];
+  const record = item.restore.record;
+  // Don't duplicate if a record with the same id already exists.
+  if (!state[target.list].some(existing => existing.id === record.id)) {
+    state[target.list].push(JSON.parse(JSON.stringify(record)));
+  }
+  item.restore.restored = true;
+  logEdit("استرجاع محذوف", `${target.label}: ${item.detail || record.name || record.patient || ""}`);
+  saveState();
+  render();
 }
 
 function renderAuditReport(items) {
   if (!items.length) return `<div class="empty-state">لا توجد تعديلات مسجّلة بعد.</div>`;
-  const rows = items.map(item => `
+  const rows = items.map(item => {
+    const canRestore = item.restore && item.restore.record && !item.restore.restored;
+    const restoreCell = canRestore
+      ? `<button class="text-button" type="button" data-restore-audit="${item.id}">استرجاع</button>`
+      : (item.restore && item.restore.restored ? `<span class="pill pkg-muted">تم الاسترجاع</span>` : "—");
+    return `
     <tr>
       <td>${displayDate(String(item.at).slice(0, 10))} · ${displayClockMinute ? displayClockMinute(item.at) : ""}</td>
       <td>${item.who}</td>
       <td>${item.action}</td>
       <td>${item.detail || "—"}</td>
-    </tr>`).join("");
+      <td>${restoreCell}</td>
+    </tr>`;
+  }).join("");
   return `
     <div class="table-wrap">
       <table class="practical-table">
-        <thead><tr><th>التاريخ والوقت</th><th>المستخدم</th><th>الإجراء</th><th>التفاصيل</th></tr></thead>
+        <thead><tr><th>التاريخ والوقت</th><th>المستخدم</th><th>الإجراء</th><th>التفاصيل</th><th></th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>`;
@@ -11668,6 +11705,11 @@ if (els.packageSessionForm) {
 }
 
 document.addEventListener("click", event => {
+  const restoreAudit = event.target.closest("[data-restore-audit]");
+  if (restoreAudit) {
+    if (canViewSensitive()) restoreAuditEntry(restoreAudit.dataset.restoreAudit);
+    return;
+  }
   const opToggle = event.target.closest("[data-toggle-operation]");
   if (opToggle) {
     const detail = document.querySelector(`[data-operation-detail="${opToggle.dataset.toggleOperation}"]`);
@@ -11704,6 +11746,8 @@ document.addEventListener("click", event => {
   if (deleteTemplate) {
     if (!canViewSensitive()) return;
     const id = deleteTemplate.dataset.deletePackageTemplate;
+    const removedTpl = (state.packageTemplates || []).find(template => template.id === id);
+    if (removedTpl) logEdit("حذف قالب باقة", removedTpl.name, { type: "packageTemplate", record: removedTpl });
     state.packageTemplates = (state.packageTemplates || []).filter(template => template.id !== id);
     saveState();
     render();
@@ -11713,6 +11757,8 @@ document.addEventListener("click", event => {
   if (deletePackage) {
     if (!canViewSensitive()) return;
     const id = deletePackage.dataset.deletePackage;
+    const removedPkg = (state.patientPackages || []).find(pkg => pkg.id === id);
+    if (removedPkg) logEdit("حذف باقة", `${patientById(removedPkg.patientId)?.name || ""} · ${removedPkg.name}`, { type: "patientPackage", record: removedPkg });
     state.patientPackages = (state.patientPackages || []).filter(pkg => pkg.id !== id);
     saveState();
     render();
@@ -12472,6 +12518,8 @@ document.addEventListener("click", async event => {
   if (deletePatientId) {
     if (!canUseFeature("delete_patient")) return;
     if (!await showConfirm("هل تريد حذف ملف المريض أو الزائر؟ ستبقى العمليات والحجوزات محفوظة بدون رابط الملف.")) return;
+    const removedPatient = state.patients.find(patient => patient.id === deletePatientId);
+    if (removedPatient) logEdit("حذف ملف مريض", `${removedPatient.name}${removedPatient.patientNumber ? " · #" + removedPatient.patientNumber : ""}`, { type: "patient", record: removedPatient });
     state.patients = state.patients.filter(patient => patient.id !== deletePatientId);
     state.entries = state.entries.map(entry => entry.patientId === deletePatientId ? { ...entry, patientId: "" } : entry);
     state.bookings = state.bookings.map(booking => booking.patientId === deletePatientId ? { ...booking, patientId: "" } : booking);
@@ -12521,7 +12569,7 @@ document.addEventListener("click", async event => {
   if (deleteEntryId) {
     if (!canUseFeature("delete_treatments_medical")) return;
     const removed = state.entries.find(entry => entry.id === deleteEntryId);
-    if (removed) logEdit("حذف عملية", `${removed.visitNumber ? "#" + removed.visitNumber + " " : ""}${removed.patient || ""} · ${removed.service || ""} · ${money(netAmount(removed))}`);
+    if (removed) logEdit("حذف عملية", `${removed.visitNumber ? "#" + removed.visitNumber + " " : ""}${removed.patient || ""} · ${removed.service || ""} · ${money(netAmount(removed))}`, { type: "entry", record: removed });
     state.entries = state.entries.filter(entry => entry.id !== deleteEntryId);
     saveState();
     render();
@@ -12542,6 +12590,8 @@ document.addEventListener("click", async event => {
     if (!canViewSensitive()) return;
     const isUsed = state.entries.some(entry => entry.serviceId === deleteServiceId);
     if (isUsed && !await showConfirm("هذه الخدمة مرتبطة بعمليات سابقة. هل تريد حذفها؟")) return;
+    const removedService = state.services.find(service => service.id === deleteServiceId);
+    if (removedService) logEdit("حذف خدمة", `${removedService.name}${removedService.category ? " · " + removedService.category : ""}`, { type: "service", record: removedService });
     state.services = state.services.filter(service => service.id !== deleteServiceId);
     state.rules = state.rules.filter(rule => rule.serviceId !== deleteServiceId);
     saveState();
