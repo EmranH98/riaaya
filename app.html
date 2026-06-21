@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260622d">
+  <link rel="stylesheet" href="app.css?v=20260622e">
 </head>
 <body>
 
@@ -99,6 +99,7 @@
           <button class="nav-group-label" type="button" data-nav-group="reports"><span>التقارير</span><svg class="nav-group-chevron" aria-hidden="true"><use href="#ic-chevron"/></svg></button>
           <button class="nav-item" data-report-jump="perProcedure" type="button" title="تقرير العمليات"><svg class="nav-ic" aria-hidden="true"><use href="#ic-receipt"/></svg><span class="nav-label">تقرير العمليات</span></button>
           <button class="nav-item" data-report-jump="packages" type="button" title="تقرير الباقات"><svg class="nav-ic" aria-hidden="true"><use href="#ic-package"/></svg><span class="nav-label">تقرير الباقات</span></button>
+          <button class="nav-item" data-report-jump="audit" type="button" title="سجل التعديلات"><svg class="nav-ic" aria-hidden="true"><use href="#ic-shield"/></svg><span class="nav-label">سجل التعديلات</span></button>
           <button class="nav-item" data-report-jump="cash" type="button" title="التقرير المالي (الكاش)"><svg class="nav-ic" aria-hidden="true"><use href="#ic-cash"/></svg><span class="nav-label">التقرير المالي</span></button>
           <button class="nav-item" data-report-jump="universal" type="button" title="بحث تفصيلي شامل"><svg class="nav-ic" aria-hidden="true"><use href="#ic-chart"/></svg><span class="nav-label">بحث تفصيلي</span></button>
           <button class="nav-item" data-view-button="services" type="button" title="الخدمات المتاحة للعمليات"><svg class="nav-ic" aria-hidden="true"><use href="#ic-tag"/></svg><span class="nav-label">الخدمات</span></button>
@@ -1935,6 +1936,7 @@
               <button class="report-tab"        type="button" data-report-tab="byPatient"      role="tab">👤 حسب المريض</button>
               <button class="report-tab"        type="button" data-report-tab="perProcedure"   role="tab">📋 كل عملية</button>
               <button class="report-tab"        type="button" data-report-tab="packages"       role="tab">📦 الباقات</button>
+              <button class="report-tab"        type="button" data-report-tab="audit"          role="tab">📝 سجل التعديلات</button>
             </div>
             <div class="report-tab-group">
               <span class="report-tab-group-label">مالي</span>
@@ -1963,6 +1965,7 @@
             <option value="byPatient">حسب المريض</option>
             <option value="perProcedure">كل عملية</option>
             <option value="packages">الباقات</option>
+            <option value="audit">سجل التعديلات</option>
             <option value="bookings">الحجوزات والجدول</option>
             <option value="patients">دليل المرضى والزوار</option>
             <option value="expenses">المصروفات</option>
@@ -2964,7 +2967,7 @@
       </form>
     </div>
   </div>
-  <script src="app.js?v=20260622d"></script>
+  <script src="app.js?v=20260622e"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>

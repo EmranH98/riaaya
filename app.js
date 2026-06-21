@@ -1750,6 +1750,7 @@ function emptyClinicState(clinic = {}) {
     services: [],
     packageTemplates: [],
     patientPackages: [],
+    auditTrail: [],
     scheduleColumns: DEFAULT_SCHEDULE_COLUMNS.map(normalizeScheduleColumn),
     rules: [],
     suppliers: [],
@@ -5509,6 +5510,37 @@ function outstandingByPatient() {
     .sort((a, b) => b.total - a.total);
 }
 
+function logEdit(action, detail) {
+  state.auditTrail = state.auditTrail || [];
+  const account = currentAccount();
+  state.auditTrail.push({
+    id: nextId("audit"),
+    at: new Date().toISOString(),
+    who: account?.name || account?.email || "—",
+    action,
+    detail: detail || ""
+  });
+  if (state.auditTrail.length > 500) state.auditTrail = state.auditTrail.slice(-500);
+}
+
+function renderAuditReport(items) {
+  if (!items.length) return `<div class="empty-state">لا توجد تعديلات مسجّلة بعد.</div>`;
+  const rows = items.map(item => `
+    <tr>
+      <td>${displayDate(String(item.at).slice(0, 10))} · ${displayClockMinute ? displayClockMinute(item.at) : ""}</td>
+      <td>${item.who}</td>
+      <td>${item.action}</td>
+      <td>${item.detail || "—"}</td>
+    </tr>`).join("");
+  return `
+    <div class="table-wrap">
+      <table class="practical-table">
+        <thead><tr><th>التاريخ والوقت</th><th>المستخدم</th><th>الإجراء</th><th>التفاصيل</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
 function renderDashboardZones() {
   const activePackages = (state.patientPackages || []).filter(pkg => packageComputedStatus(pkg) === "active");
   const remainingSessions = activePackages.reduce((sum, pkg) => sum + packageRemaining(pkg), 0);
@@ -8338,7 +8370,7 @@ function renderReports() {
   // the detailed/universal search, which keeps its tabs + visuals.
   const reportPanelEl = els.reportPage?.closest(".full-report-panel");
   if (reportPanelEl) reportPanelEl.classList.toggle("report-clean", reportType !== "universal");
-  const financialReports = ["profit", "reconciliation", "patientBalance", "byPatient", "perProcedure", "costs", "expenses", "retention", "packages", "cash"];
+  const financialReports = ["profit", "reconciliation", "patientBalance", "byPatient", "perProcedure", "costs", "expenses", "retention", "packages", "cash", "audit"];
   if (!canViewSensitive() && financialReports.includes(reportType)) {
     els.reportVisuals.innerHTML = "";
     els.reportPagination.innerHTML = "";
@@ -8388,6 +8420,11 @@ function renderReports() {
     const packageEntries = allEntries.filter(entry => entry.packageId);
     pagination = paginateItems(packageEntries, reportPage, pageSize);
     content = renderPackagesReport(pagination.items);
+  } else if (reportType === "audit") {
+    const auditItems = (state.auditTrail || []).slice().reverse()
+      .filter(item => !filters.query || matchesSmartQuery([item.who, item.action, item.detail], filters.query));
+    pagination = paginateItems(auditItems, reportPage, pageSize);
+    content = renderAuditReport(pagination.items);
   } else if (reportType === "cash") {
     const cashEntries = allEntries.filter(isBillableEntry);
     pagination = paginateItems(cashEntries, reportPage, pageSize);
@@ -11189,6 +11226,7 @@ els.serviceBrowseSearch?.addEventListener("input", renderServiceBrowse);
     } else {
       entry.category = category;
     }
+    logEdit("تعديل عملية", `${entry.visitNumber ? "#" + entry.visitNumber + " " : ""}${entry.patient || ""} · ${money(netAmount(entry))}`);
     close();
     saveState();
     render();
@@ -11532,6 +11570,7 @@ if (els.serviceForm) {
     service.defaultPrice = numberValue(data.defaultPrice);
     if (data.defaultCost !== undefined) service.defaultCost = numberValue(data.defaultCost);
     service.active = data.active !== "false";
+    logEdit("تعديل خدمة", `${service.name}${service.category ? " · " + service.category : ""}`);
     close();
     saveState();
     render();
@@ -11696,6 +11735,7 @@ document.addEventListener("click", event => {
     if (pkg && (pkg.usedSessions || 0) > 0) {
       pkg.usedSessions = Math.max(0, pkg.usedSessions - 1);
       if (pkg.status === "completed" && packageRemaining(pkg) > 0) pkg.status = "active";
+      logEdit("تراجع جلسة", `${patientById(pkg.patientId)?.name || ""} · ${pkg.name} (${pkg.usedSessions}/${pkg.totalSessions})`);
       saveState();
       render();
     }
@@ -12480,6 +12520,8 @@ document.addEventListener("click", async event => {
 
   if (deleteEntryId) {
     if (!canUseFeature("delete_treatments_medical")) return;
+    const removed = state.entries.find(entry => entry.id === deleteEntryId);
+    if (removed) logEdit("حذف عملية", `${removed.visitNumber ? "#" + removed.visitNumber + " " : ""}${removed.patient || ""} · ${removed.service || ""} · ${money(netAmount(removed))}`);
     state.entries = state.entries.filter(entry => entry.id !== deleteEntryId);
     saveState();
     render();
