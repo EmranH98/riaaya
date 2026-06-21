@@ -1443,6 +1443,7 @@ function normalizeScheduleColumn(column = {}, index = 0) {
   return {
     id,
     label,
+    category: column.category || "",
     active: column.active !== false
   };
 }
@@ -6427,7 +6428,10 @@ function bookingScheduleColumns() {
   return activeScheduleColumns().map(column => ({
     id: column.id,
     label: column.label,
-    role: currentLanguage() === "en" ? "Calendar column" : "عمود تقويم"
+    category: column.category || "",
+    role: column.category
+      ? column.category
+      : (currentLanguage() === "en" ? "Calendar column" : "عمود تقويم")
   }));
 }
 
@@ -10641,11 +10645,12 @@ if (els.scheduleColumnForm) {
     event.preventDefault();
     if (!canViewSensitive()) return;
     const data = Object.fromEntries(new FormData(els.scheduleColumnForm).entries());
-    const label = String(data.label || "").trim();
+    const category = String(data.category || "").trim();
+    const label = String(data.label || "").trim() || category;
     if (!label) return;
     state.scheduleColumns = [
       ...activeScheduleColumns(),
-      normalizeScheduleColumn({ id: scheduleColumnIdFromLabel(label), label })
+      normalizeScheduleColumn({ id: scheduleColumnIdFromLabel(label), label, category })
     ];
     els.scheduleColumnForm.reset();
     saveState();
@@ -10653,6 +10658,80 @@ if (els.scheduleColumnForm) {
     renderBookingDayCalendar();
   });
 }
+
+// ── Quick booking popup from a free calendar slot ──────────────────────────
+// Clicking an empty cell in a column opens a popup scoped to that column's
+// category, listing only that category's services to book.
+(function initSlotBooking() {
+  const modal = document.querySelector("[data-slot-booking-modal]");
+  if (!modal) return;
+  const form = modal.querySelector("[data-slot-booking-form]");
+  const titleEl = modal.querySelector("[data-slot-booking-title]");
+  const serviceSel = modal.querySelector("[data-slot-booking-service]");
+  const doctorSel = modal.querySelector("[data-slot-booking-doctor]");
+  const statusEl = modal.querySelector("[data-slot-booking-status]");
+
+  function close() { modal.hidden = true; form.reset(); if (statusEl) statusEl.textContent = ""; }
+
+  function open(date, time, columnId) {
+    const column = bookingScheduleColumns().find(item => item.id === columnId);
+    const category = column?.category || "";
+    const scoped = activeServices().filter(service => !category || (service.category || "") === category);
+    const services = scoped.length ? scoped : activeServices();
+    serviceSel.innerHTML = services.length
+      ? services.map(service => `<option value="${service.id}">${service.name}</option>`).join("")
+      : `<option value="">أضف خدمة أولاً</option>`;
+    doctorSel.innerHTML = `<option value="">—</option>`
+      + (state.staff || []).filter(member => member.role === "doctor").map(member => `<option value="${member.id}">${member.name}</option>`).join("");
+    form.elements.date.value = date;
+    form.elements.scheduleColumnId.value = columnId;
+    form.elements.time.value = time;
+    titleEl.textContent = `${displayDate(date)} · ${displayTime(time)} · ${column?.label || ""}`;
+    modal.hidden = false;
+    setTimeout(() => form.elements.patient.focus(), 30);
+  }
+
+  document.addEventListener("click", event => {
+    if (event.target.closest("[data-slot-booking-close]") || event.target === modal) { close(); return; }
+    if (event.target.closest(".day-schedule-booking")) return;
+    const slot = event.target.closest(".day-schedule-slot");
+    if (slot && slot.dataset.dropSlot && slot.dataset.dropColumn) {
+      if (!canUseFeature("add_appointment")) return;
+      open(state.settings.activeDate, slot.dataset.dropSlot, slot.dataset.dropColumn);
+    }
+  });
+
+  form.addEventListener("submit", event => {
+    event.preventDefault();
+    if (!canUseFeature("add_appointment")) return;
+    const data = Object.fromEntries(new FormData(form).entries());
+    if (!data.patient?.trim() || !data.serviceId) {
+      if (statusEl) statusEl.textContent = "أدخل اسم المريض واختر الخدمة.";
+      return;
+    }
+    const patient = findOrCreatePatientByName(data.patient.trim());
+    const service = getService(data.serviceId);
+    state.bookings = state.bookings || [];
+    state.bookings.push(normalizeBooking({
+      date: data.date || state.settings.activeDate,
+      time: data.time || "09:00",
+      patientId: patient.id,
+      patient: patient.name,
+      phone: patient.phone || "",
+      serviceId: data.serviceId,
+      service: service ? service.name : "خدمة",
+      scheduleColumnId: data.scheduleColumnId,
+      doctorId: data.doctorId || "",
+      expectedAmount: service ? service.defaultPrice : 0,
+      status: "scheduled"
+    }, state.services));
+    close();
+    saveState();
+    render();
+  });
+
+  document.addEventListener("keydown", event => { if (event.key === "Escape" && !modal.hidden) close(); });
+})();
 
 if (els.scheduleSlotMinutes) {
   els.scheduleSlotMinutes.addEventListener("change", event => {

@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260620q">
+  <link rel="stylesheet" href="app.css?v=20260620r">
 </head>
 <body>
 
@@ -965,6 +965,10 @@
               <label>
                 عمود جديد
                 <input name="label" type="text" placeholder="laser for women, Doctor, Waiting..." required>
+              </label>
+              <label>
+                الفئة المرتبطة (اختياري)
+                <input name="category" type="text" list="service-categories" placeholder="تظهر خدماتها عند الحجز من خانة فارغة">
               </label>
               <button class="text-button" type="submit">إضافة عمود</button>
             </form>
@@ -2796,7 +2800,40 @@
       <div class="cmdk-list" data-cmdk-list></div>
     </div>
   </div>
-  <script src="app.js?v=20260620q"></script>
+
+  <!-- Quick booking popup: opens when a free calendar slot is clicked -->
+  <div class="slot-booking-modal" data-slot-booking-modal hidden>
+    <div class="slot-booking-card" role="dialog" aria-modal="true" aria-label="حجز موعد">
+      <button class="icon-button slot-booking-close" type="button" data-slot-booking-close aria-label="إغلاق">×</button>
+      <h3 data-slot-booking-title>حجز موعد</h3>
+      <form class="slot-booking-form" data-slot-booking-form>
+        <input type="hidden" name="date">
+        <input type="hidden" name="scheduleColumnId">
+        <label>
+          المريض
+          <input name="patient" type="text" list="operation-patient-options" placeholder="ابحث بالاسم أو اكتب اسماً جديداً" required>
+        </label>
+        <label>
+          الخدمة
+          <select name="serviceId" data-slot-booking-service required></select>
+        </label>
+        <label>
+          الوقت
+          <input name="time" type="time" required>
+        </label>
+        <label>
+          الطبيب (اختياري)
+          <select name="doctorId" data-slot-booking-doctor></select>
+        </label>
+        <div class="slot-booking-actions">
+          <button class="primary-button" type="submit">تأكيد الحجز</button>
+          <button class="text-button" type="button" data-slot-booking-close>إلغاء</button>
+        </div>
+        <p class="form-status" data-slot-booking-status aria-live="polite"></p>
+      </form>
+    </div>
+  </div>
+  <script src="app.js?v=20260620r"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>
