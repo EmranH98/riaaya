@@ -27,6 +27,15 @@ LITESTREAM_REGION=auto
 LITESTREAM_PREFIX=riaaya/backups
 ```
 
+If Cloudflare R2's S3 hostname is unavailable, Riaaya can upload the same
+verified backup through Cloudflare's API fallback. Create a Cloudflare API token
+with R2 object write access to the backup bucket, then set:
+
+```bash
+RIAAYA_CLOUDFLARE_ACCOUNT_ID=your-cloudflare-account-id
+RIAAYA_CLOUDFLARE_API_TOKEN=...
+```
+
 Cloudflare R2 works well for a small pilot. Each backup upload writes:
 - `riaaya/backups/riaaya-<timestamp>.sqlite`
 - `riaaya/backups/latest.json`

@@ -57,5 +57,9 @@ services:
         value: auto
       - key: LITESTREAM_PREFIX
         value: riaaya/backups
+      - key: RIAAYA_CLOUDFLARE_ACCOUNT_ID
+        sync: false
+      - key: RIAAYA_CLOUDFLARE_API_TOKEN
+        sync: false
       - key: ALLOWED_ORIGIN
         value: https://riaaya.onrender.com
