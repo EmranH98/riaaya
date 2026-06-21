@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260622a">
+  <link rel="stylesheet" href="app.css?v=20260622b">
 </head>
 <body>
 
@@ -2937,7 +2937,26 @@
       </form>
     </div>
   </div>
-  <script src="app.js?v=20260622a"></script>
+
+  <div class="slot-booking-modal" data-edit-service-modal hidden>
+    <div class="slot-booking-card" role="dialog" aria-modal="true" aria-label="تعديل الخدمة">
+      <button class="icon-button slot-booking-close" type="button" data-edit-service-close aria-label="إغلاق">×</button>
+      <h3>تعديل الخدمة</h3>
+      <form class="slot-booking-form" data-edit-service-form>
+        <input type="hidden" name="serviceId">
+        <label>اسم الخدمة<input name="name" type="text" required></label>
+        <label>الفئة<input name="category" type="text" list="service-categories" placeholder="ليزر، فيشل..."></label>
+        <label>السعر الافتراضي<input name="defaultPrice" type="number" min="0" step="0.01"></label>
+        <label data-sensitive>التكلفة المباشرة<input name="defaultCost" type="number" min="0" step="0.01"></label>
+        <label>الحالة<select name="active"><option value="true">فعالة</option><option value="false">متوقفة</option></select></label>
+        <div class="slot-booking-actions">
+          <button class="primary-button" type="submit">حفظ التعديل</button>
+          <button class="text-button" type="button" data-edit-service-close>إلغاء</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <script src="app.js?v=20260622b"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>

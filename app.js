@@ -5273,7 +5273,7 @@ function serviceBrowseTableHtml(services) {
   if (!services.length) return `<div class="empty-state">لا توجد خدمات مطابقة للفلتر.</div>`;
   const showSensitive = canViewSensitive();
   const rows = services.map(service => `
-    <tr>
+    <tr class="${showSensitive ? "report-edit-row" : ""}" ${showSensitive ? `data-edit-service="${service.id}" title="اضغط للتعديل"` : ""}>
       <td>${service.name}</td>
       <td>${service.category || "—"}</td>
       <td>${service.defaultPrice ? money(service.defaultPrice) : "بدون سعر ثابت"}</td>
@@ -5282,6 +5282,7 @@ function serviceBrowseTableHtml(services) {
       <td>${showSensitive ? `<button class="text-button danger" type="button" data-delete-service="${service.id}">حذف</button>` : ""}</td>
     </tr>`).join("");
   return `
+    ${showSensitive ? `<p class="report-edit-hint">اضغط على أي خدمة لتعديل الاسم أو الفئة أو السعر أو التكلفة.</p>` : ""}
     <div class="table-wrap">
       <table class="practical-table">
         <thead><tr><th>الخدمة</th><th>الفئة</th><th>السعر</th>${showSensitive ? "<th>التكلفة</th>" : ""}<th>الحالة</th><th></th></tr></thead>
@@ -11464,6 +11465,52 @@ if (els.serviceForm) {
     if (isFreshCategory) openCategoryRowPrompt(newCategory);
   });
 }
+
+// ── Edit a treatment from the all-treatments browse table ──────────────────
+(function initEditService() {
+  const modal = document.querySelector("[data-edit-service-modal]");
+  if (!modal) return;
+  const form = modal.querySelector("[data-edit-service-form]");
+  const close = () => { modal.hidden = true; };
+
+  function open(serviceId) {
+    const service = (state.services || []).find(item => item.id === serviceId);
+    if (!service) return;
+    form.elements.serviceId.value = service.id;
+    form.elements.name.value = service.name || "";
+    form.elements.category.value = service.category || "";
+    form.elements.defaultPrice.value = numberValue(service.defaultPrice);
+    if (form.elements.defaultCost) form.elements.defaultCost.value = numberValue(service.defaultCost);
+    form.elements.active.value = service.active === false ? "false" : "true";
+    modal.hidden = false;
+    setTimeout(() => form.elements.name.focus(), 30);
+  }
+
+  form.addEventListener("submit", event => {
+    event.preventDefault();
+    if (!canViewSensitive()) return;
+    const data = Object.fromEntries(new FormData(form).entries());
+    const service = (state.services || []).find(item => item.id === data.serviceId);
+    if (!service) { close(); return; }
+    service.name = (data.name || "").trim() || service.name;
+    service.category = (data.category || "").trim();
+    service.defaultPrice = numberValue(data.defaultPrice);
+    if (data.defaultCost !== undefined) service.defaultCost = numberValue(data.defaultCost);
+    service.active = data.active !== "false";
+    close();
+    saveState();
+    render();
+  });
+
+  modal.querySelectorAll("[data-edit-service-close]").forEach(button => button.addEventListener("click", close));
+  modal.addEventListener("click", event => { if (event.target === modal) close(); });
+  document.addEventListener("keydown", event => { if (event.key === "Escape" && !modal.hidden) close(); });
+  document.addEventListener("click", event => {
+    if (event.target.closest("button")) return;
+    const row = event.target.closest("[data-edit-service]");
+    if (row) open(row.dataset.editService);
+  });
+})();
 
 // ── Packages & sessions ─────────────────────────────────────────────────
 if (els.packageTemplateForm) {
