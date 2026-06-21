@@ -1440,10 +1440,14 @@ function normalizeScheduleColumn(column = {}, index = 0) {
     .replace(/[^a-zA-Z0-9_\-\u0600-\u06FF]+/g, "-")
     .replace(/^-+|-+$/g, "")
     || `schedule-column-${index + 1}`;
+  const categories = Array.isArray(column.categories)
+    ? [...new Set(column.categories.filter(Boolean))]
+    : (column.category ? [column.category] : []);
   return {
     id,
     label,
-    category: column.category || "",
+    categories,
+    category: categories[0] || "",
     active: column.active !== false
   };
 }
@@ -6425,14 +6429,17 @@ function scheduleConflictMessage(conflict, stepMinutes = scheduleSlotMinutes()) 
 }
 
 function bookingScheduleColumns() {
-  return activeScheduleColumns().map(column => ({
-    id: column.id,
-    label: column.label,
-    category: column.category || "",
-    role: column.category
-      ? column.category
-      : (currentLanguage() === "en" ? "Calendar column" : "عمود تقويم")
-  }));
+  return activeScheduleColumns().map(column => {
+    const categories = Array.isArray(column.categories) ? column.categories : (column.category ? [column.category] : []);
+    return {
+      id: column.id,
+      label: column.label,
+      categories,
+      role: categories.length
+        ? categories.join("، ")
+        : (currentLanguage() === "en" ? "Calendar column" : "عمود تقويم")
+    };
+  });
 }
 
 function scheduleColumnsForAccount(account = currentAccount()) {
@@ -10424,6 +10431,11 @@ function openTableFocus(type) {
     title = selectedReportLabel();
     subtitle = reportRangeLabel();
     content = `<div class="table-focus-report"><div class="report-page">${els.reportPage?.innerHTML || ""}</div></div>`;
+  } else if (type === "services") {
+    renderServiceList();
+    title = currentLanguage() === "en" ? "Services available for operations" : "الخدمات المتاحة للعمليات";
+    subtitle = `${(state.services || []).length} ${currentLanguage() === "en" ? "services" : "خدمة"}`;
+    content = `<div class="table-focus-services staff-list">${els.serviceList?.innerHTML || ""}</div>`;
   }
 
   els.tableFocusTitle.textContent = title;
@@ -10650,7 +10662,7 @@ if (els.scheduleColumnForm) {
     if (!label) return;
     state.scheduleColumns = [
       ...activeScheduleColumns(),
-      normalizeScheduleColumn({ id: scheduleColumnIdFromLabel(label), label, category })
+      normalizeScheduleColumn({ id: scheduleColumnIdFromLabel(label), label, categories: category ? [category] : [] })
     ];
     els.scheduleColumnForm.reset();
     saveState();
@@ -10658,6 +10670,53 @@ if (els.scheduleColumnForm) {
     renderBookingDayCalendar();
   });
 }
+
+// ── New-category → calendar row prompt ─────────────────────────────────────
+let pendingCategoryForRow = "";
+function columnHostsCategory(category) {
+  return (state.scheduleColumns || []).some(column => (column.categories || []).includes(category));
+}
+function openCategoryRowPrompt(category) {
+  const modal = document.querySelector("[data-category-row-modal]");
+  if (!modal || !category) return;
+  pendingCategoryForRow = category;
+  const nameEl = modal.querySelector("[data-category-row-name]");
+  if (nameEl) nameEl.textContent = category;
+  const select = modal.querySelector("[data-category-row-select]");
+  const columns = activeScheduleColumns();
+  if (select) select.innerHTML = columns.length
+    ? columns.map(column => `<option value="${column.id}">${column.label}</option>`).join("")
+    : `<option value="">لا توجد أعمدة</option>`;
+  modal.hidden = false;
+}
+(function initCategoryRowPrompt() {
+  const modal = document.querySelector("[data-category-row-modal]");
+  if (!modal) return;
+  const close = () => { modal.hidden = true; pendingCategoryForRow = ""; };
+  modal.querySelector("[data-category-row-new]")?.addEventListener("click", () => {
+    if (!pendingCategoryForRow) return close();
+    state.scheduleColumns = [
+      ...activeScheduleColumns(),
+      normalizeScheduleColumn({ id: scheduleColumnIdFromLabel(pendingCategoryForRow), label: pendingCategoryForRow, categories: [pendingCategoryForRow] })
+    ];
+    close();
+    saveState();
+    render();
+  });
+  modal.querySelector("[data-category-row-existing]")?.addEventListener("click", () => {
+    const select = modal.querySelector("[data-category-row-select]");
+    const column = (state.scheduleColumns || []).find(item => item.id === select?.value);
+    if (column && pendingCategoryForRow) {
+      column.categories = [...new Set([...(column.categories || []), pendingCategoryForRow])];
+      column.category = column.categories[0] || "";
+    }
+    close();
+    saveState();
+    render();
+  });
+  modal.querySelector("[data-category-row-skip]")?.addEventListener("click", close);
+  modal.addEventListener("click", event => { if (event.target === modal) close(); });
+})();
 
 // ── Quick booking popup from a free calendar slot ──────────────────────────
 // Clicking an empty cell in a column opens a popup scoped to that column's
@@ -10675,8 +10734,8 @@ if (els.scheduleColumnForm) {
 
   function open(date, time, columnId) {
     const column = bookingScheduleColumns().find(item => item.id === columnId);
-    const category = column?.category || "";
-    const scoped = activeServices().filter(service => !category || (service.category || "") === category);
+    const categories = column?.categories || [];
+    const scoped = activeServices().filter(service => !categories.length || categories.includes(service.category || ""));
     const services = scoped.length ? scoped : activeServices();
     serviceSel.innerHTML = services.length
       ? services.map(service => `<option value="${service.id}">${service.name}</option>`).join("")
@@ -11097,10 +11156,12 @@ if (els.serviceForm) {
     event.preventDefault();
     if (!canViewSensitive()) return;
     const data = Object.fromEntries(new FormData(els.serviceForm).entries());
+    const newCategory = (data.category || "").trim();
+    const isFreshCategory = newCategory && !serviceCategories().includes(newCategory) && !columnHostsCategory(newCategory);
     state.services.push(normalizeService({
       id: nextId("service"),
       name: data.name.trim(),
-      category: (data.category || "").trim(),
+      category: newCategory,
       defaultPrice: data.defaultPrice,
       defaultCost: data.defaultCost,
       active: data.active === "true"
@@ -11108,6 +11169,7 @@ if (els.serviceForm) {
     els.serviceForm.reset();
     saveState();
     render();
+    if (isFreshCategory) openCategoryRowPrompt(newCategory);
   });
 }
 
