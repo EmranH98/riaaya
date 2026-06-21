@@ -4123,6 +4123,14 @@ function renderStaffSelects() {
     }
   }
 
+  const svcCatSelect = document.querySelector("[data-service-category-select]");
+  if (svcCatSelect) {
+    const current = svcCatSelect.value;
+    svcCatSelect.innerHTML = `<option value="">— بدون فئة —</option>`
+      + serviceCategories().map(category => `<option value="${category}">${category}</option>`).join("")
+      + `<option value="__new__">➕ فئة جديدة…</option>`;
+    svcCatSelect.value = [...svcCatSelect.options].some(option => option.value === current) ? current : "";
+  }
   if (els.serviceCategoryList) {
     els.serviceCategoryList.innerHTML = serviceCategories().map(category => `<option value="${category}"></option>`).join("");
   }
@@ -10949,23 +10957,30 @@ function openCategoryRowPrompt(category) {
 
   function close() { modal.hidden = true; form.reset(); if (statusEl) statusEl.textContent = ""; }
 
+  let columnCategories = [];
   function fillServices(category) {
-    const scoped = activeServices().filter(service => !category || (service.category || "") === category);
-    const services = scoped.length ? scoped : activeServices();
+    let services = activeServices();
+    // When the column is tied to one or two categories, never show anything else.
+    if (columnCategories.length) services = services.filter(service => columnCategories.includes(service.category || ""));
+    if (category) services = services.filter(service => (service.category || "") === category);
     serviceSel.innerHTML = services.length
       ? services.map(service => `<option value="${service.id}">${service.name}</option>`).join("")
-      : `<option value="">أضف خدمة أولاً</option>`;
+      : `<option value="">لا توجد خدمات في هذه الفئة</option>`;
   }
   if (catSel) catSel.addEventListener("change", () => fillServices(catSel.value));
 
   function open(date, time, columnId) {
     const column = bookingScheduleColumns().find(item => item.id === columnId);
-    const columnCats = column?.categories || [];
-    const catOptions = columnCats.length ? columnCats : serviceCategories();
+    columnCategories = column?.categories || [];
     if (catSel) {
-      catSel.innerHTML = `<option value="">كل الخدمات</option>`
-        + catOptions.map(category => `<option value="${category}">${category}</option>`).join("");
-      catSel.value = columnCats[0] || "";
+      if (columnCategories.length) {
+        catSel.innerHTML = columnCategories.map(category => `<option value="${category}">${category}</option>`).join("");
+        catSel.value = columnCategories[0];
+      } else {
+        catSel.innerHTML = `<option value="">كل الخدمات</option>`
+          + serviceCategories().map(category => `<option value="${category}">${category}</option>`).join("");
+        catSel.value = "";
+      }
     }
     fillServices(catSel ? catSel.value : "");
     doctorSel.innerHTML = `<option value="">—</option>`
@@ -11457,11 +11472,17 @@ els.staffForm.addEventListener("submit", event => {
 });
 
 if (els.serviceForm) {
+  els.serviceForm.querySelector("[data-service-category-select]")?.addEventListener("change", event => {
+    const wrap = els.serviceForm.querySelector("[data-service-new-category-wrap]");
+    if (wrap) wrap.hidden = event.target.value !== "__new__";
+    const newInput = wrap?.querySelector("[name='categoryNew']");
+    if (event.target.value === "__new__" && newInput) setTimeout(() => newInput.focus(), 20);
+  });
   els.serviceForm.addEventListener("submit", event => {
     event.preventDefault();
     if (!canViewSensitive()) return;
     const data = Object.fromEntries(new FormData(els.serviceForm).entries());
-    const newCategory = (data.category || "").trim();
+    const newCategory = (data.category === "__new__" ? (data.categoryNew || "") : (data.category || "")).trim();
     const isFreshCategory = newCategory && !serviceCategories().includes(newCategory) && !columnHostsCategory(newCategory);
     state.services.push(normalizeService({
       id: nextId("service"),
@@ -11472,6 +11493,8 @@ if (els.serviceForm) {
       active: data.active === "true"
     }));
     els.serviceForm.reset();
+    const newWrap = els.serviceForm.querySelector("[data-service-new-category-wrap]");
+    if (newWrap) newWrap.hidden = true;
     saveState();
     render();
     if (isFreshCategory) openCategoryRowPrompt(newCategory);

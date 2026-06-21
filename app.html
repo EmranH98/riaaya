@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260622c">
+  <link rel="stylesheet" href="app.css?v=20260622d">
 </head>
 <body>
 
@@ -1275,8 +1275,12 @@
             </label>
             <label>
               الفئة (لتجميع الخدمات)
-              <input name="category" type="text" list="service-categories" placeholder="ليزر، فيشل، بوتوكس...">
+              <select name="category" data-service-category-select><option value="">— بدون فئة —</option></select>
               <datalist id="service-categories"></datalist>
+            </label>
+            <label data-service-new-category-wrap hidden>
+              اسم الفئة الجديدة
+              <input name="categoryNew" type="text" placeholder="مثال: ليزر، فيشل، بوتوكس">
             </label>
             <label>
               السعر الافتراضي (اختياري)
@@ -2960,7 +2964,7 @@
       </form>
     </div>
   </div>
-  <script src="app.js?v=20260622c"></script>
+  <script src="app.js?v=20260622d"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>
