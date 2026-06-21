@@ -1072,6 +1072,21 @@ function packageTemplateById(id) {
   return (state.packageTemplates || []).find(template => template.id === id) || null;
 }
 
+function patientPackageById(id) {
+  return (state.patientPackages || []).find(pkg => pkg.id === id) || null;
+}
+
+function packageScheduledSessions(packageId) {
+  return (state.bookings || []).filter(booking => booking.packageId === packageId && booking.status === "scheduled");
+}
+
+function upcomingPackageSessions() {
+  return (state.bookings || [])
+    .filter(booking => booking.packageId && booking.status === "scheduled")
+    .slice()
+    .sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`));
+}
+
 function patientById(id) {
   return (state.patients || []).find(patient => patient.id === id) || null;
 }
@@ -1345,6 +1360,7 @@ function normalizeBooking(booking, services = seedServices) {
     specialistId: booking.specialistId || booking.staff_id || "",
     expectedAmount: asNumber(booking.expectedAmount ?? booking.expected_amount ?? service?.defaultPrice),
     status: booking.status || "scheduled",
+    packageId: booking.packageId || booking.package_id || "",
     notes: booking.notes || booking.note || "",
     createdAt: booking.createdAt || booking.created_at || new Date().toISOString()
   };
@@ -1837,6 +1853,8 @@ const els = {
   packageTemplateList: document.querySelector("[data-package-template-list]"),
   packageSellForm: document.querySelector("[data-package-sell-form]"),
   packageList: document.querySelector("[data-package-list]"),
+  packageSessionForm: document.querySelector("[data-package-session-form]"),
+  packageSessionList: document.querySelector("[data-package-session-list]"),
   ruleList: document.querySelector("[data-rule-list]"),
   supplierList: document.querySelector("[data-supplier-list]"),
   inventoryList: document.querySelector("[data-inventory-list]"),
@@ -5155,6 +5173,54 @@ function renderPackages() {
         </div>
       </div>`;
     }).join("") : `<div class="empty-state">لا توجد باقات مُباعة بعد. اختر مريضاً وباقة ثم اضغط «بيع الباقة».</div>`;
+  }
+
+  if (els.packageSessionForm) {
+    const packageSelect = els.packageSessionForm.querySelector("[name='packageId']");
+    const columnSelect = els.packageSessionForm.querySelector("[name='scheduleColumnId']");
+    const dateInput = els.packageSessionForm.querySelector("[name='date']");
+    if (dateInput && !dateInput.value) dateInput.value = new Date().toISOString().slice(0, 10);
+    if (packageSelect) {
+      const current = packageSelect.value;
+      packageSelect.innerHTML = `<option value="">اختر الباقة</option>`
+        + (state.patientPackages || [])
+          .filter(pkg => packageComputedStatus(pkg) === "active")
+          .map(pkg => {
+            const patient = patientById(pkg.patientId);
+            return `<option value="${pkg.id}">${patient ? patient.name : "—"} · ${pkg.name} (المتبقي ${packageRemaining(pkg)})</option>`;
+          }).join("");
+      packageSelect.value = current;
+    }
+    if (columnSelect) {
+      const current = columnSelect.value;
+      columnSelect.innerHTML = `<option value="">—</option>`
+        + (state.scheduleColumns || []).map(column => `<option value="${column.id}">${column.label}</option>`).join("");
+      columnSelect.value = current;
+    }
+  }
+
+  if (els.packageSessionList) {
+    const sessions = upcomingPackageSessions();
+    els.packageSessionList.innerHTML = sessions.length ? sessions.map(booking => {
+      const pkg = patientPackageById(booking.packageId);
+      const patient = (pkg && patientById(pkg.patientId)) || patientById(booking.patientId);
+      const remaining = pkg ? packageRemaining(pkg) : 0;
+      return `
+      <div class="staff-card">
+        <div>
+          <strong>${booking.date} · ${booking.time}</strong>
+          <div class="staff-meta">
+            <span class="pill">${patient ? patient.name : booking.patient}</span>
+            ${pkg ? `<span class="pill">${pkg.name} · المتبقي ${remaining}</span>` : ""}
+            ${booking.service ? `<span class="pill">${booking.service}</span>` : ""}
+          </div>
+        </div>
+        <div class="pkg-actions">
+          <button class="text-button" type="button" data-package-session-done="${booking.id}">تمت</button>
+          <button class="icon-button danger" type="button" data-package-session-cancel="${booking.id}">إلغاء</button>
+        </div>
+      </div>`;
+    }).join("") : `<div class="empty-state">لا توجد جلسات مجدولة. اختر باقة وحدد تاريخاً لجدولتها على التقويم.</div>`;
   }
 }
 
@@ -10736,6 +10802,34 @@ if (els.packageSellForm) {
   });
 }
 
+if (els.packageSessionForm) {
+  els.packageSessionForm.addEventListener("submit", event => {
+    event.preventDefault();
+    const data = Object.fromEntries(new FormData(els.packageSessionForm).entries());
+    const pkg = patientPackageById(data.packageId);
+    if (!pkg || !data.date) return;
+    const patient = patientById(pkg.patientId);
+    const service = (state.services || []).find(item => item.id === pkg.serviceId);
+    state.bookings = state.bookings || [];
+    state.bookings.push(normalizeBooking({
+      date: data.date,
+      time: data.time || "09:00",
+      patientId: pkg.patientId,
+      patient: patient ? patient.name : "مريض",
+      phone: patient ? (patient.mobile || patient.phone || "") : "",
+      serviceId: pkg.serviceId || (service ? service.id : ""),
+      service: service ? service.name : pkg.name,
+      scheduleColumnId: data.scheduleColumnId || "",
+      packageId: pkg.id,
+      status: "scheduled",
+      notes: `جلسة باقة: ${pkg.name}`
+    }, state.services));
+    els.packageSessionForm.reset();
+    saveState();
+    render();
+  });
+}
+
 document.addEventListener("click", event => {
   const deleteTemplate = event.target.closest("[data-delete-package-template]");
   if (deleteTemplate) {
@@ -10764,6 +10858,29 @@ document.addEventListener("click", event => {
       saveState();
       render();
     }
+    return;
+  }
+  const sessionDone = event.target.closest("[data-package-session-done]");
+  if (sessionDone) {
+    const booking = (state.bookings || []).find(item => item.id === sessionDone.dataset.packageSessionDone);
+    if (booking) {
+      booking.status = "completed";
+      const pkg = patientPackageById(booking.packageId);
+      if (pkg && packageRemaining(pkg) > 0) {
+        pkg.usedSessions = Math.min(pkg.totalSessions, (pkg.usedSessions || 0) + 1);
+        if (packageRemaining(pkg) <= 0) pkg.status = "completed";
+      }
+      saveState();
+      render();
+    }
+    return;
+  }
+  const sessionCancel = event.target.closest("[data-package-session-cancel]");
+  if (sessionCancel) {
+    const id = sessionCancel.dataset.packageSessionCancel;
+    state.bookings = (state.bookings || []).filter(item => item.id !== id);
+    saveState();
+    render();
   }
 });
 

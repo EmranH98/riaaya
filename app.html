@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260620k">
+  <link rel="stylesheet" href="app.css?v=20260620l">
 </head>
 <body>
 
@@ -1270,6 +1270,46 @@
               <button class="primary-button form-submit" type="submit">بيع الباقة</button>
             </form>
             <div class="staff-list" data-package-list></div>
+          </article>
+        </div>
+
+        <div class="split-layout">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">جدولة الجلسات</p>
+                <h2>حجز جلسة باقة على التقويم</h2>
+              </div>
+            </div>
+            <form class="entry-form" data-package-session-form>
+              <label>
+                الباقة (المريض)
+                <select name="packageId" required><option value="">اختر الباقة</option></select>
+              </label>
+              <label>
+                التاريخ
+                <input name="date" type="date" required>
+              </label>
+              <label>
+                الوقت
+                <input name="time" type="time" value="09:00" required>
+              </label>
+              <label>
+                العمود / الغرفة
+                <select name="scheduleColumnId"><option value="">—</option></select>
+              </label>
+              <button class="primary-button form-submit" type="submit">جدولة الجلسة</button>
+            </form>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">قادم</p>
+                <h2>الجلسات القادمة</h2>
+              </div>
+            </div>
+            <div class="staff-list" data-package-session-list></div>
           </article>
         </div>
       </section>
@@ -2668,7 +2708,7 @@
       <div class="cmdk-list" data-cmdk-list></div>
     </div>
   </div>
-  <script src="app.js?v=20260620k"></script>
+  <script src="app.js?v=20260620l"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>
