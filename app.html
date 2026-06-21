@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260622j">
+  <link rel="stylesheet" href="app.css?v=20260622k">
 </head>
 <body>
 
@@ -1200,10 +1200,8 @@
                   <option value="specialist">أخصائي</option>
                 </select>
               </label>
-              <label>
-                الموظفون (اختر واحداً أو أكثر — فارغ = الكل)
-                <select name="personId" data-rule-person-select multiple size="4"></select>
-              </label>
+              <label>الموظفون (اضغط لاختيار من تُطبَّق عليهم — بدون اختيار = الكل)</label>
+              <div class="rule-person-checks" data-rule-person-select></div>
               <label>
                 الخدمة
                 <select name="serviceId" data-rule-service-select></select>
@@ -2978,7 +2976,7 @@
       </form>
     </div>
   </div>
-  <script src="app.js?v=20260622j"></script>
+  <script src="app.js?v=20260622k"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>

@@ -4187,10 +4187,13 @@ function renderRulePersonSelect() {
   if (!els.rulePersonSelect || !els.ruleForm) return;
   const appliesTo = els.ruleForm.elements.appliesTo.value;
   const people = state.staff.filter(member => member.role === appliesTo);
-  els.rulePersonSelect.innerHTML = [
-    `<option value="">كل ${appliesTo === "doctor" ? "الأطباء" : "الأخصائيين"}</option>`,
-    ...people.map(member => `<option value="${member.id}">${member.name}</option>`)
-  ].join("");
+  els.rulePersonSelect.innerHTML = people.length
+    ? people.map(member => `
+      <label class="rule-person-check">
+        <input type="checkbox" name="personId" value="${member.id}">
+        <span>${member.name}</span>
+      </label>`).join("")
+    : `<div class="empty-state">لا يوجد ${appliesTo === "doctor" ? "أطباء" : "أخصائيون"} بعد — أضف الموظفين أولاً.</div>`;
 }
 
 function renderInventorySelects() {

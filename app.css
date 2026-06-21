@@ -7133,3 +7133,8 @@ html[dir="ltr"] label {
 
 .day-schedule-booking { cursor: pointer; }
 .day-schedule-booking:hover { outline: 2px solid var(--teal); outline-offset: -2px; }
+
+.rule-person-checks { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 6px; }
+.rule-person-check { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border: 1px solid var(--line); border-radius: 999px; cursor: pointer; font-size: 13px; background: #fff; transition: background .12s, border-color .12s; }
+.rule-person-check:has(input:checked) { background: var(--teal-pale); border-color: var(--teal); color: var(--teal); font-weight: 700; }
+.rule-person-check input { accent-color: var(--teal); }
