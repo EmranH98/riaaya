@@ -71,6 +71,7 @@ const VIEW_LABELS = {
   staff: "الموظفون والنسب",
   services: "الخدمات والقواعد",
   packages: "الباقات والجلسات",
+  collections: "المبالغ المستحقة",
   inventory: "المخزون والموردون",
   expenses: "المصروفات",
   reconcile: "المطابقة",
@@ -1258,6 +1259,7 @@ function normalizePatient(patient) {
     nationality: patient.nationality || "",
     city: patient.city || "",
     category: patient.category || "",
+    referralSource: patient.referralSource || patient.referral_source || "",
     notes: patient.notes || patient.note || "",
     marketingConsent: patient.marketingConsent === true || patient.marketing_consent === true,
     consentUpdatedAt: patient.consentUpdatedAt || patient.consent_updated_at || "",
@@ -1849,6 +1851,9 @@ const els = {
   entryTable: document.querySelector("[data-entry-table]"),
   staffList: document.querySelector("[data-staff-list]"),
   serviceList: document.querySelector("[data-service-list]"),
+  referralSummary: document.querySelector("[data-referral-summary]"),
+  collectionsBody: document.querySelector("[data-collections-body]"),
+  collectionsTotal: document.querySelector("[data-collections-total]"),
   packageTemplateForm: document.querySelector("[data-package-template-form]"),
   packageTemplateList: document.querySelector("[data-package-template-list]"),
   packageSellForm: document.querySelector("[data-package-sell-form]"),
@@ -2594,7 +2599,7 @@ function canView(viewName) {
   if (!clinicModuleEnabledForView(viewName)) return false;
   if (viewName === "leads") return false;
   if (viewName === "accounts") return canManagePermissions();
-  if (["reconcile", "salaries"].includes(viewName) && !canViewSensitive()) return false;
+  if (["reconcile", "salaries", "collections"].includes(viewName) && !canViewSensitive()) return false;
   return currentAllowedViews().includes(viewName);
 }
 
@@ -3454,12 +3459,29 @@ function salaryRows(entries) {
     const related = entries
       .map(entry => ({ entry, payout: entryPayouts(entry).find(row => row.member.id === member.id) }))
       .filter(row => row.payout);
-    const amount = related.reduce((sum, row) => sum + row.payout.payout, 0);
+    let amount = related.reduce((sum, row) => sum + row.payout.payout, 0);
+    const formulas = [...new Set(related.map(row => row.payout.formula))].slice(0, 3);
+
+    // Commission on packages this member sold on the active date (additive: no
+    // packages sold → unchanged). Rate uses the member's own commission rate.
+    let packageOps = 0;
+    const soldPackages = (state.patientPackages || []).filter(pkg =>
+      pkg.soldByStaffId === member.id && (pkg.soldAt || "") === state.settings.activeDate);
+    const rate = numberValue(member.rate);
+    if (soldPackages.length && rate > 0) {
+      const packageCommission = soldPackages.reduce((sum, pkg) => sum + numberValue(pkg.price) * rate / 100, 0);
+      if (packageCommission > 0.009) {
+        amount += packageCommission;
+        packageOps = soldPackages.length;
+        formulas.push(`عمولة باقات ${rate}%`);
+      }
+    }
+
     return {
       member,
-      operations: related.length,
+      operations: related.length + packageOps,
       amount,
-      formulas: [...new Set(related.map(row => row.payout.formula))].slice(0, 3)
+      formulas: formulas.slice(0, 4)
     };
   });
 }
@@ -5222,6 +5244,72 @@ function renderPackages() {
       </div>`;
     }).join("") : `<div class="empty-state">لا توجد جلسات مجدولة. اختر باقة وحدد تاريخاً لجدولتها على التقويم.</div>`;
   }
+}
+
+const REFERRAL_LABELS = {
+  instagram: "إنستغرام", facebook: "فيسبوك", tiktok: "تيك توك", google: "جوجل",
+  friend: "صديق/توصية", walkin: "مرّ بالعيادة", doctor: "إحالة طبيب",
+  returning: "مريض سابق", other: "أخرى"
+};
+
+function renderReferralSummary() {
+  if (!els.referralSummary) return;
+  const counts = {};
+  (state.patients || []).forEach(patient => {
+    if (patient.referralSource) counts[patient.referralSource] = (counts[patient.referralSource] || 0) + 1;
+  });
+  const ranked = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  els.referralSummary.innerHTML = ranked.length
+    ? `<span class="referral-summary-title">مصادر الإحالة:</span> `
+      + ranked.map(([key, value]) => `<span class="pill">${REFERRAL_LABELS[key] || key} · ${value}</span>`).join(" ")
+    : "";
+}
+
+function outstandingByPatient() {
+  const map = new Map();
+  const bump = (patientId, name, field, amount) => {
+    if (amount <= 0.009) return;
+    const key = patientId || `name:${name}`;
+    const row = map.get(key) || { patientId, name, operations: 0, packages: 0 };
+    row[field] += amount;
+    if (!row.name && name) row.name = name;
+    map.set(key, row);
+  };
+  (state.entries || []).forEach(entry => {
+    const due = netAmount(entry) - paidAmount(entry);
+    bump(entry.patientId, entry.patient, "operations", due);
+  });
+  (state.patientPackages || []).forEach(pkg => {
+    const due = numberValue(pkg.price) - numberValue(pkg.paid);
+    const patient = patientById(pkg.patientId);
+    bump(pkg.patientId, patient ? patient.name : "—", "packages", due);
+  });
+  return [...map.values()]
+    .map(row => ({ ...row, total: row.operations + row.packages }))
+    .filter(row => row.total > 0.009)
+    .sort((a, b) => b.total - a.total);
+}
+
+function renderCollections() {
+  if (!els.collectionsBody) return;
+  if (!canViewSensitive()) {
+    els.collectionsBody.innerHTML = `<tr><td colspan="4">المبالغ المستحقة مخفية لهذا الحساب.</td></tr>`;
+    if (els.collectionsTotal) els.collectionsTotal.textContent = "—";
+    return;
+  }
+  const rows = outstandingByPatient();
+  const total = rows.reduce((sum, row) => sum + row.total, 0);
+  if (els.collectionsTotal) els.collectionsTotal.textContent = money(total);
+  els.collectionsBody.innerHTML = rows.length ? rows.map(row => {
+    const patient = row.patientId ? patientById(row.patientId) : null;
+    return `
+      <tr>
+        <td>${patient ? patient.name : (row.name || "—")}</td>
+        <td>${row.operations > 0.009 ? money(row.operations) : "—"}</td>
+        <td>${row.packages > 0.009 ? money(row.packages) : "—"}</td>
+        <td><strong>${money(row.total)}</strong></td>
+      </tr>`;
+  }).join("") : `<tr><td colspan="4">لا توجد مبالغ مستحقة — كل العمليات والباقات مدفوعة بالكامل. 🎉</td></tr>`;
 }
 
 function renderRuleList() {
@@ -9200,6 +9288,8 @@ function render() {
   renderStaffRuleServiceSelect();
   renderServiceList();
   renderPackages();
+  renderReferralSummary();
+  renderCollections();
   renderRuleList();
   renderInventoryKpis();
   renderSupplierList();
@@ -9650,6 +9740,7 @@ function fillPatientForm(patientId) {
   els.patientForm.elements.nationality.value = patient.nationality || "";
   els.patientForm.elements.city.value = patient.city || "";
   els.patientForm.elements.category.value = patient.category || "";
+  if (els.patientForm.elements.referralSource) els.patientForm.elements.referralSource.value = patient.referralSource || "";
   els.patientForm.elements.notes.value = patient.notes || "";
   els.patientForm.elements.marketingConsent.checked = patient.marketingConsent === true;
   if (els.patientSubmit) els.patientSubmit.textContent = "تحديث الملف";
@@ -9675,6 +9766,7 @@ if (els.patientForm) {
       nationality: data.nationality.trim(),
       city: data.city.trim(),
       category: data.category.trim(),
+      referralSource: data.referralSource || "",
       notes: data.notes.trim(),
       marketingConsent: data.marketingConsent === "on",
       consentUpdatedAt: data.marketingConsent === "on" ? new Date().toISOString() : existing?.consentUpdatedAt || "",

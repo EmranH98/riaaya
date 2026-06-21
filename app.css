@@ -7080,6 +7080,9 @@ html[dir="ltr"] label {
 .cmdk-item.cmdk-active { background: var(--teal-pale); color: var(--teal); }
 .cmdk-empty { padding: 16px; text-align: center; color: var(--ink-soft); font-size: 13px; }
 
+.referral-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 12px; font-size: 12px; }
+.referral-summary:empty { display: none; }
+.referral-summary-title { color: var(--ink-soft); font-weight: 700; }
 .pkg-actions { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
 .pill.pkg-ok { background: var(--teal-pale); color: var(--teal); }
 .pill.pkg-warn { background: #fff4e0; color: #9a6300; }
