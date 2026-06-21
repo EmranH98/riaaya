@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260622g">
+  <link rel="stylesheet" href="app.css?v=20260622h">
 </head>
 <body>
 
@@ -99,6 +99,7 @@
           <button class="nav-group-label" type="button" data-nav-group="reports"><span>التقارير</span><svg class="nav-group-chevron" aria-hidden="true"><use href="#ic-chevron"/></svg></button>
           <button class="nav-item" data-report-jump="perProcedure" type="button" title="تقرير العمليات"><svg class="nav-ic" aria-hidden="true"><use href="#ic-receipt"/></svg><span class="nav-label">تقرير العمليات</span></button>
           <button class="nav-item" data-report-jump="packages" type="button" title="تقرير الباقات"><svg class="nav-ic" aria-hidden="true"><use href="#ic-package"/></svg><span class="nav-label">تقرير الباقات</span></button>
+          <button class="nav-item" data-report-jump="specialist" type="button" title="تقرير الموظفين"><svg class="nav-ic" aria-hidden="true"><use href="#ic-users"/></svg><span class="nav-label">تقرير الموظفين</span></button>
           <button class="nav-item" data-report-jump="audit" type="button" title="سجل التعديلات"><svg class="nav-ic" aria-hidden="true"><use href="#ic-shield"/></svg><span class="nav-label">سجل التعديلات</span></button>
           <button class="nav-item" data-report-jump="cash" type="button" title="التقرير المالي (الكاش)"><svg class="nav-ic" aria-hidden="true"><use href="#ic-cash"/></svg><span class="nav-label">التقرير المالي</span></button>
           <button class="nav-item" data-report-jump="universal" type="button" title="بحث تفصيلي شامل"><svg class="nav-ic" aria-hidden="true"><use href="#ic-chart"/></svg><span class="nav-label">بحث تفصيلي</span></button>
@@ -979,6 +980,7 @@
               <p class="calendar-summary" data-booking-calendar-summary>اختر يوماً لعرض حجوزاته.</p>
             </div>
             <div class="calendar-actions">
+              <button class="primary-button" type="button" data-open-operation-modal>＋ تسجيل عملية</button>
               <button class="icon-button" type="button" data-calendar-nav="prev" aria-label="الشهر السابق" title="الشهر السابق">‹</button>
               <button class="text-button" type="button" data-calendar-nav="today">اليوم</button>
               <button class="icon-button" type="button" data-calendar-nav="next" aria-label="الشهر التالي" title="الشهر التالي">›</button>
@@ -1936,6 +1938,7 @@
               <button class="report-tab"        type="button" data-report-tab="byPatient"      role="tab">👤 حسب المريض</button>
               <button class="report-tab"        type="button" data-report-tab="perProcedure"   role="tab">📋 كل عملية</button>
               <button class="report-tab"        type="button" data-report-tab="packages"       role="tab">📦 الباقات</button>
+              <button class="report-tab"        type="button" data-report-tab="specialist"     role="tab">👤 حسب الموظف</button>
               <button class="report-tab"        type="button" data-report-tab="audit"          role="tab">📝 سجل التعديلات</button>
             </div>
             <div class="report-tab-group">
@@ -1965,6 +1968,7 @@
             <option value="byPatient">حسب المريض</option>
             <option value="perProcedure">كل عملية</option>
             <option value="packages">الباقات</option>
+            <option value="specialist">حسب الموظف</option>
             <option value="audit">سجل التعديلات</option>
             <option value="bookings">الحجوزات والجدول</option>
             <option value="patients">دليل المرضى والزوار</option>
@@ -2971,7 +2975,7 @@
       </form>
     </div>
   </div>
-  <script src="app.js?v=20260622g"></script>
+  <script src="app.js?v=20260622h"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>

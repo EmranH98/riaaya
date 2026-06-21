@@ -5187,6 +5187,7 @@ function renderPatientFile() {
         <p>${canUseFeature("patient_number") ? `ملف #${patient.patientNumber}` : "رقم الملف مخفي"} | آخر نشاط ${displayDate(lastActivity) || "-"}</p>
       </div>
       <div class="form-actions">
+        ${canView("entries") ? `<button class="primary-button" type="button" data-add-operation-patient="${patient.id}">＋ تسجيل عملية</button>` : ""}
         <button class="text-button patient-focus-back" type="button" data-patient-focus-list>رجوع للملفات</button>
         <button class="focus-icon-button" type="button" data-expand-view="patients" data-patient-focus="file" aria-label="تكبير ملف المريض" title="تكبير ملف المريض">
           <span aria-hidden="true">⛶</span>
@@ -8415,7 +8416,7 @@ function renderReports() {
       + serviceCategories().map(category => `<option value="${category}">${category}</option>`).join("");
     reportCatFilter.value = [...reportCatFilter.options].some(option => option.value === currentCat) ? currentCat : "";
   }
-  const financialReports = ["profit", "reconciliation", "patientBalance", "byPatient", "perProcedure", "costs", "expenses", "retention", "packages", "cash", "audit"];
+  const financialReports = ["profit", "reconciliation", "patientBalance", "byPatient", "perProcedure", "costs", "expenses", "retention", "packages", "cash", "audit", "specialist"];
   if (!canViewSensitive() && financialReports.includes(reportType)) {
     els.reportVisuals.innerHTML = "";
     els.reportPagination.innerHTML = "";
@@ -8465,6 +8466,10 @@ function renderReports() {
     const packageEntries = allEntries.filter(entry => entry.packageId);
     pagination = paginateItems(packageEntries, reportPage, pageSize);
     content = renderPackagesReport(pagination.items);
+  } else if (reportType === "specialist") {
+    const specRows = salaryRows(allEntries).filter(row => row.operations > 0);
+    pagination = paginateItems(specRows, reportPage, pageSize);
+    content = renderSpecialistReport(pagination.items);
   } else if (reportType === "audit") {
     const auditItems = (state.auditTrail || []).slice().reverse()
       .filter(item => !filters.query || matchesSmartQuery([item.who, item.action, item.detail], filters.query));
@@ -8496,6 +8501,30 @@ function entryCategory(entry) {
     if (pkg?.category) return pkg.category;
   }
   return getService(entry.serviceId)?.category || "";
+}
+
+function renderSpecialistReport(rows) {
+  if (!rows.length) return `<div class="empty-state">لا توجد عمليات منسوبة لموظفين في هذه الفترة.</div>`;
+  let totalOps = 0, totalDue = 0;
+  const body = rows.map(row => {
+    totalOps += row.operations; totalDue += row.amount;
+    return `
+      <tr>
+        <td>${row.member.name}</td>
+        <td>${roleLabel(row.member.role)}</td>
+        <td>${row.operations}</td>
+        <td>${row.formulas.join("، ") || "—"}</td>
+        <td>${money(row.amount)}</td>
+      </tr>`;
+  }).join("");
+  return `
+    <div class="table-wrap">
+      <table class="practical-table">
+        <thead><tr><th>الموظف</th><th>الدور</th><th>عدد العمليات</th><th>القاعدة</th><th>المستحقات</th></tr></thead>
+        <tbody>${body}</tbody>
+        <tfoot><tr><td colspan="2"><strong>الإجمالي</strong></td><td><strong>${totalOps}</strong></td><td></td><td><strong>${money(totalDue)}</strong></td></tr></tfoot>
+      </table>
+    </div>`;
 }
 
 function renderPackagesReport(entries) {
@@ -8840,7 +8869,7 @@ function applyPriceFieldVisibility() {
   });
 }
 
-function openOperationModal({ returnView = "" } = {}) {
+function openOperationModal({ returnView = "", patientName = "" } = {}) {
   if (!canView("entries")) return;
   const currentView = document.querySelector(".view.active")?.dataset.view || "dashboard";
   runtime.operationReturnView = returnView || currentView;
@@ -8851,6 +8880,10 @@ function openOperationModal({ returnView = "" } = {}) {
   applyPriceFieldVisibility();
   updatePaymentFieldsForStatus();
   renderPaymentQuickButtons();
+  if (patientName && els.entryForm) {
+    const patientInput = els.entryForm.querySelector('input[name="patient"]');
+    if (patientInput) patientInput.value = patientName;
+  }
   window.setTimeout(() => {
     els.entryForm?.querySelector('input[name="patient"]')?.focus({ preventScroll: true });
   }, 120);
@@ -12255,6 +12288,13 @@ document.addEventListener("click", async event => {
 
   if (openOperationAction) {
     openOperationModal();
+    return;
+  }
+
+  const addOpFromPatient = event.target.closest("[data-add-operation-patient]");
+  if (addOpFromPatient) {
+    const patient = (state.patients || []).find(item => item.id === addOpFromPatient.dataset.addOperationPatient);
+    openOperationModal({ patientName: patient?.name || "" });
     return;
   }
 
