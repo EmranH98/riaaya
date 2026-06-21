@@ -7163,6 +7163,7 @@ function entryMatchesReportFilters(entry, filters) {
   const doctor = getStaffMember(entry.doctorId);
   const specialist = getStaffMember(entry.specialistId);
   return (!filters.status || entry.status === filters.status)
+    && (!filters.category || entryCategory(entry) === filters.category)
     && entryMatchesPayment(entry, filters.paymentMethod)
     && matchesSmartQuery([
       entry.patient,
@@ -8407,6 +8408,13 @@ function renderReports() {
   // the detailed/universal search, which keeps its tabs + visuals.
   const reportPanelEl = els.reportPage?.closest(".full-report-panel");
   if (reportPanelEl) reportPanelEl.classList.toggle("report-clean", reportType !== "universal");
+  const reportCatFilter = document.querySelector("[data-report-category]");
+  if (reportCatFilter) {
+    const currentCat = reportCatFilter.value;
+    reportCatFilter.innerHTML = `<option value="">كل الفئات</option>`
+      + serviceCategories().map(category => `<option value="${category}">${category}</option>`).join("");
+    reportCatFilter.value = [...reportCatFilter.options].some(option => option.value === currentCat) ? currentCat : "";
+  }
   const financialReports = ["profit", "reconciliation", "patientBalance", "byPatient", "perProcedure", "costs", "expenses", "retention", "packages", "cash", "audit"];
   if (!canViewSensitive() && financialReports.includes(reportType)) {
     els.reportVisuals.innerHTML = "";
