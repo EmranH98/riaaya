@@ -1143,6 +1143,7 @@ function sellPackage({ patientId, template, sessions, price, paid, soldByStaffId
   });
   state.patientPackages = state.patientPackages || [];
   state.patientPackages.push(pkg);
+  logEdit("بيع باقة", `${patientById(patientId)?.name || ""} · ${pkg.name} · ${money(pkg.price)}`);
 
   const seller = (state.staff || []).find(member => member.id === soldByStaffId);
   const patient = patientById(patientId);
@@ -2356,6 +2357,7 @@ function submitFollowup() {
   entry.notes = combined.join(" | ");
 
   const isNowComplete = entry.status === "completed";
+  logEdit("تكملة دفع", `${entry.visitNumber ? "#" + entry.visitNumber + " " : ""}${entry.patient || ""} · ${money(amount)} (${methodLabel})`);
   saveState();
   closeFollowupModal();
   render();
@@ -8475,7 +8477,11 @@ function renderReports() {
     content = renderSpecialistReport(pagination.items);
   } else if (reportType === "audit") {
     const auditItems = (state.auditTrail || []).slice().reverse()
-      .filter(item => !filters.query || matchesSmartQuery([item.who, item.action, item.detail], filters.query));
+      .filter(item => {
+        const day = (item.at || "").slice(0, 10);
+        return (!day || (day >= from && day <= to))
+          && (!filters.query || matchesSmartQuery([item.who, item.action, item.detail], filters.query));
+      });
     pagination = paginateItems(auditItems, reportPage, pageSize);
     content = renderAuditReport(pagination.items);
   } else if (reportType === "cash") {
@@ -10282,8 +10288,10 @@ if (els.patientForm) {
       state.patients = state.patients.map(item => item.id === patient.id ? patient : item);
       state.entries = state.entries.map(entry => entry.patientId === patient.id ? { ...entry, patient: patient.name } : entry);
       state.bookings = state.bookings.map(booking => booking.patientId === patient.id ? { ...booking, patient: patient.name, phone: patient.phone || booking.phone } : booking);
+      logEdit("تعديل ملف مريض", patient.name);
     } else {
       state.patients.push(patient);
+      logEdit("إضافة ملف مريض", patient.name);
     }
     selectedPatientId = patient.id;
     resetPatientForm();
@@ -11492,6 +11500,7 @@ els.entryForm.addEventListener("submit", event => {
     notes: data.notes.trim()
   }, state.services); });
   state.entries.push(...newEntries);
+  logEdit("تسجيل عملية", `#${visitNumber} · ${data.patient.trim()} · ${newEntries.map(line => line.service).join("، ")}`);
   const receipt = data.createReceipt === "on" && canUseFeature("issue_receipts")
     ? createReceiptForVisit(newEntries, patient, {
         buyerType: data.buyerType,
@@ -11641,6 +11650,7 @@ if (els.serviceForm) {
       defaultCost: data.defaultCost,
       active: data.active === "true"
     }));
+    logEdit("إضافة خدمة", `${data.name.trim()}${newCategory ? " · " + newCategory : ""}`);
     els.serviceForm.reset();
     const newWrap = els.serviceForm.querySelector("[data-service-new-category-wrap]");
     if (newWrap) newWrap.hidden = true;
