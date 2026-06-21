@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260620p">
+  <link rel="stylesheet" href="app.css?v=20260620q">
 </head>
 <body>
 
@@ -588,6 +588,23 @@
                   <option value="cancelled">ملغاة</option>
                 </select>
               </label>
+              <div class="operation-schedule-panel" data-operation-schedule hidden>
+                <p class="schedule-panel-hint">ستُضاف هذه الزيارة إلى التقويم كحجز.</p>
+                <div class="operation-schedule-fields">
+                  <label>
+                    تاريخ الحجز
+                    <input name="scheduleDate" type="date">
+                  </label>
+                  <label>
+                    الوقت
+                    <input name="scheduleTime" type="time" value="09:00">
+                  </label>
+                  <label>
+                    العمود / الغرفة
+                    <select name="scheduleColumnId" data-operation-schedule-column></select>
+                  </label>
+                </div>
+              </div>
               <label>
                 ملاحظات
                 <input name="notes" type="text" placeholder="اختياري">
@@ -2779,7 +2796,7 @@
       <div class="cmdk-list" data-cmdk-list></div>
     </div>
   </div>
-  <script src="app.js?v=20260620p"></script>
+  <script src="app.js?v=20260620q"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>

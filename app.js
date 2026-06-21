@@ -1899,6 +1899,8 @@ const els = {
   doctorSelect: document.querySelector("[data-doctor-select]"),
   specialistSelect: document.querySelector("[data-specialist-select]"),
   serviceSelect: document.querySelector("[data-service-select]"),
+  operationSchedulePanel: document.querySelector("[data-operation-schedule]"),
+  operationScheduleColumn: document.querySelector("[data-operation-schedule-column]"),
   operationCategorySelect: document.querySelector("[data-operation-category]"),
   serviceCategoryList: document.querySelector("#service-categories"),
   bookingDoctorSelect: document.querySelector("[data-booking-doctor-select]"),
@@ -4033,6 +4035,15 @@ function renderStaffSelects() {
     els.bookingSpecialistSelect.innerHTML = scopedMember?.role === "specialist"
       ? specialistOptions.join("")
       : [`<option value="">بدون أخصائي</option>`, ...specialistOptions].join("");
+  }
+
+  if (els.operationScheduleColumn) {
+    const columns = scheduleColumnsForAccount();
+    const current = els.operationScheduleColumn.value;
+    els.operationScheduleColumn.innerHTML = columns.length
+      ? columns.map(column => `<option value="${column.id}">${column.label}</option>`).join("")
+      : `<option value="">لا أعمدة مسموح بها</option>`;
+    els.operationScheduleColumn.value = current;
   }
 
   if (els.operationCategorySelect) {
@@ -10484,6 +10495,15 @@ if (els.entryForm) {
     updateEntryPreview();
   });
   els.entryForm.addEventListener("change", event => {
+    if (event.target.name === "statusExtra") {
+      const scheduled = event.target.value === "scheduled";
+      if (els.operationSchedulePanel) els.operationSchedulePanel.hidden = !scheduled;
+      if (scheduled) {
+        const dateInput = els.entryForm.elements.scheduleDate;
+        if (dateInput && !dateInput.value) dateInput.value = state.settings.activeDate;
+      }
+      return;
+    }
     if (event.target === els.operationCategorySelect) {
       const activeCategory = els.operationCategorySelect.value || "";
       const services = activeServices();
@@ -10781,6 +10801,42 @@ els.entryForm.addEventListener("submit", event => {
   const status = statusExtra && statusExtra !== ""
     ? statusExtra
     : (!doctorId && !specialistId && baseStatus === "completed" ? "pending_assignment" : baseStatus);
+  // Booked (محجوزة): place it on the calendar as a booking instead of recording
+  // a completed operation. Respects the user's permitted calendar columns + add
+  // appointment permission.
+  if (statusExtra === "scheduled") {
+    if (!canUseFeature("add_appointment")) {
+      showToast("لا تملك صلاحية إضافة الحجوزات.", "error");
+      return;
+    }
+    const firstLine = lines[0];
+    const requestedColumn = data.scheduleColumnId || "";
+    const scheduleColumnId = scheduleColumnAllowedForAccount(requestedColumn) ? requestedColumn : "";
+    state.bookings = state.bookings || [];
+    state.bookings.push(normalizeBooking({
+      date: data.scheduleDate || state.settings.activeDate,
+      time: data.scheduleTime || "09:00",
+      patientId: patient.id,
+      patient: data.patient.trim(),
+      phone: patient.phone || "",
+      serviceId: firstLine.serviceId,
+      service: firstLine.service,
+      scheduleColumnId,
+      doctorId,
+      specialistId,
+      expectedAmount: visitNetForLines(lines),
+      status: "scheduled",
+      notes: data.notes.trim()
+    }, state.services));
+    const scheduledReturnView = runtime.operationReturnView || "bookings";
+    resetEntryFormDefaults();
+    saveState();
+    render();
+    closeOperationModal({ restoreView: scheduledReturnView });
+    showToast("تمت إضافة الحجز إلى التقويم.", "success");
+    return;
+  }
+
   // Doctor rate override for this visit
   const doctorRateOverride = numberValue(data.doctorRateOverride);
   const doctorModelOverride = data.doctorModelOverride || "";
