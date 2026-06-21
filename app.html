@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260620i">
+  <link rel="stylesheet" href="app.css?v=20260620j">
 </head>
 <body>
 
@@ -41,6 +41,26 @@
   <button class="focus-exit" type="button" data-exit-focus hidden>تصغير الشاشة</button>
   <!-- ════════════════════════════════════════════════════════ -->
 
+  <svg class="nav-sprite" aria-hidden="true" width="0" height="0" style="position:absolute"><defs>
+    <symbol id="ic-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+    <symbol id="ic-search" viewBox="0 0 24 24"><path d="M11 4a7 7 0 100 14 7 7 0 000-14zM20 20l-3.6-3.6"/></symbol>
+    <symbol id="ic-dashboard" viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></symbol>
+    <symbol id="ic-receipt" viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6"/></symbol>
+    <symbol id="ic-user" viewBox="0 0 24 24"><path d="M12 12a4 4 0 100-8 4 4 0 000 8zM5 20a7 7 0 0114 0"/></symbol>
+    <symbol id="ic-calendar" viewBox="0 0 24 24"><path d="M4 6h16v15H4zM4 10h16M8 3v4M16 3v4"/></symbol>
+    <symbol id="ic-chart" viewBox="0 0 24 24"><path d="M4 20h16M7 20v-6M12 20V8M17 20v-9"/></symbol>
+    <symbol id="ic-wallet" viewBox="0 0 24 24"><path d="M4 7h15a1 1 0 011 1v9a1 1 0 01-1 1H5a1 1 0 01-1-1V7zM4 7l2-3h10l2 3M16 13h2"/></symbol>
+    <symbol id="ic-cash" viewBox="0 0 24 24"><path d="M2 7h20v10H2zM12 9a3 3 0 100 6 3 3 0 000-6"/></symbol>
+    <symbol id="ic-check" viewBox="0 0 24 24"><path d="M12 21a9 9 0 100-18 9 9 0 000 18zM9 12l2 2 4-4"/></symbol>
+    <symbol id="ic-chat" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-4 4V5z"/></symbol>
+    <symbol id="ic-tag" viewBox="0 0 24 24"><path d="M4 4h7l9 9-7 7-9-9V4zM7.5 7.5h.01"/></symbol>
+    <symbol id="ic-box" viewBox="0 0 24 24"><path d="M3 7l9-4 9 4-9 4-9-4zM3 7v10l9 4 9-4V7M12 11v10"/></symbol>
+    <symbol id="ic-users" viewBox="0 0 24 24"><path d="M9 12a4 4 0 100-8 4 4 0 000 8zM2 20a7 7 0 0114 0M17 11a3 3 0 100-6M22 20a6 6 0 00-5-5.9"/></symbol>
+    <symbol id="ic-shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></symbol>
+    <symbol id="ic-upload" viewBox="0 0 24 24"><path d="M12 16V4M8 8l4-4 4 4M4 20h16"/></symbol>
+    <symbol id="ic-spark" viewBox="0 0 24 24"><path d="M12 3l2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5z"/></symbol>
+  </defs></svg>
+
   <div class="app-shell">
     <aside class="sidebar">
       <a class="brand" href="index.html" aria-label="العودة إلى الصفحة الرئيسية">
@@ -51,22 +71,38 @@
         </span>
       </a>
 
+      <button class="nav-collapse-toggle" type="button" data-nav-collapse aria-label="طي أو فتح القائمة الجانبية" title="طي / فتح القائمة">
+        <svg class="nav-ic" aria-hidden="true"><use href="#ic-menu"/></svg>
+      </button>
+
       <nav class="side-nav" aria-label="أقسام لوحة التحكم">
-        <button class="nav-item active" data-view-button="dashboard" type="button">ملخص اليوم</button>
-        <button class="nav-item" data-view-button="entries" type="button">عمليات اليوم</button>
-        <button class="nav-item" data-view-button="patients" type="button">ملفات المرضى والزوار</button>
-        <button class="nav-item" data-view-button="bookings" type="button">الحجوزات</button>
-        <button class="nav-item" data-view-button="staff" type="button">الموظفون والنسب</button>
-        <button class="nav-item" data-view-button="services" type="button">الخدمات والقواعد</button>
-        <button class="nav-item" data-view-button="inventory" type="button">المخزون والموردون</button>
-        <button class="nav-item" data-view-button="expenses" type="button">المصروفات</button>
-        <button class="nav-item" data-view-button="reconcile" type="button">المطابقة</button>
-        <button class="nav-item" data-view-button="salaries" type="button">الرواتب</button>
-        <button class="nav-item" data-view-button="reports" type="button">التقارير</button>
-        <button class="nav-item" data-view-button="communications" type="button">التواصل والفوترة</button>
-        <button class="nav-item" data-view-button="accounts" type="button">الحسابات والصلاحيات</button>
-        <button class="nav-item" data-view-button="imports" type="button">استيراد البيانات</button>
-        <button class="nav-item" data-view-button="leads" type="button">طلبات التجربة</button>
+        <div class="nav-group">
+          <span class="nav-group-label">اليومي</span>
+          <button class="nav-item active" data-view-button="dashboard" type="button" title="ملخص اليوم"><svg class="nav-ic" aria-hidden="true"><use href="#ic-dashboard"/></svg><span class="nav-label">ملخص اليوم</span></button>
+          <button class="nav-item" data-view-button="entries" type="button" title="عمليات اليوم"><svg class="nav-ic" aria-hidden="true"><use href="#ic-receipt"/></svg><span class="nav-label">عمليات اليوم</span></button>
+          <button class="nav-item" data-view-button="bookings" type="button" title="الحجوزات"><svg class="nav-ic" aria-hidden="true"><use href="#ic-calendar"/></svg><span class="nav-label">الحجوزات</span></button>
+          <button class="nav-item" data-view-button="patients" type="button" title="ملفات المرضى والزوار"><svg class="nav-ic" aria-hidden="true"><use href="#ic-user"/></svg><span class="nav-label">ملفات المرضى والزوار</span></button>
+        </div>
+        <div class="nav-group">
+          <span class="nav-group-label">المالية</span>
+          <button class="nav-item" data-view-button="reports" type="button" title="التقارير"><svg class="nav-ic" aria-hidden="true"><use href="#ic-chart"/></svg><span class="nav-label">التقارير</span></button>
+          <button class="nav-item" data-view-button="expenses" type="button" title="المصروفات"><svg class="nav-ic" aria-hidden="true"><use href="#ic-wallet"/></svg><span class="nav-label">المصروفات</span></button>
+          <button class="nav-item" data-view-button="salaries" type="button" title="الرواتب"><svg class="nav-ic" aria-hidden="true"><use href="#ic-cash"/></svg><span class="nav-label">الرواتب</span></button>
+          <button class="nav-item" data-view-button="reconcile" type="button" title="المطابقة"><svg class="nav-ic" aria-hidden="true"><use href="#ic-check"/></svg><span class="nav-label">المطابقة</span></button>
+          <button class="nav-item" data-view-button="communications" type="button" title="التواصل والفوترة"><svg class="nav-ic" aria-hidden="true"><use href="#ic-chat"/></svg><span class="nav-label">التواصل والفوترة</span></button>
+        </div>
+        <div class="nav-group">
+          <span class="nav-group-label">الإدارة</span>
+          <button class="nav-item" data-view-button="services" type="button" title="الخدمات والقواعد"><svg class="nav-ic" aria-hidden="true"><use href="#ic-tag"/></svg><span class="nav-label">الخدمات والقواعد</span></button>
+          <button class="nav-item" data-view-button="inventory" type="button" title="المخزون والموردون"><svg class="nav-ic" aria-hidden="true"><use href="#ic-box"/></svg><span class="nav-label">المخزون والموردون</span></button>
+          <button class="nav-item" data-view-button="staff" type="button" title="الموظفون والنسب"><svg class="nav-ic" aria-hidden="true"><use href="#ic-users"/></svg><span class="nav-label">الموظفون والنسب</span></button>
+        </div>
+        <div class="nav-group">
+          <span class="nav-group-label">النظام</span>
+          <button class="nav-item" data-view-button="accounts" type="button" title="الحسابات والصلاحيات"><svg class="nav-ic" aria-hidden="true"><use href="#ic-shield"/></svg><span class="nav-label">الحسابات والصلاحيات</span></button>
+          <button class="nav-item" data-view-button="imports" type="button" title="استيراد البيانات"><svg class="nav-ic" aria-hidden="true"><use href="#ic-upload"/></svg><span class="nav-label">استيراد البيانات</span></button>
+          <button class="nav-item" data-view-button="leads" type="button" title="طلبات التجربة"><svg class="nav-ic" aria-hidden="true"><use href="#ic-spark"/></svg><span class="nav-label">طلبات التجربة</span></button>
+        </div>
       </nav>
 
       <div class="sidebar-card">
@@ -95,6 +131,10 @@
             الحساب
             <select data-account-switcher></select>
           </label>
+          <button class="cmdk-trigger" type="button" data-cmdk-open aria-label="تنقّل سريع بين الأقسام">
+            <svg class="nav-ic" aria-hidden="true"><use href="#ic-search"/></svg>
+            <span>تنقّل سريع</span><kbd>⌘K</kbd>
+          </button>
           <form class="global-search" data-global-search>
             <input name="query" type="search" placeholder="ابحث في العيادة..." aria-label="البحث في العيادة">
             <button class="dark-button" type="submit">بحث</button>
@@ -2539,7 +2579,13 @@
     </div>
   </div>
 
-  <script src="app.js?v=20260620i"></script>
+  <div class="cmdk-overlay" data-cmdk hidden>
+    <div class="cmdk-box" role="dialog" aria-modal="true" aria-label="التنقل السريع بين الأقسام">
+      <input class="cmdk-input" data-cmdk-input type="search" placeholder="اكتب اسم قسم للانتقال إليه…" aria-label="بحث سريع" autocomplete="off">
+      <div class="cmdk-list" data-cmdk-list></div>
+    </div>
+  </div>
+  <script src="app.js?v=20260620j"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>

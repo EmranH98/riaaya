@@ -9028,6 +9028,81 @@ els.viewButtons.forEach(button => {
   button.addEventListener("click", () => setView(button.dataset.viewButton));
 });
 
+// ── Grouped sidebar collapse + command palette (⌘K) ─────────────────────
+// Purely additive: reuses setView()/canView() and the existing nav buttons.
+(function initNavShell() {
+  const appShell = document.querySelector(".app-shell");
+  const COLLAPSE_KEY = "riaaya-nav-collapsed";
+  const applyCollapsed = state => appShell?.classList.toggle("nav-collapsed", !!state);
+  try { applyCollapsed(localStorage.getItem(COLLAPSE_KEY) === "1"); } catch {}
+  document.querySelector("[data-nav-collapse]")?.addEventListener("click", () => {
+    const next = !appShell.classList.contains("nav-collapsed");
+    applyCollapsed(next);
+    try { localStorage.setItem(COLLAPSE_KEY, next ? "1" : "0"); } catch {}
+  });
+
+  const overlay = document.querySelector("[data-cmdk]");
+  const input = overlay?.querySelector("[data-cmdk-input]");
+  const list = overlay?.querySelector("[data-cmdk-list]");
+  let activeIndex = 0;
+  const navItems = () => [...document.querySelectorAll(".side-nav [data-view-button]")]
+    .filter(btn => !btn.hidden)
+    .map(btn => ({ view: btn.dataset.viewButton, label: (btn.querySelector(".nav-label")?.textContent || btn.textContent).trim() }));
+  function render(filter) {
+    if (!list) return;
+    const q = (filter || "").trim();
+    const matched = navItems().filter(it => !q || it.label.includes(q));
+    list.innerHTML = "";
+    activeIndex = 0;
+    if (!matched.length) {
+      const empty = document.createElement("div");
+      empty.className = "cmdk-empty";
+      empty.textContent = "لا توجد نتائج";
+      list.appendChild(empty);
+      return;
+    }
+    matched.forEach((it, i) => {
+      const el = document.createElement("button");
+      el.type = "button";
+      el.className = "cmdk-item" + (i === 0 ? " cmdk-active" : "");
+      el.textContent = it.label;
+      el.addEventListener("click", () => { setView(it.view); closeCmdk(); });
+      list.appendChild(el);
+    });
+  }
+  function openCmdk() {
+    if (!overlay) return;
+    overlay.hidden = false;
+    render("");
+    if (input) { input.value = ""; setTimeout(() => input.focus(), 20); }
+  }
+  function closeCmdk() { if (overlay) overlay.hidden = true; }
+  function moveActive(delta) {
+    const els = [...list.querySelectorAll(".cmdk-item")];
+    if (!els.length) return;
+    els[activeIndex]?.classList.remove("cmdk-active");
+    activeIndex = (activeIndex + delta + els.length) % els.length;
+    els[activeIndex]?.classList.add("cmdk-active");
+    els[activeIndex]?.scrollIntoView({ block: "nearest" });
+  }
+  input?.addEventListener("input", () => render(input.value));
+  input?.addEventListener("keydown", event => {
+    if (event.key === "ArrowDown") { event.preventDefault(); moveActive(1); }
+    else if (event.key === "ArrowUp") { event.preventDefault(); moveActive(-1); }
+    else if (event.key === "Enter") { event.preventDefault(); list.querySelectorAll(".cmdk-item")[activeIndex]?.click(); }
+  });
+  overlay?.addEventListener("click", event => { if (event.target === overlay) closeCmdk(); });
+  document.querySelector("[data-cmdk-open]")?.addEventListener("click", openCmdk);
+  document.addEventListener("keydown", event => {
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+      event.preventDefault();
+      overlay && overlay.hidden ? openCmdk() : closeCmdk();
+    } else if (event.key === "Escape" && overlay && !overlay.hidden) {
+      closeCmdk();
+    }
+  });
+})();
+
 if (els.languageSelect) {
   els.languageSelect.addEventListener("change", event => {
     state.settings.language = event.target.value;
