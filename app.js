@@ -1094,6 +1094,53 @@ function upcomingPackageSessions() {
     .sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`));
 }
 
+// Sell a package: records the patient package (session tracking) AND a real
+// revenue entry on the active date, so the sale shows in سجل العمليات and counts
+// in every entry-based calculation (revenue, collections, commission, reports).
+function sellPackage({ patientId, template, sessions, price, paid, soldByStaffId }) {
+  if (!patientId || !template) return null;
+  const totalSessions = Math.max(1, Math.round(numberValue(sessions) || template.sessions));
+  const finalPrice = (price !== undefined && price !== null && price !== "") ? numberValue(price) : numberValue(template.price);
+  const paidAmount = Math.min(Math.max(numberValue(paid), 0), finalPrice);
+  let expiresAt = "";
+  if (template.validityDays > 0) {
+    const expiry = new Date();
+    expiry.setDate(expiry.getDate() + template.validityDays);
+    expiresAt = expiry.toISOString().slice(0, 10);
+  }
+  const pkg = normalizePatientPackage({
+    patientId, templateId: template.id, name: template.name, serviceId: template.serviceId,
+    totalSessions, usedSessions: 0, price: finalPrice, paid: paidAmount,
+    soldByStaffId: soldByStaffId || "", soldAt: state.settings.activeDate, expiresAt, status: "active"
+  });
+  state.patientPackages = state.patientPackages || [];
+  state.patientPackages.push(pkg);
+
+  const seller = (state.staff || []).find(member => member.id === soldByStaffId);
+  const patient = patientById(patientId);
+  const entry = normalizeEntry({
+    id: nextId("entry"),
+    date: state.settings.activeDate,
+    patientId,
+    patient: patient ? patient.name : "مريض",
+    serviceId: "",
+    service: `باقة: ${template.name}`,
+    amount: finalPrice,
+    discount: 0,
+    quantity: 1,
+    cost: 0,
+    doctorId: seller && seller.role === "doctor" ? seller.id : "",
+    specialistId: seller && seller.role && seller.role !== "doctor" ? seller.id : "",
+    packageId: pkg.id,
+    status: "completed",
+    paymentBreakdown: { cash: paidAmount, card: 0, transfer: 0 }
+  }, state.services);
+  state.entries = state.entries || [];
+  state.entries.push(entry);
+  pkg.entryId = entry.id;
+  return pkg;
+}
+
 function patientById(id) {
   return (state.patients || []).find(patient => patient.id === id) || null;
 }
@@ -3480,29 +3527,12 @@ function salaryRows(entries) {
     const related = entries
       .map(entry => ({ entry, payout: entryPayouts(entry).find(row => row.member.id === member.id) }))
       .filter(row => row.payout);
-    let amount = related.reduce((sum, row) => sum + row.payout.payout, 0);
-    const formulas = [...new Set(related.map(row => row.payout.formula))].slice(0, 3);
-
-    // Commission on packages this member sold on the active date (additive: no
-    // packages sold → unchanged). Rate uses the member's own commission rate.
-    let packageOps = 0;
-    const soldPackages = (state.patientPackages || []).filter(pkg =>
-      pkg.soldByStaffId === member.id && (pkg.soldAt || "") === state.settings.activeDate);
-    const rate = numberValue(member.rate);
-    if (soldPackages.length && rate > 0) {
-      const packageCommission = soldPackages.reduce((sum, pkg) => sum + numberValue(pkg.price) * rate / 100, 0);
-      if (packageCommission > 0.009) {
-        amount += packageCommission;
-        packageOps = soldPackages.length;
-        formulas.push(`عمولة باقات ${rate}%`);
-      }
-    }
-
+    const amount = related.reduce((sum, row) => sum + row.payout.payout, 0);
     return {
       member,
-      operations: related.length + packageOps,
+      operations: related.length,
       amount,
-      formulas: formulas.slice(0, 4)
+      formulas: [...new Set(related.map(row => row.payout.formula))].slice(0, 3)
     };
   });
 }
@@ -5322,12 +5352,8 @@ function outstandingByPatient() {
   };
   (state.entries || []).forEach(entry => {
     const due = netAmount(entry) - paidAmount(entry);
-    bump(entry.patientId, entry.patient, "operations", due);
-  });
-  (state.patientPackages || []).forEach(pkg => {
-    const due = numberValue(pkg.price) - numberValue(pkg.paid);
-    const patient = patientById(pkg.patientId);
-    bump(pkg.patientId, patient ? patient.name : "—", "packages", due);
+    const field = entry.packageId ? "packages" : "operations";
+    bump(entry.patientId, entry.patient, field, due);
   });
   return [...map.values()]
     .map(row => ({ ...row, total: row.operations + row.packages }))
@@ -10950,29 +10976,14 @@ if (els.packageSellForm) {
     const data = Object.fromEntries(new FormData(els.packageSellForm).entries());
     const template = packageTemplateById(data.templateId);
     if (!data.patientId || !template) return;
-    const sessions = Math.max(1, Math.round(numberValue(data.sessions) || template.sessions));
-    const price = data.price !== undefined && data.price !== "" ? numberValue(data.price) : template.price;
-    let expiresAt = "";
-    if (template.validityDays > 0) {
-      const expiry = new Date();
-      expiry.setDate(expiry.getDate() + template.validityDays);
-      expiresAt = expiry.toISOString().slice(0, 10);
-    }
-    state.patientPackages = state.patientPackages || [];
-    state.patientPackages.push(normalizePatientPackage({
+    sellPackage({
       patientId: data.patientId,
-      templateId: template.id,
-      name: template.name,
-      serviceId: template.serviceId,
-      totalSessions: sessions,
-      usedSessions: 0,
-      price,
-      paid: numberValue(data.paid),
-      soldByStaffId: data.soldByStaffId || "",
-      soldAt: new Date().toISOString().slice(0, 10),
-      expiresAt,
-      status: "active"
-    }));
+      template,
+      sessions: data.sessions,
+      price: data.price,
+      paid: data.paid,
+      soldByStaffId: data.soldByStaffId || ""
+    });
     els.packageSellForm.reset();
     saveState();
     render();
@@ -11018,19 +11029,13 @@ document.addEventListener("click", event => {
     if (!template) { setStatus("اختر الباقة."); return; }
     const patient = findOrCreatePatientByName(patientName);
     const paidInput = document.querySelector("[data-operation-package-paid]");
-    let expiresAt = "";
-    if (template.validityDays > 0) {
-      const expiry = new Date();
-      expiry.setDate(expiry.getDate() + template.validityDays);
-      expiresAt = expiry.toISOString().slice(0, 10);
-    }
     const soldBy = els.entryForm?.elements?.doctorId?.value || els.entryForm?.elements?.specialistId?.value || "";
-    state.patientPackages = state.patientPackages || [];
-    state.patientPackages.push(normalizePatientPackage({
-      patientId: patient.id, templateId: template.id, name: template.name, serviceId: template.serviceId,
-      totalSessions: template.sessions, usedSessions: 0, price: template.price, paid: numberValue(paidInput?.value),
-      soldByStaffId: soldBy, soldAt: new Date().toISOString().slice(0, 10), expiresAt, status: "active"
-    }));
+    sellPackage({
+      patientId: patient.id,
+      template,
+      paid: numberValue(paidInput?.value),
+      soldByStaffId: soldBy
+    });
     saveState();
     render();
     if (paidInput) paidInput.value = "";
