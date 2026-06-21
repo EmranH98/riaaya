@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260622b">
+  <link rel="stylesheet" href="app.css?v=20260622c">
 </head>
 <body>
 
@@ -2863,6 +2863,10 @@
           <input name="patient" type="text" list="operation-patient-options" placeholder="ابحث بالاسم أو اكتب اسماً جديداً" required>
         </label>
         <label>
+          الفئة
+          <select name="category" data-slot-booking-category></select>
+        </label>
+        <label>
           الخدمة
           <select name="serviceId" data-slot-booking-service required></select>
         </label>
@@ -2956,7 +2960,7 @@
       </form>
     </div>
   </div>
-  <script src="app.js?v=20260622b"></script>
+  <script src="app.js?v=20260622c"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>

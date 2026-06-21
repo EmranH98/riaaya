@@ -10943,19 +10943,31 @@ function openCategoryRowPrompt(category) {
   const form = modal.querySelector("[data-slot-booking-form]");
   const titleEl = modal.querySelector("[data-slot-booking-title]");
   const serviceSel = modal.querySelector("[data-slot-booking-service]");
+  const catSel = modal.querySelector("[data-slot-booking-category]");
   const doctorSel = modal.querySelector("[data-slot-booking-doctor]");
   const statusEl = modal.querySelector("[data-slot-booking-status]");
 
   function close() { modal.hidden = true; form.reset(); if (statusEl) statusEl.textContent = ""; }
 
-  function open(date, time, columnId) {
-    const column = bookingScheduleColumns().find(item => item.id === columnId);
-    const categories = column?.categories || [];
-    const scoped = activeServices().filter(service => !categories.length || categories.includes(service.category || ""));
+  function fillServices(category) {
+    const scoped = activeServices().filter(service => !category || (service.category || "") === category);
     const services = scoped.length ? scoped : activeServices();
     serviceSel.innerHTML = services.length
       ? services.map(service => `<option value="${service.id}">${service.name}</option>`).join("")
       : `<option value="">أضف خدمة أولاً</option>`;
+  }
+  if (catSel) catSel.addEventListener("change", () => fillServices(catSel.value));
+
+  function open(date, time, columnId) {
+    const column = bookingScheduleColumns().find(item => item.id === columnId);
+    const columnCats = column?.categories || [];
+    const catOptions = columnCats.length ? columnCats : serviceCategories();
+    if (catSel) {
+      catSel.innerHTML = `<option value="">كل الخدمات</option>`
+        + catOptions.map(category => `<option value="${category}">${category}</option>`).join("");
+      catSel.value = columnCats[0] || "";
+    }
+    fillServices(catSel ? catSel.value : "");
     doctorSel.innerHTML = `<option value="">—</option>`
       + (state.staff || []).filter(member => member.role === "doctor").map(member => `<option value="${member.id}">${member.name}</option>`).join("");
     form.elements.date.value = date;
