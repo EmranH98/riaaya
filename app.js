@@ -1018,10 +1018,16 @@ function normalizeService(service) {
   return {
     id: service.id || nextId("service"),
     name: service.name || "خدمة بدون اسم",
+    category: service.category || service.group || "",
     defaultPrice: asNumber(service.defaultPrice ?? service.default_price),
     defaultCost: asNumber(service.defaultCost ?? service.default_cost ?? service.doctor_cost),
     active: service.active !== false
   };
+}
+
+function serviceCategories() {
+  return [...new Set((state.services || []).map(service => service.category).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, "ar"));
 }
 
 function normalizePackageTemplate(template) {
@@ -1090,6 +1096,17 @@ function upcomingPackageSessions() {
 
 function patientById(id) {
   return (state.patients || []).find(patient => patient.id === id) || null;
+}
+
+function findOrCreatePatientByName(name) {
+  const clean = String(name || "").trim();
+  if (!clean) return null;
+  const existing = (state.patients || []).find(patient => patientNameKey(patient.name) === patientNameKey(clean));
+  if (existing) return existing;
+  const patient = normalizePatient({ name: clean, profileType: "patient" });
+  state.patients = state.patients || [];
+  state.patients.push(patient);
+  return patient;
 }
 
 function normalizeRule(rule) {
@@ -1834,6 +1851,8 @@ const els = {
   doctorSelect: document.querySelector("[data-doctor-select]"),
   specialistSelect: document.querySelector("[data-specialist-select]"),
   serviceSelect: document.querySelector("[data-service-select]"),
+  operationCategorySelect: document.querySelector("[data-operation-category]"),
+  serviceCategoryList: document.querySelector("#service-categories"),
   bookingDoctorSelect: document.querySelector("[data-booking-doctor-select]"),
   bookingSpecialistSelect: document.querySelector("[data-booking-specialist-select]"),
   bookingServiceSelect: document.querySelector("[data-booking-service-select]"),
@@ -1860,6 +1879,8 @@ const els = {
   packageList: document.querySelector("[data-package-list]"),
   packageSessionForm: document.querySelector("[data-package-session-form]"),
   packageSessionList: document.querySelector("[data-package-session-list]"),
+  operationPackageTemplate: document.querySelector("[data-operation-package-template]"),
+  operationPackageStatus: document.querySelector("[data-operation-package-status]"),
   ruleList: document.querySelector("[data-rule-list]"),
   supplierList: document.querySelector("[data-supplier-list]"),
   inventoryList: document.querySelector("[data-inventory-list]"),
@@ -3976,12 +3997,23 @@ function renderStaffSelects() {
       : [`<option value="">بدون أخصائي</option>`, ...specialistOptions].join("");
   }
 
-  if (els.serviceSelect) {
-    els.serviceSelect.innerHTML = services.length
-      ? services.map(service => `<option value="${service.id}">${service.name}</option>`).join("")
-      : `<option value="">أضف خدمة أولاً</option>`;
+  if (els.operationCategorySelect) {
+    const categories = serviceCategories();
+    const current = els.operationCategorySelect.value;
+    els.operationCategorySelect.innerHTML = `<option value="">كل الفئات</option>`
+      + categories.map(category => `<option value="${category}">${category}</option>`).join("");
+    els.operationCategorySelect.value = current;
+    els.operationCategorySelect.parentElement.hidden = categories.length === 0;
+  }
 
-    const selectedService = getService(els.serviceSelect.value) || services[0];
+  if (els.serviceSelect) {
+    const activeCategory = els.operationCategorySelect?.value || "";
+    const filtered = activeCategory ? services.filter(service => (service.category || "") === activeCategory) : services;
+    els.serviceSelect.innerHTML = filtered.length
+      ? filtered.map(service => `<option value="${service.id}">${service.name}</option>`).join("")
+      : `<option value="">${activeCategory ? "لا خدمات في هذه الفئة" : "أضف خدمة أولاً"}</option>`;
+
+    const selectedService = getService(els.serviceSelect.value) || filtered[0];
     if (selectedService && els.entryForm) {
       if (!els.entryForm.elements.amount.value) {
         els.entryForm.elements.amount.value = selectedService.defaultPrice || "";
@@ -3990,6 +4022,10 @@ function renderStaffSelects() {
         els.entryForm.elements.cost.value = selectedService.defaultCost || 0;
       }
     }
+  }
+
+  if (els.serviceCategoryList) {
+    els.serviceCategoryList.innerHTML = serviceCategories().map(category => `<option value="${category}"></option>`).join("");
   }
 
   if (els.bookingServiceSelect) {
@@ -5113,6 +5149,7 @@ function renderServiceList() {
       <div>
         <strong>${service.name}</strong>
         <div class="staff-meta">
+          ${service.category ? `<span class="pill">${service.category}</span>` : ""}
           <span class="pill">السعر ${money(service.defaultPrice)}</span>
           ${canViewSensitive() ? `<span class="pill">التكلفة ${money(service.defaultCost)}</span>` : ""}
           <span class="pill">${service.active === false ? "متوقفة" : "فعالة"}</span>
@@ -5168,6 +5205,14 @@ function renderPackages() {
         .map(template => `<option value="${template.id}" data-sessions="${template.sessions}" data-price="${template.price}">${template.name} — ${template.sessions} جلسة</option>`).join("");
     if (staffSelect) staffSelect.innerHTML = `<option value="">—</option>`
       + (state.staff || []).map(member => `<option value="${member.id}">${member.name}</option>`).join("");
+  }
+
+  if (els.operationPackageTemplate) {
+    const current = els.operationPackageTemplate.value;
+    els.operationPackageTemplate.innerHTML = `<option value="">اختر الباقة</option>`
+      + templates.filter(template => template.active !== false)
+        .map(template => `<option value="${template.id}" data-price="${template.price}">${template.name} — ${template.sessions} جلسة</option>`).join("");
+    els.operationPackageTemplate.value = current;
   }
 
   if (els.packageList) {
@@ -9335,6 +9380,35 @@ els.viewButtons.forEach(button => {
     try { localStorage.setItem(COLLAPSE_KEY, next ? "1" : "0"); } catch {}
   });
 
+  // Accordion groups: each group header expands/collapses its items (persisted).
+  const GROUPS_KEY = "riaaya-nav-groups";
+  const navGroups = [...document.querySelectorAll(".side-nav .nav-group")];
+  const groupKey = group => group.querySelector("[data-nav-group]")?.dataset.navGroup || "";
+  const openActiveGroup = () => {
+    document.querySelector(".side-nav .nav-item.active")?.closest(".nav-group")?.classList.add("open");
+  };
+  let savedGroups = {};
+  try { savedGroups = JSON.parse(localStorage.getItem(GROUPS_KEY) || "{}") || {}; } catch {}
+  navGroups.forEach(group => {
+    const key = groupKey(group);
+    if (key in savedGroups) group.classList.toggle("open", !!savedGroups[key]);
+  });
+  openActiveGroup();
+  const persistGroups = () => {
+    const map = {};
+    navGroups.forEach(group => { map[groupKey(group)] = group.classList.contains("open"); });
+    try { localStorage.setItem(GROUPS_KEY, JSON.stringify(map)); } catch {}
+  };
+  document.querySelectorAll(".side-nav [data-nav-group]").forEach(button => {
+    button.addEventListener("click", () => {
+      button.closest(".nav-group")?.classList.toggle("open");
+      persistGroups();
+    });
+  });
+  document.querySelectorAll(".side-nav .nav-item").forEach(item => {
+    item.addEventListener("click", () => item.closest(".nav-group")?.classList.add("open"));
+  });
+
   const overlay = document.querySelector("[data-cmdk]");
   const input = overlay?.querySelector("[data-cmdk-input]");
   const list = overlay?.querySelector("[data-cmdk-list]");
@@ -9360,7 +9434,7 @@ els.viewButtons.forEach(button => {
       el.type = "button";
       el.className = "cmdk-item" + (i === 0 ? " cmdk-active" : "");
       el.textContent = it.label;
-      el.addEventListener("click", () => { setView(it.view); closeCmdk(); });
+      el.addEventListener("click", () => { setView(it.view); openActiveGroup(); closeCmdk(); });
       list.appendChild(el);
     });
   }
@@ -10348,6 +10422,16 @@ if (els.entryForm) {
     updateEntryPreview();
   });
   els.entryForm.addEventListener("change", event => {
+    if (event.target === els.operationCategorySelect) {
+      const activeCategory = els.operationCategorySelect.value || "";
+      const services = activeServices();
+      const filtered = activeCategory ? services.filter(service => (service.category || "") === activeCategory) : services;
+      els.serviceSelect.innerHTML = filtered.length
+        ? filtered.map(service => `<option value="${service.id}">${service.name}</option>`).join("")
+        : `<option value="">${activeCategory ? "لا خدمات في هذه الفئة" : "أضف خدمة أولاً"}</option>`;
+      els.serviceSelect.dispatchEvent(new Event("change", { bubbles: true }));
+      return;
+    }
     if (event.target === els.serviceSelect) {
       const service = getService(els.serviceSelect.value);
       if (service) {
@@ -10817,6 +10901,7 @@ if (els.serviceForm) {
     state.services.push(normalizeService({
       id: nextId("service"),
       name: data.name.trim(),
+      category: (data.category || "").trim(),
       defaultPrice: data.defaultPrice,
       defaultCost: data.defaultCost,
       active: data.active === "true"
@@ -10923,6 +11008,35 @@ if (els.packageSessionForm) {
 }
 
 document.addEventListener("click", event => {
+  const sellInOperation = event.target.closest("[data-operation-sell-package]");
+  if (sellInOperation) {
+    const status = els.operationPackageStatus;
+    const setStatus = msg => { if (status) status.textContent = msg; };
+    const template = packageTemplateById(els.operationPackageTemplate?.value);
+    const patientName = els.entryForm?.elements?.patient?.value?.trim();
+    if (!patientName) { setStatus("اكتب اسم المريض في الأعلى أولاً."); return; }
+    if (!template) { setStatus("اختر الباقة."); return; }
+    const patient = findOrCreatePatientByName(patientName);
+    const paidInput = document.querySelector("[data-operation-package-paid]");
+    let expiresAt = "";
+    if (template.validityDays > 0) {
+      const expiry = new Date();
+      expiry.setDate(expiry.getDate() + template.validityDays);
+      expiresAt = expiry.toISOString().slice(0, 10);
+    }
+    const soldBy = els.entryForm?.elements?.doctorId?.value || els.entryForm?.elements?.specialistId?.value || "";
+    state.patientPackages = state.patientPackages || [];
+    state.patientPackages.push(normalizePatientPackage({
+      patientId: patient.id, templateId: template.id, name: template.name, serviceId: template.serviceId,
+      totalSessions: template.sessions, usedSessions: 0, price: template.price, paid: numberValue(paidInput?.value),
+      soldByStaffId: soldBy, soldAt: new Date().toISOString().slice(0, 10), expiresAt, status: "active"
+    }));
+    saveState();
+    render();
+    if (paidInput) paidInput.value = "";
+    setStatus(`✅ تم بيع «${template.name}» للمريض ${patient.name}.`);
+    return;
+  }
   const deleteTemplate = event.target.closest("[data-delete-package-template]");
   if (deleteTemplate) {
     if (!canViewSensitive()) return;

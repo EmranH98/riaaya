@@ -7049,7 +7049,11 @@ html[dir="ltr"] label {
 .nav-item { display: flex; align-items: center; gap: 12px; }
 .nav-group { display: flex; flex-direction: column; gap: 6px; }
 .nav-group + .nav-group { margin-top: 14px; }
-.nav-group-label { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; color: rgba(255,255,255,0.38); padding: 0 14px 2px; }
+.nav-group-label { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; background: transparent; border: 0; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; color: rgba(255,255,255,0.45); padding: 6px 14px; cursor: pointer; text-align: start; border-radius: 8px; transition: background 0.15s, color 0.15s; }
+.nav-group-label:hover { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.7); }
+.nav-group-chevron { width: 14px; height: 14px; flex: 0 0 auto; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; opacity: 0.7; transition: transform 0.18s; }
+.nav-group:not(.open) .nav-group-chevron { transform: rotate(-90deg); }
+.app-shell:not(.nav-collapsed) .nav-group:not(.open) > .nav-item { display: none; }
 .nav-group:not(:has(.nav-item:not([hidden]))) { display: none; }
 .nav-collapse-toggle { align-self: flex-start; width: 40px; height: 40px; display: grid; place-items: center; border: 0; border-radius: 10px; background: rgba(255,255,255,0.06); color: var(--sidebar-text); cursor: pointer; flex: 0 0 auto; }
 .nav-collapse-toggle:hover { background: var(--sidebar-hover); color: var(--sidebar-text-active); }
@@ -7080,6 +7084,9 @@ html[dir="ltr"] label {
 .cmdk-item.cmdk-active { background: var(--teal-pale); color: var(--teal); }
 .cmdk-empty { padding: 16px; text-align: center; color: var(--ink-soft); font-size: 13px; }
 
+.operation-package-sell { margin: 8px 0; border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; background: #fafcfb; }
+.operation-package-sell summary { cursor: pointer; font-size: 13px; color: var(--teal); font-weight: 700; }
+.operation-package-sell-body { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; margin-top: 10px; }
 .referral-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 12px; font-size: 12px; }
 .referral-summary:empty { display: none; }
 .referral-summary-title { color: var(--ink-soft); font-weight: 700; }
