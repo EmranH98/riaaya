@@ -1801,7 +1801,13 @@ function hydrateClinicState(saved, clinic, accounts) {
   return {
     ...base,
     ...source,
-    settings: { ...base.settings, ...(source.settings || {}), clinicName: clinic.name || source.settings?.clinicName || base.settings.clinicName },
+    settings: (() => {
+      const merged = { ...base.settings, ...(source.settings || {}), clinicName: clinic.name || source.settings?.clinicName || base.settings.clinicName };
+      // Follow the device date: if the clinic was last opened on an earlier day,
+      // advance the working date to today so a new day starts fresh.
+      if (!merged.activeDate || merged.activeDate < today) merged.activeDate = today;
+      return merged;
+    })(),
     staff: Array.isArray(source.staff) ? source.staff.map(normalizeStaffMember) : [],
     services,
     packageTemplates: Array.isArray(source.packageTemplates) ? source.packageTemplates.map(normalizePackageTemplate) : [],
