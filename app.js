@@ -1120,6 +1120,7 @@ function sellPackage({ patientId, template, sessions, price, paid, soldByStaffId
   const patient = patientById(patientId);
   const entry = normalizeEntry({
     id: nextId("entry"),
+    visitNumber: nextVisitNumber(),
     date: state.settings.activeDate,
     patientId,
     patient: patient ? patient.name : "مريض",
@@ -2736,6 +2737,13 @@ function findPatientByName(name) {
 function nextPatientNumber() {
   const highest = (state.patients || []).reduce((max, patient) => (
     Math.max(max, Number.parseInt(patient.patientNumber, 10) || 1000)
+  ), 1000);
+  return String(highest + 1);
+}
+
+function nextVisitNumber() {
+  const highest = (state.entries || []).reduce((max, entry) => (
+    Math.max(max, Number.parseInt(entry.visitNumber, 10) || 1000)
   ), 1000);
   return String(highest + 1);
 }
@@ -5030,17 +5038,44 @@ function renderPatientFile() {
   const canSeePhone = canUseFeature("see_mobile");
   const canEdit = canUseFeature("edit_patient_information");
   const canDelete = canUseFeature("delete_patient");
+  const showSensitivePf = canViewSensitive();
   const operationRows = canUseFeature("patient_history") && operations.length
-    ? operations.slice(0, 20).map(entry => `
-      <tr>
+    ? operations.slice(0, 30).map(entry => {
+      const net = netAmount(entry);
+      const paid = paidAmount(entry);
+      const due = Math.max(net - paid, 0);
+      const staffNames = [getStaffMember(entry.doctorId)?.name, getStaffMember(entry.specialistId)?.name]
+        .filter(Boolean).join(" / ") || "بدون تعيين";
+      const receipt = receiptForEntry(entry.id);
+      return `
+      <tr class="op-summary-row" data-toggle-operation="${entry.id}">
         <td>${displayDate(entry.date)}</td>
-        <td>${serviceLabel(entry)}</td>
-        <td>${entryStatusLabel(entry.status)}</td>
-        <td>${entryPaymentLabel(entry)}</td>
-        <td>${canViewSensitive() ? money(paidAmount(entry)) : "مخفي"}</td>
-        <td>${receiptForEntry(entry.id) && canUseFeature("view_receipts") ? `<button class="text-button" type="button" data-open-receipt="${receiptForEntry(entry.id).id}">عرض</button>` : "-"}</td>
+        <td>${entry.visitNumber ? `#${entry.visitNumber}` : "—"}</td>
+        <td>${serviceLabel(entry)} <span class="op-expand-caret">▾</span></td>
+        <td><span class="status-pill ${statusClass(entry.status)}">${entryStatusLabel(entry.status)}</span></td>
+        <td>${showSensitivePf ? money(paid) : "مخفي"}</td>
+        <td>${showSensitivePf ? (due > 0.009 ? money(due) : "—") : "مخفي"}</td>
       </tr>
-    `).join("")
+      <tr class="op-detail-row" data-operation-detail="${entry.id}" hidden>
+        <td colspan="6">
+          <div class="op-detail">
+            <div class="op-detail-grid">
+              <div><span>رقم العملية</span><strong>${entry.visitNumber ? `#${entry.visitNumber}` : "—"}</strong></div>
+              <div><span>المنفّذ</span><strong>${staffNames}</strong></div>
+              <div><span>الإجمالي</span><strong>${showSensitivePf ? money(net) : "مخفي"}</strong></div>
+              <div><span>المدفوع</span><strong>${showSensitivePf ? money(paid) : "مخفي"}</strong></div>
+              <div><span>المتبقي</span><strong>${showSensitivePf ? money(due) : "مخفي"}</strong></div>
+              <div><span>طريقة الدفع</span><strong>${entryPaymentLabel(entry)}</strong></div>
+            </div>
+            <div class="op-detail-actions">
+              ${showSensitivePf && due > 0.009 ? `<button class="primary-button" type="button" data-followup-entry="${entry.id}">تكملة الدفع (${money(due)})</button>` : (showSensitivePf ? `<span class="op-paid-full">مدفوعة بالكامل ✓</span>` : "")}
+              ${receipt && canUseFeature("view_receipts") ? `<button class="text-button" type="button" data-open-receipt="${receipt.id}">عرض الإيصال</button>` : ""}
+              ${showSensitivePf ? `<button class="text-button danger" type="button" data-delete-entry="${entry.id}">حذف العملية</button>` : ""}
+            </div>
+          </div>
+        </td>
+      </tr>`;
+    }).join("")
     : `<tr><td colspan="6">${canUseFeature("patient_history") ? "لا توجد عمليات في هذا الملف." : "لا توجد صلاحية لعرض سجل العمليات."}</td></tr>`;
   const bookingRows = canUseFeature("patient_bookings") && bookings.length
     ? bookings.slice(0, 20).map(booking => `
@@ -5111,7 +5146,7 @@ function renderPatientFile() {
       <h3>سجل العمليات</h3>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>التاريخ</th><th>الخدمة</th><th>الحالة</th><th>الدفع</th><th>المدفوع</th><th>الإيصال</th></tr></thead>
+          <thead><tr><th>التاريخ</th><th>رقم</th><th>الخدمة</th><th>الحالة</th><th>المدفوع</th><th>المتبقي</th></tr></thead>
           <tbody>${operationRows}</tbody>
         </table>
       </div>
@@ -5266,6 +5301,7 @@ function renderPackages() {
         </div>
         <div class="pkg-actions">
           ${remaining > 0 ? `<button class="text-button" type="button" data-package-use="${pkg.id}">تسجيل جلسة</button>` : ""}
+          ${pkg.usedSessions > 0 ? `<button class="text-button" type="button" data-package-unuse="${pkg.id}" title="تراجع عن آخر جلسة">↺ تراجع</button>` : ""}
           ${canViewSensitive() ? `<button class="icon-button danger" type="button" data-delete-package="${pkg.id}">حذف</button>` : ""}
         </div>
       </div>`;
@@ -10749,6 +10785,7 @@ els.entryForm.addEventListener("submit", event => {
   const doctorRateOverride = numberValue(data.doctorRateOverride);
   const doctorModelOverride = data.doctorModelOverride || "";
   const visitId = nextId("visit");
+  const visitNumber = nextVisitNumber();
   const createdAt = new Date().toISOString();
   const visitPayments = paymentBreakdownFromForm(lines);
   const totals = visitTotalsFromForm(lines);
@@ -10770,6 +10807,7 @@ els.entryForm.addEventListener("submit", event => {
     ...line,
     id: nextId("entry"),
     visitId,
+    visitNumber,
     date: state.settings.activeDate,
     patientId: patient.id,
     patient: data.patient.trim(),
@@ -11019,6 +11057,15 @@ if (els.packageSessionForm) {
 }
 
 document.addEventListener("click", event => {
+  const opToggle = event.target.closest("[data-toggle-operation]");
+  if (opToggle) {
+    const detail = document.querySelector(`[data-operation-detail="${opToggle.dataset.toggleOperation}"]`);
+    if (detail) {
+      detail.hidden = !detail.hidden;
+      opToggle.classList.toggle("expanded", !detail.hidden);
+    }
+    return;
+  }
   const sellInOperation = event.target.closest("[data-operation-sell-package]");
   if (sellInOperation) {
     const status = els.operationPackageStatus;
@@ -11066,6 +11113,17 @@ document.addEventListener("click", event => {
     if (pkg && packageRemaining(pkg) > 0) {
       pkg.usedSessions = Math.min(pkg.totalSessions, (pkg.usedSessions || 0) + 1);
       if (packageRemaining(pkg) <= 0) pkg.status = "completed";
+      saveState();
+      render();
+    }
+    return;
+  }
+  const unusePackage = event.target.closest("[data-package-unuse]");
+  if (unusePackage) {
+    const pkg = (state.patientPackages || []).find(item => item.id === unusePackage.dataset.packageUnuse);
+    if (pkg && (pkg.usedSessions || 0) > 0) {
+      pkg.usedSessions = Math.max(0, pkg.usedSessions - 1);
+      if (pkg.status === "completed" && packageRemaining(pkg) > 0) pkg.status = "active";
       saveState();
       render();
     }

@@ -7084,6 +7084,16 @@ html[dir="ltr"] label {
 .cmdk-item.cmdk-active { background: var(--teal-pale); color: var(--teal); }
 .cmdk-empty { padding: 16px; text-align: center; color: var(--ink-soft); font-size: 13px; }
 
+.op-summary-row { cursor: pointer; }
+.op-summary-row:hover { background: #f5fbf9; }
+.op-expand-caret { color: var(--teal); font-size: 11px; transition: transform 0.15s; display: inline-block; }
+.op-summary-row.expanded .op-expand-caret { transform: rotate(180deg); }
+.op-detail { padding: 6px 4px 10px; }
+.op-detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px 16px; margin-bottom: 12px; }
+.op-detail-grid span { display: block; font-size: 11px; color: var(--ink-soft); }
+.op-detail-grid strong { font-size: 14px; }
+.op-detail-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.op-paid-full { color: var(--teal); font-weight: 700; font-size: 13px; }
 .operation-package-sell { margin: 8px 0; border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; background: #fafcfb; }
 .operation-package-sell summary { cursor: pointer; font-size: 13px; color: var(--teal); font-weight: 700; }
 .operation-package-sell-body { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; margin-top: 10px; }
