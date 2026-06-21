@@ -1026,19 +1026,21 @@ function normalizeService(service) {
   };
 }
 
+// Single source of truth for categories — gathered from services, packages, and
+// calendar columns so a category defined anywhere shows up in every picker.
 function serviceCategories() {
-  return [...new Set((state.services || []).map(service => service.category).filter(Boolean))]
-    .sort((a, b) => a.localeCompare(b, "ar"));
+  return [...new Set([
+    ...(state.services || []).map(service => service.category),
+    ...(state.packageTemplates || []).map(template => template.category),
+    ...(state.scheduleColumns || []).map(column => column.category)
+  ].filter(Boolean))].sort((a, b) => a.localeCompare(b, "ar"));
 }
 
 // Options for a commission-rule target select: pick a whole category (cat:NAME)
 // or a single service. Categories are gathered from services AND packages, so a
 // rule set on a category also covers package sales in that category.
 function ruleTargetOptionsHtml(allLabel = "كل الخدمات") {
-  const categories = [...new Set([
-    ...serviceCategories(),
-    ...(state.packageTemplates || []).map(template => template.category).filter(Boolean)
-  ])].sort((a, b) => a.localeCompare(b, "ar"));
+  const categories = serviceCategories();
   const catGroup = categories.length
     ? `<optgroup label="الفئات (تُطبّق على كل الفئة والباقات)">${categories.map(c => `<option value="cat:${c}">${c} — كل الفئة</option>`).join("")}</optgroup>`
     : "";
