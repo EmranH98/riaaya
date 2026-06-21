@@ -7079,3 +7079,8 @@ html[dir="ltr"] label {
 .cmdk-item:hover,
 .cmdk-item.cmdk-active { background: var(--teal-pale); color: var(--teal); }
 .cmdk-empty { padding: 16px; text-align: center; color: var(--ink-soft); font-size: 13px; }
+
+.pkg-actions { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.pill.pkg-ok { background: var(--teal-pale); color: var(--teal); }
+.pill.pkg-warn { background: #fff4e0; color: #9a6300; }
+.pill.pkg-muted { background: #eef0f1; color: #5a6a72; }

@@ -70,6 +70,7 @@ const VIEW_LABELS = {
   bookings: "الحجوزات",
   staff: "الموظفون والنسب",
   services: "الخدمات والقواعد",
+  packages: "الباقات والجلسات",
   inventory: "المخزون والموردون",
   expenses: "المصروفات",
   reconcile: "المطابقة",
@@ -1022,6 +1023,59 @@ function normalizeService(service) {
   };
 }
 
+function normalizePackageTemplate(template) {
+  const source = template || {};
+  return {
+    id: source.id || nextId("pkgtpl"),
+    name: source.name || "باقة بدون اسم",
+    serviceId: source.serviceId || source.service_id || "",
+    sessions: Math.max(1, Math.round(asNumber(source.sessions) || 1)),
+    price: asNumber(source.price),
+    validityDays: Math.max(0, Math.round(asNumber(source.validityDays ?? source.validity_days))),
+    active: source.active !== false
+  };
+}
+
+function normalizePatientPackage(pkg) {
+  const source = pkg || {};
+  const total = Math.max(1, Math.round(asNumber(source.totalSessions ?? source.total_sessions) || 1));
+  const used = Math.min(total, Math.max(0, Math.round(asNumber(source.usedSessions ?? source.used_sessions))));
+  const status = ["completed", "expired", "active"].includes(source.status) ? source.status : "active";
+  return {
+    id: source.id || nextId("pkg"),
+    patientId: source.patientId || source.patient_id || "",
+    templateId: source.templateId || source.template_id || "",
+    name: source.name || "باقة",
+    serviceId: source.serviceId || source.service_id || "",
+    totalSessions: total,
+    usedSessions: used,
+    price: asNumber(source.price),
+    paid: asNumber(source.paid),
+    soldByStaffId: source.soldByStaffId || source.sold_by || "",
+    soldAt: source.soldAt || source.sold_at || "",
+    expiresAt: source.expiresAt || source.expires_at || "",
+    status
+  };
+}
+
+function packageRemaining(pkg) {
+  return Math.max(0, (pkg.totalSessions || 0) - (pkg.usedSessions || 0));
+}
+
+function packageComputedStatus(pkg) {
+  if (packageRemaining(pkg) <= 0) return "completed";
+  if (pkg.expiresAt && pkg.expiresAt < new Date().toISOString().slice(0, 10)) return "expired";
+  return "active";
+}
+
+function packageTemplateById(id) {
+  return (state.packageTemplates || []).find(template => template.id === id) || null;
+}
+
+function patientById(id) {
+  return (state.patients || []).find(patient => patient.id === id) || null;
+}
+
 function normalizeRule(rule) {
   const appliesTo = rule.appliesTo || rule.applies_to || "doctor";
   const isOldDoctorDefault = rule.id === "rule-doctors-net-default" && rule.model === "pct_net" && asNumber(rule.value) === 50;
@@ -1577,6 +1631,8 @@ function emptyClinicState(clinic = {}) {
     },
     staff: [],
     services: [],
+    packageTemplates: [],
+    patientPackages: [],
     scheduleColumns: DEFAULT_SCHEDULE_COLUMNS.map(normalizeScheduleColumn),
     rules: [],
     suppliers: [],
@@ -1631,6 +1687,8 @@ function hydrateClinicState(saved, clinic, accounts) {
     settings: { ...base.settings, ...(source.settings || {}), clinicName: clinic.name || source.settings?.clinicName || base.settings.clinicName },
     staff: Array.isArray(source.staff) ? source.staff.map(normalizeStaffMember) : [],
     services,
+    packageTemplates: Array.isArray(source.packageTemplates) ? source.packageTemplates.map(normalizePackageTemplate) : [],
+    patientPackages: Array.isArray(source.patientPackages) ? source.patientPackages.map(normalizePatientPackage) : [],
     scheduleColumns: Array.isArray(source.scheduleColumns)
       ? source.scheduleColumns.map(normalizeScheduleColumn).filter(column => column.active !== false)
       : base.scheduleColumns,
@@ -1775,6 +1833,10 @@ const els = {
   entryTable: document.querySelector("[data-entry-table]"),
   staffList: document.querySelector("[data-staff-list]"),
   serviceList: document.querySelector("[data-service-list]"),
+  packageTemplateForm: document.querySelector("[data-package-template-form]"),
+  packageTemplateList: document.querySelector("[data-package-template-list]"),
+  packageSellForm: document.querySelector("[data-package-sell-form]"),
+  packageList: document.querySelector("[data-package-list]"),
   ruleList: document.querySelector("[data-rule-list]"),
   supplierList: document.querySelector("[data-supplier-list]"),
   inventoryList: document.querySelector("[data-inventory-list]"),
@@ -5019,6 +5081,81 @@ function renderServiceList() {
       ${canViewSensitive() ? `<button class="icon-button danger" type="button" data-delete-service="${service.id}">حذف</button>` : ""}
     </div>
   `).join("");
+}
+
+function renderPackages() {
+  const templates = state.packageTemplates || [];
+  const packages = state.patientPackages || [];
+
+  if (els.packageTemplateForm) {
+    const serviceSelect = els.packageTemplateForm.querySelector("[name='serviceId']");
+    if (serviceSelect) {
+      const current = serviceSelect.value;
+      serviceSelect.innerHTML = `<option value="">— بدون ربط —</option>`
+        + (state.services || []).map(service => `<option value="${service.id}">${service.name}</option>`).join("");
+      serviceSelect.value = current;
+    }
+  }
+
+  if (els.packageTemplateList) {
+    els.packageTemplateList.innerHTML = templates.length ? templates.map(template => {
+      const service = (state.services || []).find(item => item.id === template.serviceId);
+      return `
+      <div class="staff-card">
+        <div>
+          <strong>${template.name}</strong>
+          <div class="staff-meta">
+            <span class="pill">${template.sessions} جلسة</span>
+            ${canViewSensitive() ? `<span class="pill">${money(template.price)}</span>` : ""}
+            ${service ? `<span class="pill">${service.name}</span>` : ""}
+            ${template.validityDays ? `<span class="pill">صلاحية ${template.validityDays} يوم</span>` : ""}
+            <span class="pill">${template.active === false ? "متوقفة" : "فعالة"}</span>
+          </div>
+        </div>
+        ${canViewSensitive() ? `<button class="icon-button danger" type="button" data-delete-package-template="${template.id}">حذف</button>` : ""}
+      </div>`;
+    }).join("") : `<div class="empty-state">عرّف باقاتك (مثل 6 جلسات ليزر) لتبيعها للمرضى وتتابع جلساتهم.</div>`;
+  }
+
+  if (els.packageSellForm) {
+    const patientSelect = els.packageSellForm.querySelector("[name='patientId']");
+    const templateSelect = els.packageSellForm.querySelector("[name='templateId']");
+    const staffSelect = els.packageSellForm.querySelector("[name='soldByStaffId']");
+    if (patientSelect) patientSelect.innerHTML = `<option value="">اختر المريض</option>`
+      + (state.patients || []).map(patient => `<option value="${patient.id}">${patient.name}</option>`).join("");
+    if (templateSelect) templateSelect.innerHTML = `<option value="">اختر الباقة</option>`
+      + templates.filter(template => template.active !== false)
+        .map(template => `<option value="${template.id}" data-sessions="${template.sessions}" data-price="${template.price}">${template.name} — ${template.sessions} جلسة</option>`).join("");
+    if (staffSelect) staffSelect.innerHTML = `<option value="">—</option>`
+      + (state.staff || []).map(member => `<option value="${member.id}">${member.name}</option>`).join("");
+  }
+
+  if (els.packageList) {
+    els.packageList.innerHTML = packages.length ? packages.slice().reverse().map(pkg => {
+      const patient = patientById(pkg.patientId);
+      const remaining = packageRemaining(pkg);
+      const status = packageComputedStatus(pkg);
+      const statusLabel = status === "completed" ? "مكتملة" : status === "expired" ? "منتهية" : "نشطة";
+      const statusClass = status === "completed" ? "muted" : status === "expired" ? "warn" : "ok";
+      const due = Math.max(0, (pkg.price || 0) - (pkg.paid || 0));
+      return `
+      <div class="staff-card">
+        <div>
+          <strong>${patient ? patient.name : "—"} · ${pkg.name}</strong>
+          <div class="staff-meta">
+            <span class="pill">${pkg.usedSessions}/${pkg.totalSessions} جلسة · المتبقي ${remaining}</span>
+            <span class="pill pkg-${statusClass}">${statusLabel}</span>
+            ${pkg.expiresAt ? `<span class="pill">تنتهي ${pkg.expiresAt}</span>` : ""}
+            ${canViewSensitive() ? `<span class="pill">مدفوع ${money(pkg.paid)}${due ? ` · متبقٍ ${money(due)}` : ""}</span>` : ""}
+          </div>
+        </div>
+        <div class="pkg-actions">
+          ${remaining > 0 ? `<button class="text-button" type="button" data-package-use="${pkg.id}">تسجيل جلسة</button>` : ""}
+          ${canViewSensitive() ? `<button class="icon-button danger" type="button" data-delete-package="${pkg.id}">حذف</button>` : ""}
+        </div>
+      </div>`;
+    }).join("") : `<div class="empty-state">لا توجد باقات مُباعة بعد. اختر مريضاً وباقة ثم اضغط «بيع الباقة».</div>`;
+  }
 }
 
 function renderRuleList() {
@@ -8996,6 +9133,7 @@ function render() {
   renderStaffList();
   renderStaffRuleServiceSelect();
   renderServiceList();
+  renderPackages();
   renderRuleList();
   renderInventoryKpis();
   renderSupplierList();
@@ -10530,6 +10668,104 @@ if (els.serviceForm) {
     render();
   });
 }
+
+// ── Packages & sessions ─────────────────────────────────────────────────
+if (els.packageTemplateForm) {
+  els.packageTemplateForm.addEventListener("submit", event => {
+    event.preventDefault();
+    if (!canViewSensitive()) return;
+    const data = Object.fromEntries(new FormData(els.packageTemplateForm).entries());
+    if (!data.name || !data.name.trim()) return;
+    state.packageTemplates = state.packageTemplates || [];
+    state.packageTemplates.push(normalizePackageTemplate({
+      name: data.name.trim(),
+      serviceId: data.serviceId || "",
+      sessions: data.sessions,
+      price: data.price,
+      validityDays: data.validityDays,
+      active: data.active !== "false"
+    }));
+    els.packageTemplateForm.reset();
+    saveState();
+    render();
+  });
+}
+
+if (els.packageSellForm) {
+  const templateSelect = els.packageSellForm.querySelector("[name='templateId']");
+  templateSelect?.addEventListener("change", event => {
+    const option = event.target.selectedOptions[0];
+    if (!option) return;
+    const sessionsInput = els.packageSellForm.querySelector("[name='sessions']");
+    const priceInput = els.packageSellForm.querySelector("[name='price']");
+    if (sessionsInput && option.dataset.sessions) sessionsInput.value = option.dataset.sessions;
+    if (priceInput && option.dataset.price) priceInput.value = option.dataset.price;
+  });
+
+  els.packageSellForm.addEventListener("submit", event => {
+    event.preventDefault();
+    const data = Object.fromEntries(new FormData(els.packageSellForm).entries());
+    const template = packageTemplateById(data.templateId);
+    if (!data.patientId || !template) return;
+    const sessions = Math.max(1, Math.round(numberValue(data.sessions) || template.sessions));
+    const price = data.price !== undefined && data.price !== "" ? numberValue(data.price) : template.price;
+    let expiresAt = "";
+    if (template.validityDays > 0) {
+      const expiry = new Date();
+      expiry.setDate(expiry.getDate() + template.validityDays);
+      expiresAt = expiry.toISOString().slice(0, 10);
+    }
+    state.patientPackages = state.patientPackages || [];
+    state.patientPackages.push(normalizePatientPackage({
+      patientId: data.patientId,
+      templateId: template.id,
+      name: template.name,
+      serviceId: template.serviceId,
+      totalSessions: sessions,
+      usedSessions: 0,
+      price,
+      paid: numberValue(data.paid),
+      soldByStaffId: data.soldByStaffId || "",
+      soldAt: new Date().toISOString().slice(0, 10),
+      expiresAt,
+      status: "active"
+    }));
+    els.packageSellForm.reset();
+    saveState();
+    render();
+  });
+}
+
+document.addEventListener("click", event => {
+  const deleteTemplate = event.target.closest("[data-delete-package-template]");
+  if (deleteTemplate) {
+    if (!canViewSensitive()) return;
+    const id = deleteTemplate.dataset.deletePackageTemplate;
+    state.packageTemplates = (state.packageTemplates || []).filter(template => template.id !== id);
+    saveState();
+    render();
+    return;
+  }
+  const deletePackage = event.target.closest("[data-delete-package]");
+  if (deletePackage) {
+    if (!canViewSensitive()) return;
+    const id = deletePackage.dataset.deletePackage;
+    state.patientPackages = (state.patientPackages || []).filter(pkg => pkg.id !== id);
+    saveState();
+    render();
+    return;
+  }
+  const usePackage = event.target.closest("[data-package-use]");
+  if (usePackage) {
+    const pkg = (state.patientPackages || []).find(item => item.id === usePackage.dataset.packageUse);
+    if (pkg && packageRemaining(pkg) > 0) {
+      pkg.usedSessions = Math.min(pkg.totalSessions, (pkg.usedSessions || 0) + 1);
+      if (packageRemaining(pkg) <= 0) pkg.status = "completed";
+      saveState();
+      render();
+    }
+  }
+});
 
 if (els.ruleForm) {
   els.ruleForm.addEventListener("submit", event => {

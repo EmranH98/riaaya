@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260620j">
+  <link rel="stylesheet" href="app.css?v=20260620k">
 </head>
 <body>
 
@@ -55,6 +55,7 @@
     <symbol id="ic-chat" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-4 4V5z"/></symbol>
     <symbol id="ic-tag" viewBox="0 0 24 24"><path d="M4 4h7l9 9-7 7-9-9V4zM7.5 7.5h.01"/></symbol>
     <symbol id="ic-box" viewBox="0 0 24 24"><path d="M3 7l9-4 9 4-9 4-9-4zM3 7v10l9 4 9-4V7M12 11v10"/></symbol>
+    <symbol id="ic-package" viewBox="0 0 24 24"><path d="M12 3l8 4-8 4-8-4zM4 11l8 4 8-4M4 15l8 4 8-4"/></symbol>
     <symbol id="ic-users" viewBox="0 0 24 24"><path d="M9 12a4 4 0 100-8 4 4 0 000 8zM2 20a7 7 0 0114 0M17 11a3 3 0 100-6M22 20a6 6 0 00-5-5.9"/></symbol>
     <symbol id="ic-shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></symbol>
     <symbol id="ic-upload" viewBox="0 0 24 24"><path d="M12 16V4M8 8l4-4 4 4M4 20h16"/></symbol>
@@ -85,6 +86,7 @@
         </div>
         <div class="nav-group">
           <span class="nav-group-label">المالية</span>
+          <button class="nav-item" data-view-button="packages" type="button" title="الباقات والجلسات"><svg class="nav-ic" aria-hidden="true"><use href="#ic-package"/></svg><span class="nav-label">الباقات والجلسات</span></button>
           <button class="nav-item" data-view-button="reports" type="button" title="التقارير"><svg class="nav-ic" aria-hidden="true"><use href="#ic-chart"/></svg><span class="nav-label">التقارير</span></button>
           <button class="nav-item" data-view-button="expenses" type="button" title="المصروفات"><svg class="nav-ic" aria-hidden="true"><use href="#ic-wallet"/></svg><span class="nav-label">المصروفات</span></button>
           <button class="nav-item" data-view-button="salaries" type="button" title="الرواتب"><svg class="nav-ic" aria-hidden="true"><use href="#ic-cash"/></svg><span class="nav-label">الرواتب</span></button>
@@ -1189,6 +1191,87 @@
           </article>
         </div>
 
+      </section>
+
+      <section class="view" data-view="packages">
+        <div class="split-layout">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">كتالوج الباقات</p>
+                <h2>تعريف باقة (عدد جلسات وسعر)</h2>
+              </div>
+            </div>
+            <form class="entry-form" data-package-template-form>
+              <label>
+                اسم الباقة
+                <input name="name" type="text" placeholder="6 جلسات ليزر كامل" required>
+              </label>
+              <label>
+                الخدمة المرتبطة (اختياري)
+                <select name="serviceId"><option value="">— بدون ربط —</option></select>
+              </label>
+              <label>
+                عدد الجلسات
+                <input name="sessions" type="number" min="1" step="1" placeholder="6" required>
+              </label>
+              <label>
+                سعر الباقة
+                <input name="price" type="number" min="0" step="0.01" placeholder="300" required>
+              </label>
+              <label>
+                صلاحية بالأيام (اختياري)
+                <input name="validityDays" type="number" min="0" step="1" placeholder="365">
+              </label>
+              <label>
+                الحالة
+                <select name="active">
+                  <option value="true">فعالة</option>
+                  <option value="false">متوقفة</option>
+                </select>
+              </label>
+              <button class="primary-button form-submit" type="submit">حفظ الباقة</button>
+            </form>
+            <div class="staff-list" data-package-template-list></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">بيع ومتابعة</p>
+                <h2>بيع باقة لمريض ومتابعة الجلسات المتبقية</h2>
+              </div>
+            </div>
+            <form class="entry-form" data-package-sell-form>
+              <label>
+                المريض
+                <select name="patientId" required><option value="">اختر المريض</option></select>
+              </label>
+              <label>
+                الباقة
+                <select name="templateId" required><option value="">اختر الباقة</option></select>
+              </label>
+              <label>
+                عدد الجلسات
+                <input name="sessions" type="number" min="1" step="1" placeholder="يُملأ تلقائياً">
+              </label>
+              <label data-sensitive>
+                سعر الباقة
+                <input name="price" type="number" min="0" step="0.01" placeholder="يُملأ تلقائياً">
+              </label>
+              <label data-sensitive>
+                المدفوع الآن
+                <input name="paid" type="number" min="0" step="0.01" placeholder="0">
+              </label>
+              <label>
+                البائع (الموظف)
+                <select name="soldByStaffId"><option value="">—</option></select>
+              </label>
+              <button class="primary-button form-submit" type="submit">بيع الباقة</button>
+            </form>
+            <div class="staff-list" data-package-list></div>
+          </article>
+        </div>
       </section>
 
       <section class="view" data-view="inventory">
@@ -2585,7 +2668,7 @@
       <div class="cmdk-list" data-cmdk-list></div>
     </div>
   </div>
-  <script src="app.js?v=20260620j"></script>
+  <script src="app.js?v=20260620k"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>
