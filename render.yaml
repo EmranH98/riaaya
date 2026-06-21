@@ -39,9 +39,19 @@ services:
         sync: false
       - key: RIAAYA_ENCRYPTION_KEY
         sync: false
+      - key: RIAAYA_EMAIL_PROVIDER
+        sync: false
       - key: RIAAYA_RESEND_API_KEY
         sync: false
       - key: RIAAYA_EMAIL_FROM
+        sync: false
+      - key: RIAAYA_SMTP_HOST
+        sync: false
+      - key: RIAAYA_SMTP_PORT
+        value: 465
+      - key: RIAAYA_SMTP_USER
+        sync: false
+      - key: RIAAYA_SMTP_PASS
         sync: false
       - key: RIAAYA_ALERT_WEBHOOK
         sync: false
