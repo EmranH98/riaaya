@@ -8869,7 +8869,7 @@ function applyPriceFieldVisibility() {
   });
 }
 
-function openOperationModal({ returnView = "", patientName = "" } = {}) {
+function openOperationModal({ returnView = "", patientName = "", serviceId = "", category = "", bookingId = "" } = {}) {
   if (!canView("entries")) return;
   const currentView = document.querySelector(".view.active")?.dataset.view || "dashboard";
   runtime.operationReturnView = returnView || currentView;
@@ -8880,9 +8880,16 @@ function openOperationModal({ returnView = "", patientName = "" } = {}) {
   applyPriceFieldVisibility();
   updatePaymentFieldsForStatus();
   renderPaymentQuickButtons();
-  if (patientName && els.entryForm) {
+  if (els.entryForm) {
     const patientInput = els.entryForm.querySelector('input[name="patient"]');
-    if (patientInput) patientInput.value = patientName;
+    if (patientInput && patientName) patientInput.value = patientName;
+    if (category && els.operationCategorySelect) {
+      els.operationCategorySelect.value = category;
+      els.operationCategorySelect.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    if (serviceId && els.serviceSelect) els.serviceSelect.value = serviceId;
+    const bookingField = els.entryForm.querySelector('input[name="bookingId"]');
+    if (bookingField) bookingField.value = bookingId || "";
   }
   window.setTimeout(() => {
     els.entryForm?.querySelector('input[name="patient"]')?.focus({ preventScroll: true });
@@ -12326,6 +12333,24 @@ document.addEventListener("click", async event => {
   if (addOpFromPatient) {
     const patient = (state.patients || []).find(item => item.id === addOpFromPatient.dataset.addOperationPatient);
     openOperationModal({ patientName: patient?.name || "" });
+    return;
+  }
+
+  // Click a booked appointment on the day calendar → open the operation entry
+  // window pre-filled with that booking's patient, category, and service.
+  const bookingCard = event.target.closest("[data-drag-booking]");
+  if (bookingCard && canView("entries")) {
+    const booking = (state.bookings || []).find(item => item.id === bookingCard.dataset.dragBooking);
+    if (booking && booking.status !== "completed" && booking.status !== "cancelled") {
+      const service = getService(booking.serviceId);
+      const column = bookingScheduleColumns().find(col => col.id === booking.scheduleColumnId);
+      openOperationModal({
+        patientName: booking.patient,
+        serviceId: booking.serviceId,
+        category: service?.category || column?.categories?.[0] || "",
+        bookingId: booking.id
+      });
+    }
     return;
   }
 

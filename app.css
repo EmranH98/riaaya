@@ -7130,3 +7130,6 @@ html[dir="ltr"] label {
 .pill.pkg-ok { background: var(--teal-pale); color: var(--teal); }
 .pill.pkg-warn { background: #fff4e0; color: #9a6300; }
 .pill.pkg-muted { background: #eef0f1; color: #5a6a72; }
+
+.day-schedule-booking { cursor: pointer; }
+.day-schedule-booking:hover { outline: 2px solid var(--teal); outline-offset: -2px; }
