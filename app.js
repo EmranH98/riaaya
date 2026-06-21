@@ -69,7 +69,8 @@ const VIEW_LABELS = {
   patients: "ملفات المرضى والزوار",
   bookings: "الحجوزات",
   staff: "الموظفون والنسب",
-  services: "الخدمات والقواعد",
+  services: "الخدمات المتاحة للعمليات",
+  "service-admin": "إضافة خدمة",
   packages: "الباقات والجلسات",
   collections: "المبالغ المستحقة",
   inventory: "المخزون والموردون",
@@ -1030,11 +1031,35 @@ function serviceCategories() {
     .sort((a, b) => a.localeCompare(b, "ar"));
 }
 
+// Options for a commission-rule target select: pick a whole category (cat:NAME)
+// or a single service. Categories are gathered from services AND packages, so a
+// rule set on a category also covers package sales in that category.
+function ruleTargetOptionsHtml(allLabel = "كل الخدمات") {
+  const categories = [...new Set([
+    ...serviceCategories(),
+    ...(state.packageTemplates || []).map(template => template.category).filter(Boolean)
+  ])].sort((a, b) => a.localeCompare(b, "ar"));
+  const catGroup = categories.length
+    ? `<optgroup label="الفئات (تُطبّق على كل الفئة والباقات)">${categories.map(c => `<option value="cat:${c}">${c} — كل الفئة</option>`).join("")}</optgroup>`
+    : "";
+  const svcGroup = `<optgroup label="خدمة واحدة">${activeServices().map(s => `<option value="${s.id}">${s.name}</option>`).join("")}</optgroup>`;
+  return `<option value="">${allLabel}</option>${catGroup}${svcGroup}`;
+}
+
+// Split a rule-target select value into { serviceId, category }.
+function parseRuleTarget(value) {
+  const raw = String(value || "");
+  return raw.startsWith("cat:")
+    ? { serviceId: "", category: raw.slice(4) }
+    : { serviceId: raw, category: "" };
+}
+
 function normalizePackageTemplate(template) {
   const source = template || {};
   return {
     id: source.id || nextId("pkgtpl"),
     name: source.name || "باقة بدون اسم",
+    category: source.category || "",
     serviceId: source.serviceId || source.service_id || "",
     sessions: Math.max(1, Math.round(asNumber(source.sessions) || 1)),
     price: asNumber(source.price),
@@ -1053,6 +1078,7 @@ function normalizePatientPackage(pkg) {
     patientId: source.patientId || source.patient_id || "",
     templateId: source.templateId || source.template_id || "",
     name: source.name || "باقة",
+    category: source.category || "",
     serviceId: source.serviceId || source.service_id || "",
     totalSessions: total,
     usedSessions: used,
@@ -1109,7 +1135,7 @@ function sellPackage({ patientId, template, sessions, price, paid, soldByStaffId
     expiresAt = expiry.toISOString().slice(0, 10);
   }
   const pkg = normalizePatientPackage({
-    patientId, templateId: template.id, name: template.name, serviceId: template.serviceId,
+    patientId, templateId: template.id, name: template.name, category: template.category || "", serviceId: template.serviceId,
     totalSessions, usedSessions: 0, price: finalPrice, paid: paidAmount,
     soldByStaffId: soldByStaffId || "", soldAt: state.settings.activeDate, expiresAt, status: "active"
   });
@@ -1166,6 +1192,7 @@ function normalizeRule(rule) {
     appliesTo: appliesTo === "staff" ? "specialist" : appliesTo,
     personId: rule.personId || rule.person_id || "",
     serviceId: rule.serviceId || rule.service_id || "",
+    category: rule.category || "",
     model: isOldDoctorDefault ? "member_rate" : rule.model || "pct_net",
     value: isOldDoctorDefault ? 0 : asNumber(rule.value),
     tierThreshold: asNumber(rule.tierThreshold ?? rule.tier_threshold_qty),
@@ -1925,6 +1952,9 @@ const els = {
   entryTable: document.querySelector("[data-entry-table]"),
   staffList: document.querySelector("[data-staff-list]"),
   serviceList: document.querySelector("[data-service-list]"),
+  serviceBrowse: document.querySelector("[data-service-browse]"),
+  serviceBrowseCategory: document.querySelector("[data-service-browse-category]"),
+  serviceBrowseSearch: document.querySelector("[data-service-browse-search]"),
   referralSummary: document.querySelector("[data-referral-summary]"),
   collectionsBody: document.querySelector("[data-collections-body]"),
   collectionsTotal: document.querySelector("[data-collections-total]"),
@@ -2983,18 +3013,19 @@ function ruleModelLabel(model) {
 
 function ruleDescription(rule) {
   const person = rule.personId ? getStaffMember(rule.personId)?.name : "كل الفريق";
-  const service = rule.serviceId ? getService(rule.serviceId)?.name : "كل الخدمات";
+  const service = rule.category ? `كل فئة: ${rule.category}` : (rule.serviceId ? getService(rule.serviceId)?.name : "كل الخدمات");
   const value = rule.model === "member_rate" ? "حسب نسبة الموظف" : `${rule.value}%`;
   const fixedValue = rule.model === "fixed" ? money(rule.value) : value;
   return `${roleLabel(rule.appliesTo)} | ${person} | ${service} | ${ruleModelLabel(rule.model)} (${fixedValue})`;
 }
 
-function findRule(appliesTo, personId, serviceId) {
+function findRule(appliesTo, personId, serviceId, category = "") {
   const candidates = state.rules.filter(rule => {
     const roleMatches = rule.active !== false && rule.appliesTo === appliesTo;
     const personMatches = !rule.personId || rule.personId === personId;
     const serviceMatches = !rule.serviceId || rule.serviceId === serviceId;
-    return roleMatches && personMatches && serviceMatches;
+    const categoryMatches = !rule.category || rule.category === category;
+    return roleMatches && personMatches && serviceMatches && categoryMatches;
   });
 
   if (!candidates.length) return null;
@@ -3002,7 +3033,7 @@ function findRule(appliesTo, personId, serviceId) {
   return candidates
     .map(rule => ({
       rule,
-      score: (rule.personId ? 10 : 0) + (rule.serviceId ? 5 : 0)
+      score: (rule.personId ? 10 : 0) + (rule.serviceId ? 5 : 0) + (rule.category ? 3 : 0)
     }))
     .sort((a, b) => b.score - a.score)[0].rule;
 }
@@ -3066,7 +3097,7 @@ function calculateMemberPayout(entry, member) {
   if (!member || !isBillableEntry(entry)) return null;
   const isEnglish = currentLanguage() === "en";
   const appliesTo = member.role === "doctor" ? "doctor" : "specialist";
-  const rule = findRule(appliesTo, member.id, entry.serviceId);
+  const rule = findRule(appliesTo, member.id, entry.serviceId, entryCategory(entry));
   const quantity = Math.max(numberValue(entry.quantity) || 1, 1);
   const gross = paidAmount(entry);
   const profit = profitAmount(entry);
@@ -4102,10 +4133,9 @@ function renderStaffSelects() {
   renderScheduleColumnControls();
 
   if (els.ruleServiceSelect) {
-    els.ruleServiceSelect.innerHTML = [
-      `<option value="">كل الخدمات</option>`,
-      ...state.services.map(service => `<option value="${service.id}">${service.name}</option>`)
-    ].join("");
+    const current = els.ruleServiceSelect.value;
+    els.ruleServiceSelect.innerHTML = ruleTargetOptionsHtml("كل الخدمات");
+    els.ruleServiceSelect.value = current;
   }
 
   if (els.operationPatientOptions) {
@@ -5222,6 +5252,49 @@ function renderStaffList() {
       </div>
     `;
   }).join("");
+}
+
+function serviceBrowseRows(category, query) {
+  return (state.services || []).filter(service =>
+    (!category || (service.category || "") === category)
+    && matchesSmartQuery([service.name, service.category, service.active === false ? "متوقفة inactive" : "فعالة active"], query)
+  );
+}
+
+function serviceBrowseTableHtml(services) {
+  if (!services.length) return `<div class="empty-state">لا توجد خدمات مطابقة للفلتر.</div>`;
+  const showSensitive = canViewSensitive();
+  const rows = services.map(service => `
+    <tr>
+      <td>${service.name}</td>
+      <td>${service.category || "—"}</td>
+      <td>${service.defaultPrice ? money(service.defaultPrice) : "بدون سعر ثابت"}</td>
+      ${showSensitive ? `<td>${money(service.defaultCost)}</td>` : ""}
+      <td><span class="pill">${service.active === false ? "متوقفة" : "فعالة"}</span></td>
+      <td>${showSensitive ? `<button class="text-button danger" type="button" data-delete-service="${service.id}">حذف</button>` : ""}</td>
+    </tr>`).join("");
+  return `
+    <div class="table-wrap">
+      <table class="practical-table">
+        <thead><tr><th>الخدمة</th><th>الفئة</th><th>السعر</th>${showSensitive ? "<th>التكلفة</th>" : ""}<th>الحالة</th><th></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+function renderServiceBrowse() {
+  if (els.serviceBrowseCategory) {
+    const categories = serviceCategories();
+    const current = els.serviceBrowseCategory.value;
+    els.serviceBrowseCategory.innerHTML = `<option value="">كل الفئات</option>`
+      + categories.map(category => `<option value="${category}">${category}</option>`).join("");
+    els.serviceBrowseCategory.value = current;
+  }
+  if (els.serviceBrowse) {
+    const category = els.serviceBrowseCategory?.value || "";
+    const query = els.serviceBrowseSearch?.value || "";
+    els.serviceBrowse.innerHTML = serviceBrowseTableHtml(serviceBrowseRows(category, query));
+  }
 }
 
 function renderServiceList() {
@@ -7796,7 +7869,7 @@ function renderPerProcedureReport(entries) {
     const doctor = getStaffMember(entry.doctorId);
     const specialist = getStaffMember(entry.specialistId);
     return `
-      <tr>
+      <tr class="report-edit-row" data-edit-entry="${entry.id}" title="اضغط للتعديل">
         <td>${index + 1}</td>
         <td>${displayDate(entry.date)}</td>
         <td>${entry.patient}</td>
@@ -8213,7 +8286,11 @@ function renderReports() {
     : [];
   const universalItems = universalReportItems(from, to);
   const reportType = els.reportSelect.value || "reconciliation";
-  const financialReports = ["profit", "reconciliation", "patientBalance", "byPatient", "perProcedure", "costs", "expenses", "retention", "packages"];
+  // Clean Clinica-style layout (filter row + table only) for every report except
+  // the detailed/universal search, which keeps its tabs + visuals.
+  const reportPanelEl = els.reportPage?.closest(".full-report-panel");
+  if (reportPanelEl) reportPanelEl.classList.toggle("report-clean", reportType !== "universal");
+  const financialReports = ["profit", "reconciliation", "patientBalance", "byPatient", "perProcedure", "costs", "expenses", "retention", "packages", "cash"];
   if (!canViewSensitive() && financialReports.includes(reportType)) {
     els.reportVisuals.innerHTML = "";
     els.reportPagination.innerHTML = "";
@@ -8263,6 +8340,10 @@ function renderReports() {
     const packageEntries = allEntries.filter(entry => entry.packageId);
     pagination = paginateItems(packageEntries, reportPage, pageSize);
     content = renderPackagesReport(pagination.items);
+  } else if (reportType === "cash") {
+    const cashEntries = allEntries.filter(isBillableEntry);
+    pagination = paginateItems(cashEntries, reportPage, pageSize);
+    content = renderCashReport(pagination.items);
   } else {
     pagination = paginateItems(allEntries, reportPage, pageSize);
     content = reportType === "byPatient"
@@ -8278,6 +8359,15 @@ function renderReports() {
   els.reportPage.innerHTML = content;
 }
 
+function entryCategory(entry) {
+  if (entry.category) return entry.category;
+  if (entry.packageId) {
+    const pkg = (state.patientPackages || []).find(item => item.id === entry.packageId);
+    if (pkg?.category) return pkg.category;
+  }
+  return getService(entry.serviceId)?.category || "";
+}
+
 function renderPackagesReport(entries) {
   if (!entries.length) return `<div class="empty-state">لا توجد باقات مبيعة في هذه الفترة.</div>`;
   let totalNet = 0, totalPaid = 0, totalDue = 0;
@@ -8288,12 +8378,14 @@ function renderPackagesReport(entries) {
     totalNet += net; totalPaid += paid; totalDue += due;
     const pkg = (state.patientPackages || []).find(item => item.id === entry.packageId);
     const sessions = pkg ? `${pkg.usedSessions}/${pkg.totalSessions}` : "—";
+    const category = pkg?.category || "—";
     return `
-      <tr>
+      <tr class="report-edit-row" data-edit-entry="${entry.id}" title="اضغط للتعديل">
         <td>${entry.visitNumber ? "#" + entry.visitNumber : "—"}</td>
         <td>${displayDate(entry.date)}</td>
         <td>${entry.patient}</td>
         <td>${entry.service}</td>
+        <td>${category}</td>
         <td>${sessions}</td>
         <td>${money(net)}</td>
         <td>${money(paid)}</td>
@@ -8302,11 +8394,49 @@ function renderPackagesReport(entries) {
       </tr>`;
   }).join("");
   return `
+    <p class="report-edit-hint">اضغط على أي صف لتعديل السعر أو التكلفة أو الفئة أو الدفع.</p>
     <div class="table-wrap">
       <table class="practical-table">
-        <thead><tr><th>رقم</th><th>التاريخ</th><th>المريض</th><th>الباقة</th><th>الجلسات</th><th>السعر</th><th>المدفوع</th><th>المتبقي</th><th>الحالة</th></tr></thead>
+        <thead><tr><th>رقم</th><th>التاريخ</th><th>المريض</th><th>الباقة</th><th>الفئة</th><th>الجلسات</th><th>السعر</th><th>المدفوع</th><th>المتبقي</th><th>الحالة</th></tr></thead>
         <tbody>${rows}</tbody>
-        <tfoot><tr><td colspan="5"><strong>الإجمالي (${entries.length})</strong></td><td><strong>${money(totalNet)}</strong></td><td><strong>${money(totalPaid)}</strong></td><td><strong>${money(totalDue)}</strong></td><td></td></tr></tfoot>
+        <tfoot><tr><td colspan="6"><strong>الإجمالي (${entries.length})</strong></td><td><strong>${money(totalNet)}</strong></td><td><strong>${money(totalPaid)}</strong></td><td><strong>${money(totalDue)}</strong></td><td></td></tr></tfoot>
+      </table>
+    </div>`;
+}
+
+function renderCashReport(entries) {
+  if (!entries.length) return `<div class="empty-state">لا توجد حركات نقدية في هذه الفترة.</div>`;
+  let totalGross = 0, totalDiscount = 0, totalNet = 0, totalPaid = 0, totalDue = 0;
+  const rows = entries.map(entry => {
+    const gross = numberValue(entry.amount);
+    const discount = numberValue(entry.discount);
+    const net = netAmount(entry);
+    const paid = paidAmount(entry);
+    const due = Math.max(net - paid, 0);
+    totalGross += gross; totalDiscount += discount; totalNet += net; totalPaid += paid; totalDue += due;
+    const doctor = getStaffMember(entry.doctorId) || getStaffMember(entry.specialistId);
+    return `
+      <tr class="report-edit-row" data-edit-entry="${entry.id}" title="اضغط للتعديل">
+        <td>${displayDate(entry.date)}</td>
+        <td>${entry.visitNumber ? "#" + entry.visitNumber : "—"}</td>
+        <td>${entry.patient}</td>
+        <td>${serviceLabel(entry)}</td>
+        <td>${money(gross)}</td>
+        <td>${discount > 0.009 ? money(discount) : "—"}</td>
+        <td>${money(net)}</td>
+        <td>${money(paid)}</td>
+        <td>${due > 0.009 ? money(due) : "—"}</td>
+        <td><span class="pill">${entryPaymentLabel(entry)}</span></td>
+        <td>${doctor?.name || "—"}</td>
+      </tr>`;
+  }).join("");
+  return `
+    <p class="report-edit-hint">اضغط على أي صف لتعديل السعر أو الخصم أو الدفع أو الفئة.</p>
+    <div class="table-wrap">
+      <table class="practical-table">
+        <thead><tr><th>التاريخ</th><th>رقم</th><th>المريض</th><th>الخدمة</th><th>المبلغ</th><th>الخصم</th><th>الصافي</th><th>المدفوع</th><th>المتبقي</th><th>طريقة الدفع</th><th>الطبيب</th></tr></thead>
+        <tbody>${rows}</tbody>
+        <tfoot><tr><td colspan="4"><strong>الإجمالي (${entries.length})</strong></td><td><strong>${money(totalGross)}</strong></td><td><strong>${money(totalDiscount)}</strong></td><td><strong>${money(totalNet)}</strong></td><td><strong>${money(totalPaid)}</strong></td><td><strong>${money(totalDue)}</strong></td><td colspan="2"></td></tr></tfoot>
       </table>
     </div>`;
 }
@@ -9459,6 +9589,7 @@ function render() {
   renderStaffList();
   renderStaffRuleServiceSelect();
   renderServiceList();
+  renderServiceBrowse();
   renderPackages();
   renderReferralSummary();
   renderCollections();
@@ -10475,10 +10606,11 @@ function openTableFocus(type) {
     subtitle = reportRangeLabel();
     content = `<div class="table-focus-report"><div class="report-page">${els.reportPage?.innerHTML || ""}</div></div>`;
   } else if (type === "services") {
-    renderServiceList();
+    const category = els.serviceBrowseCategory?.value || "";
+    const query = els.serviceBrowseSearch?.value || "";
     title = currentLanguage() === "en" ? "Services available for operations" : "الخدمات المتاحة للعمليات";
     subtitle = `${(state.services || []).length} ${currentLanguage() === "en" ? "services" : "خدمة"}`;
-    content = `<div class="table-focus-services staff-list">${els.serviceList?.innerHTML || ""}</div>`;
+    content = serviceBrowseTableHtml(serviceBrowseRows(category, query));
   }
 
   els.tableFocusTitle.textContent = title;
@@ -10940,6 +11072,69 @@ document.querySelectorAll("[data-report-jump]").forEach(button => {
   });
 });
 
+// Services browse: category + search filter the treatments table.
+els.serviceBrowseCategory?.addEventListener("change", renderServiceBrowse);
+els.serviceBrowseSearch?.addEventListener("input", renderServiceBrowse);
+
+// Edit a package sale directly from the report (price, cost, paid, category, status).
+(function initEditEntry() {
+  const modal = document.querySelector("[data-edit-entry-modal]");
+  if (!modal) return;
+  const form = modal.querySelector("[data-edit-entry-form]");
+  const titleEl = modal.querySelector("[data-edit-entry-title]");
+  const close = () => { modal.hidden = true; };
+
+  function open(entryId) {
+    const entry = (state.entries || []).find(item => item.id === entryId);
+    if (!entry) return;
+    form.elements.entryId.value = entry.id;
+    form.elements.amount.value = netAmount(entry);
+    if (form.elements.cost) form.elements.cost.value = numberValue(entry.cost);
+    form.elements.paid.value = paidAmount(entry);
+    form.elements.category.value = entryCategory(entry);
+    form.elements.status.value = ["completed", "partial_payment", "pending_payment", "cancelled"].includes(entry.status) ? entry.status : "completed";
+    titleEl.textContent = `تعديل: ${entry.service}`;
+    modal.hidden = false;
+  }
+
+  form.addEventListener("submit", event => {
+    event.preventDefault();
+    if (!canViewSensitive()) return;
+    const data = Object.fromEntries(new FormData(form).entries());
+    const entry = (state.entries || []).find(item => item.id === data.entryId);
+    if (!entry) { close(); return; }
+    entry.amount = numberValue(data.amount);
+    entry.discount = 0;
+    if (data.cost !== undefined) entry.cost = numberValue(data.cost);
+    const paid = Math.min(Math.max(numberValue(data.paid), 0), numberValue(data.amount));
+    entry.paymentBreakdown = { cash: paid, card: 0, transfer: 0 };
+    entry.paymentMethod = "cash";
+    entry.status = data.status || entry.status;
+    const category = (data.category || "").trim();
+    if (entry.packageId) {
+      const pkg = (state.patientPackages || []).find(item => item.id === entry.packageId);
+      if (pkg) {
+        pkg.category = category;
+        const template = (state.packageTemplates || []).find(item => item.id === pkg.templateId);
+        if (template) template.category = category;
+      }
+    } else {
+      entry.category = category;
+    }
+    close();
+    saveState();
+    render();
+  });
+
+  modal.querySelectorAll("[data-edit-entry-close]").forEach(button => button.addEventListener("click", close));
+  modal.addEventListener("click", event => { if (event.target === modal) close(); });
+  document.addEventListener("keydown", event => { if (event.key === "Escape" && !modal.hidden) close(); });
+  document.addEventListener("click", event => {
+    const row = event.target.closest("[data-edit-entry]");
+    if (row) open(row.dataset.editEntry);
+  });
+})();
+
 // ─── Inventory sub-nav tabs ────────────────────────────────────────────────
 (function initInventoryTabs() {
   const tabs = document.querySelectorAll("[data-inventory-tab]");
@@ -11135,7 +11330,7 @@ function renderStaffPendingRules() {
   }
   els.staffPendingRules.innerHTML = _staffPendingRules.map((r, i) => `
     <div class="pending-rule-row">
-      <span>${getService(r.serviceId)?.name || r.serviceId}</span>
+      <span>${r.category ? "فئة: " + r.category : (getService(r.serviceId)?.name || r.serviceId)}</span>
       <span>${ruleModelLabel(r.model)}</span>
       <span>${r.model === "fixed" ? money(r.value) : r.value + "%"}</span>
       <button type="button" class="icon-button danger" data-remove-pending-rule="${i}">×</button>
@@ -11147,17 +11342,16 @@ function renderStaffPendingRules() {
 function renderStaffRuleServiceSelect() {
   if (!els.staffRuleServiceSelect) return;
   const current = els.staffRuleServiceSelect.value;
-  els.staffRuleServiceSelect.innerHTML = `<option value="">— اختر الخدمة —</option>` +
-    activeServices().map(s => `<option value="${s.id}">${s.name}</option>`).join("");
+  els.staffRuleServiceSelect.innerHTML = ruleTargetOptionsHtml("— اختر الخدمة أو الفئة —");
   if (current) els.staffRuleServiceSelect.value = current;
 }
 
 document.querySelector("[data-add-staff-service-rule]")?.addEventListener("click", () => {
-  const serviceId = els.staffRuleServiceSelect?.value;
+  const target = parseRuleTarget(els.staffRuleServiceSelect?.value);
   const model = els.staffRuleModelSelect?.value || "pct_net";
   const value = numberValue(els.staffRuleValueInput?.value);
-  if (!serviceId || value <= 0) { showToast("اختر الخدمة وأدخل القيمة أولاً", "warn"); return; }
-  _staffPendingRules.push({ serviceId, model, value });
+  if ((!target.serviceId && !target.category) || value <= 0) { showToast("اختر الخدمة أو الفئة وأدخل القيمة أولاً", "warn"); return; }
+  _staffPendingRules.push({ serviceId: target.serviceId, category: target.category, model, value });
   if (els.staffRuleValueInput) els.staffRuleValueInput.value = "";
   if (els.staffRuleServiceSelect) els.staffRuleServiceSelect.value = "";
   renderStaffPendingRules();
@@ -11188,16 +11382,18 @@ els.staffForm.addEventListener("submit", event => {
   // Save any inline per-service rules
   const appliesTo = role === "doctor" ? "doctor" : "specialist";
   for (const rule of _staffPendingRules) {
-    state.rules.push({
+    const targetLabel = rule.category ? `فئة: ${rule.category}` : (getService(rule.serviceId)?.name || rule.serviceId);
+    state.rules.push(normalizeRule({
       id: nextId("rule"),
-      name: `${data.name.trim()} — ${getService(rule.serviceId)?.name || rule.serviceId}`,
+      name: `${data.name.trim()} — ${targetLabel}`,
       appliesTo,
       personId: memberId,
-      serviceId: rule.serviceId,
+      serviceId: rule.serviceId || "",
+      category: rule.category || "",
       model: rule.model,
       value: rule.value,
       active: true
-    });
+    }));
   }
   _staffPendingRules = [];
   renderStaffPendingRules();
@@ -11239,6 +11435,7 @@ if (els.packageTemplateForm) {
     state.packageTemplates = state.packageTemplates || [];
     state.packageTemplates.push(normalizePackageTemplate({
       name: data.name.trim(),
+      category: (data.category || "").trim(),
       serviceId: data.serviceId || "",
       sessions: data.sessions,
       price: data.price,
@@ -11411,12 +11608,14 @@ if (els.ruleForm) {
     event.preventDefault();
     if (!canViewSensitive()) return;
     const data = Object.fromEntries(new FormData(els.ruleForm).entries());
+    const target = parseRuleTarget(data.serviceId);
     state.rules.push(normalizeRule({
       id: nextId("rule"),
       name: data.name.trim(),
       appliesTo: data.appliesTo,
       personId: data.personId,
-      serviceId: data.serviceId,
+      serviceId: target.serviceId,
+      category: target.category,
       model: data.model,
       value: data.model === "member_rate" ? 0 : data.value,
       active: true

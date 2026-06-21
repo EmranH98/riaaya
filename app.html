@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260620t">
+  <link rel="stylesheet" href="app.css?v=20260620x">
 </head>
 <body>
 
@@ -99,12 +99,13 @@
           <button class="nav-group-label" type="button" data-nav-group="reports"><span>التقارير</span><svg class="nav-group-chevron" aria-hidden="true"><use href="#ic-chevron"/></svg></button>
           <button class="nav-item" data-report-jump="perProcedure" type="button" title="تقرير العمليات"><svg class="nav-ic" aria-hidden="true"><use href="#ic-receipt"/></svg><span class="nav-label">تقرير العمليات</span></button>
           <button class="nav-item" data-report-jump="packages" type="button" title="تقرير الباقات"><svg class="nav-ic" aria-hidden="true"><use href="#ic-package"/></svg><span class="nav-label">تقرير الباقات</span></button>
-          <button class="nav-item" data-report-jump="profit" type="button" title="التقرير المالي"><svg class="nav-ic" aria-hidden="true"><use href="#ic-cash"/></svg><span class="nav-label">التقرير المالي</span></button>
+          <button class="nav-item" data-report-jump="cash" type="button" title="التقرير المالي (الكاش)"><svg class="nav-ic" aria-hidden="true"><use href="#ic-cash"/></svg><span class="nav-label">التقرير المالي</span></button>
           <button class="nav-item" data-report-jump="universal" type="button" title="بحث تفصيلي شامل"><svg class="nav-ic" aria-hidden="true"><use href="#ic-chart"/></svg><span class="nav-label">بحث تفصيلي</span></button>
           <button class="nav-item" data-view-button="services" type="button" title="الخدمات المتاحة للعمليات"><svg class="nav-ic" aria-hidden="true"><use href="#ic-tag"/></svg><span class="nav-label">الخدمات</span></button>
         </div>
         <div class="nav-group">
           <button class="nav-group-label" type="button" data-nav-group="admin"><span>الإدارة</span><svg class="nav-group-chevron" aria-hidden="true"><use href="#ic-chevron"/></svg></button>
+          <button class="nav-item" data-view-button="service-admin" type="button" title="إضافة خدمة وتسعيرها"><svg class="nav-ic" aria-hidden="true"><use href="#ic-tag"/></svg><span class="nav-label">إضافة خدمة</span></button>
           <button class="nav-item" data-view-button="inventory" type="button" title="المخزون والموردون"><svg class="nav-ic" aria-hidden="true"><use href="#ic-box"/></svg><span class="nav-label">المخزون والموردون</span></button>
           <button class="nav-item" data-view-button="staff" type="button" title="الموظفون والنسب"><svg class="nav-ic" aria-hidden="true"><use href="#ic-users"/></svg><span class="nav-label">الموظفون والنسب</span></button>
         </div>
@@ -1213,57 +1214,66 @@
       </section>
 
       <section class="view" data-view="services">
-        <div class="split-layout">
-          <article class="panel">
-            <div class="panel-header">
-              <div>
-                <p class="eyebrow">كتالوج الخدمات</p>
-                <h2>إضافة خدمة وتسعيرها</h2>
-              </div>
+        <article class="panel full-report-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">كتالوج الخدمات</p>
+              <h2>الخدمات المتاحة للعمليات</h2>
             </div>
-            <form class="entry-form" data-service-form>
-              <label>
-                اسم الخدمة
-                <input name="name" type="text" placeholder="جلسة ليزر" required>
-              </label>
-              <label>
-                الفئة (لتجميع الخدمات)
-                <input name="category" type="text" list="service-categories" placeholder="ليزر، فيشل، بوتوكس...">
-                <datalist id="service-categories"></datalist>
-              </label>
-              <label>
-                السعر الافتراضي (اختياري)
-                <input name="defaultPrice" type="number" min="0" step="0.01" placeholder="اتركه فارغاً إن لم يكن ثابتاً">
-              </label>
-              <label data-sensitive>
-                التكلفة المباشرة
-                <input name="defaultCost" type="number" min="0" step="0.01" value="0">
-              </label>
-              <label>
-                الحالة
-                <select name="active">
-                  <option value="true">فعالة</option>
-                  <option value="false">متوقفة</option>
-                </select>
-              </label>
-              <button class="primary-button form-submit" type="submit">حفظ الخدمة</button>
-            </form>
-          </article>
+            <button class="focus-icon-button" type="button" data-open-table-focus="services" aria-label="تكبير قائمة الخدمات" title="تكبير قائمة الخدمات">
+              <span aria-hidden="true">⛶</span>
+            </button>
+          </div>
+          <form class="report-filter-form" data-service-browse-form>
+            <label>
+              الفئة
+              <select data-service-browse-category><option value="">كل الفئات</option></select>
+            </label>
+            <label class="filter-search">
+              بحث
+              <input type="search" data-service-browse-search placeholder="اسم الخدمة أو الفئة...">
+            </label>
+          </form>
+          <div data-service-browse></div>
+        </article>
+      </section>
 
-          <article class="panel">
-            <div class="panel-header">
-              <div>
-                <p class="eyebrow">الخدمات الحالية</p>
-                <h2>الخدمات المتاحة للعمليات</h2>
-              </div>
-              <button class="focus-icon-button" type="button" data-open-table-focus="services" aria-label="تكبير قائمة الخدمات" title="تكبير قائمة الخدمات">
-                <span aria-hidden="true">⛶</span>
-              </button>
+      <section class="view" data-view="service-admin">
+        <article class="panel" style="max-width:560px">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">كتالوج الخدمات</p>
+              <h2>إضافة خدمة وتسعيرها</h2>
             </div>
-            <div class="staff-list" data-service-list></div>
-          </article>
-        </div>
-
+          </div>
+          <form class="entry-form" data-service-form>
+            <label>
+              اسم الخدمة
+              <input name="name" type="text" placeholder="جلسة ليزر" required>
+            </label>
+            <label>
+              الفئة (لتجميع الخدمات)
+              <input name="category" type="text" list="service-categories" placeholder="ليزر، فيشل، بوتوكس...">
+              <datalist id="service-categories"></datalist>
+            </label>
+            <label>
+              السعر الافتراضي (اختياري)
+              <input name="defaultPrice" type="number" min="0" step="0.01" placeholder="اتركه فارغاً إن لم يكن ثابتاً">
+            </label>
+            <label data-sensitive>
+              التكلفة المباشرة
+              <input name="defaultCost" type="number" min="0" step="0.01" value="0">
+            </label>
+            <label>
+              الحالة
+              <select name="active">
+                <option value="true">فعالة</option>
+                <option value="false">متوقفة</option>
+              </select>
+            </label>
+            <button class="primary-button form-submit" type="submit">حفظ الخدمة</button>
+          </form>
+        </article>
       </section>
 
       <section class="view" data-view="packages">
@@ -1279,6 +1289,10 @@
               <label>
                 اسم الباقة
                 <input name="name" type="text" placeholder="6 جلسات ليزر كامل" required>
+              </label>
+              <label>
+                الفئة (اختياري)
+                <input name="category" type="text" list="service-categories" placeholder="ليزر، فيشل...">
               </label>
               <label>
                 الخدمة المرتبطة (اختياري)
@@ -1898,6 +1912,7 @@
             </div>
             <div class="report-tab-group">
               <span class="report-tab-group-label">مالي</span>
+              <button class="report-tab" type="button" data-report-tab="cash"      role="tab">💵 الكاش</button>
               <button class="report-tab" type="button" data-report-tab="profit"    role="tab">💰 الربح</button>
               <button class="report-tab" type="button" data-report-tab="expenses"  role="tab">💳 المصروفات</button>
               <button class="report-tab" type="button" data-report-tab="costs"     role="tab">📦 التكاليف</button>
@@ -1917,6 +1932,7 @@
             <option value="patientBalance">ميزان المريض — تكملة الحسابات</option>
             <option value="retention">الاحتفاظ بالمرضى — LTV والتسرب</option>
             <option value="profit">ربح العيادة</option>
+            <option value="cash">الكاش والمقبوضات</option>
             <option value="reconciliation">سجل المطابقة اليومية</option>
             <option value="byPatient">حسب المريض</option>
             <option value="perProcedure">كل عملية</option>
@@ -2859,7 +2875,47 @@
       </div>
     </div>
   </div>
-  <script src="app.js?v=20260620t"></script>
+
+  <!-- Edit a report row (package sale): price, cost, paid, category, status -->
+  <div class="edit-entry-modal slot-booking-modal" data-edit-entry-modal hidden>
+    <div class="slot-booking-card" role="dialog" aria-modal="true" aria-label="تعديل العملية">
+      <button class="icon-button slot-booking-close" type="button" data-edit-entry-close aria-label="إغلاق">×</button>
+      <h3 data-edit-entry-title>تعديل</h3>
+      <form class="slot-booking-form" data-edit-entry-form>
+        <input type="hidden" name="entryId">
+        <label>
+          السعر
+          <input name="amount" type="number" min="0" step="0.01">
+        </label>
+        <label data-sensitive>
+          التكلفة
+          <input name="cost" type="number" min="0" step="0.01">
+        </label>
+        <label>
+          المدفوع
+          <input name="paid" type="number" min="0" step="0.01">
+        </label>
+        <label>
+          الفئة
+          <input name="category" type="text" list="service-categories" placeholder="ليزر، فيشل...">
+        </label>
+        <label>
+          الحالة
+          <select name="status">
+            <option value="completed">مكتملة</option>
+            <option value="partial_payment">دفع جزئي</option>
+            <option value="pending_payment">لم يُدفع بعد</option>
+            <option value="cancelled">ملغاة</option>
+          </select>
+        </label>
+        <div class="slot-booking-actions">
+          <button class="primary-button" type="submit">حفظ التعديل</button>
+          <button class="text-button" type="button" data-edit-entry-close>إلغاء</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <script src="app.js?v=20260620x"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>
