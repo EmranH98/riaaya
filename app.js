@@ -3909,6 +3909,9 @@ function renderAccessControls() {
   els.viewButtons.forEach(button => {
     button.hidden = !canView(button.dataset.viewButton);
   });
+  document.querySelectorAll("[data-report-jump]").forEach(button => {
+    button.hidden = !canView("reports");
+  });
 
   const showSensitive = canViewSensitive();
   document.querySelectorAll("[data-sensitive]").forEach(element => {
@@ -3952,6 +3955,9 @@ function setView(viewName) {
   els.views.forEach(view => {
     view.classList.toggle("active", view.dataset.view === targetView);
   });
+  if (targetView !== "reports") {
+    document.querySelectorAll("[data-report-jump]").forEach(button => button.classList.remove("active"));
+  }
   keepActiveNavItemVisible(activeButton);
 }
 
@@ -8207,7 +8213,7 @@ function renderReports() {
     : [];
   const universalItems = universalReportItems(from, to);
   const reportType = els.reportSelect.value || "reconciliation";
-  const financialReports = ["profit", "reconciliation", "patientBalance", "byPatient", "perProcedure", "costs", "expenses", "retention"];
+  const financialReports = ["profit", "reconciliation", "patientBalance", "byPatient", "perProcedure", "costs", "expenses", "retention", "packages"];
   if (!canViewSensitive() && financialReports.includes(reportType)) {
     els.reportVisuals.innerHTML = "";
     els.reportPagination.innerHTML = "";
@@ -8253,6 +8259,10 @@ function renderReports() {
     ], filters.query));
     pagination = paginateItems(matchingServices, reportPage, pageSize);
     content = renderCostsReport(pagination.items);
+  } else if (reportType === "packages") {
+    const packageEntries = allEntries.filter(entry => entry.packageId);
+    pagination = paginateItems(packageEntries, reportPage, pageSize);
+    content = renderPackagesReport(pagination.items);
   } else {
     pagination = paginateItems(allEntries, reportPage, pageSize);
     content = reportType === "byPatient"
@@ -8266,6 +8276,39 @@ function renderReports() {
   renderReportVisuals(allEntries, allBookings, allPatients, universalItems, allExpenses);
   renderPagination(els.reportPagination, pagination, "reports");
   els.reportPage.innerHTML = content;
+}
+
+function renderPackagesReport(entries) {
+  if (!entries.length) return `<div class="empty-state">لا توجد باقات مبيعة في هذه الفترة.</div>`;
+  let totalNet = 0, totalPaid = 0, totalDue = 0;
+  const rows = entries.map(entry => {
+    const net = netAmount(entry);
+    const paid = paidAmount(entry);
+    const due = Math.max(net - paid, 0);
+    totalNet += net; totalPaid += paid; totalDue += due;
+    const pkg = (state.patientPackages || []).find(item => item.id === entry.packageId);
+    const sessions = pkg ? `${pkg.usedSessions}/${pkg.totalSessions}` : "—";
+    return `
+      <tr>
+        <td>${entry.visitNumber ? "#" + entry.visitNumber : "—"}</td>
+        <td>${displayDate(entry.date)}</td>
+        <td>${entry.patient}</td>
+        <td>${entry.service}</td>
+        <td>${sessions}</td>
+        <td>${money(net)}</td>
+        <td>${money(paid)}</td>
+        <td>${due > 0.009 ? money(due) : "—"}</td>
+        <td>${entryStatusLabel(entry.status)}</td>
+      </tr>`;
+  }).join("");
+  return `
+    <div class="table-wrap">
+      <table class="practical-table">
+        <thead><tr><th>رقم</th><th>التاريخ</th><th>المريض</th><th>الباقة</th><th>الجلسات</th><th>السعر</th><th>المدفوع</th><th>المتبقي</th><th>الحالة</th></tr></thead>
+        <tbody>${rows}</tbody>
+        <tfoot><tr><td colspan="5"><strong>الإجمالي (${entries.length})</strong></td><td><strong>${money(totalNet)}</strong></td><td><strong>${money(totalPaid)}</strong></td><td><strong>${money(totalDue)}</strong></td><td></td></tr></tfoot>
+      </table>
+    </div>`;
 }
 
 function operationLineFromForm() {
@@ -10880,6 +10923,19 @@ document.querySelectorAll("[data-report-tab]").forEach(btn => {
     document.querySelectorAll("[data-report-tab]").forEach(b =>
       b.classList.toggle("active", b.dataset.reportTab === val)
     );
+    renderReports();
+  });
+});
+
+// Reports nav group: each item opens the reports view with that report selected.
+document.querySelectorAll("[data-report-jump]").forEach(button => {
+  button.addEventListener("click", () => {
+    if (!canView("reports")) return;
+    const type = button.dataset.reportJump;
+    setView("reports");
+    if (els.reportSelect) els.reportSelect.value = type;
+    document.querySelectorAll("[data-report-tab]").forEach(tab => tab.classList.toggle("active", tab.dataset.reportTab === type));
+    document.querySelectorAll("[data-report-jump]").forEach(other => other.classList.toggle("active", other === button));
     renderReports();
   });
 });

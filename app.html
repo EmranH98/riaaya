@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260620s">
+  <link rel="stylesheet" href="app.css?v=20260620t">
 </head>
 <body>
 
@@ -90,15 +90,21 @@
         <div class="nav-group">
           <button class="nav-group-label" type="button" data-nav-group="finance"><span>المالية</span><svg class="nav-group-chevron" aria-hidden="true"><use href="#ic-chevron"/></svg></button>
           <button class="nav-item" data-view-button="collections" type="button" title="المبالغ المستحقة"><svg class="nav-ic" aria-hidden="true"><use href="#ic-due"/></svg><span class="nav-label">المبالغ المستحقة</span></button>
-          <button class="nav-item" data-view-button="reports" type="button" title="التقارير"><svg class="nav-ic" aria-hidden="true"><use href="#ic-chart"/></svg><span class="nav-label">التقارير</span></button>
           <button class="nav-item" data-view-button="expenses" type="button" title="المصروفات"><svg class="nav-ic" aria-hidden="true"><use href="#ic-wallet"/></svg><span class="nav-label">المصروفات</span></button>
           <button class="nav-item" data-view-button="salaries" type="button" title="الرواتب"><svg class="nav-ic" aria-hidden="true"><use href="#ic-cash"/></svg><span class="nav-label">الرواتب</span></button>
           <button class="nav-item" data-view-button="reconcile" type="button" title="المطابقة"><svg class="nav-ic" aria-hidden="true"><use href="#ic-check"/></svg><span class="nav-label">المطابقة</span></button>
           <button class="nav-item" data-view-button="communications" type="button" title="التواصل والفوترة"><svg class="nav-ic" aria-hidden="true"><use href="#ic-chat"/></svg><span class="nav-label">التواصل والفوترة</span></button>
         </div>
         <div class="nav-group">
+          <button class="nav-group-label" type="button" data-nav-group="reports"><span>التقارير</span><svg class="nav-group-chevron" aria-hidden="true"><use href="#ic-chevron"/></svg></button>
+          <button class="nav-item" data-report-jump="perProcedure" type="button" title="تقرير العمليات"><svg class="nav-ic" aria-hidden="true"><use href="#ic-receipt"/></svg><span class="nav-label">تقرير العمليات</span></button>
+          <button class="nav-item" data-report-jump="packages" type="button" title="تقرير الباقات"><svg class="nav-ic" aria-hidden="true"><use href="#ic-package"/></svg><span class="nav-label">تقرير الباقات</span></button>
+          <button class="nav-item" data-report-jump="profit" type="button" title="التقرير المالي"><svg class="nav-ic" aria-hidden="true"><use href="#ic-cash"/></svg><span class="nav-label">التقرير المالي</span></button>
+          <button class="nav-item" data-report-jump="universal" type="button" title="بحث تفصيلي شامل"><svg class="nav-ic" aria-hidden="true"><use href="#ic-chart"/></svg><span class="nav-label">بحث تفصيلي</span></button>
+          <button class="nav-item" data-view-button="services" type="button" title="الخدمات المتاحة للعمليات"><svg class="nav-ic" aria-hidden="true"><use href="#ic-tag"/></svg><span class="nav-label">الخدمات</span></button>
+        </div>
+        <div class="nav-group">
           <button class="nav-group-label" type="button" data-nav-group="admin"><span>الإدارة</span><svg class="nav-group-chevron" aria-hidden="true"><use href="#ic-chevron"/></svg></button>
-          <button class="nav-item" data-view-button="services" type="button" title="الخدمات والقواعد"><svg class="nav-ic" aria-hidden="true"><use href="#ic-tag"/></svg><span class="nav-label">الخدمات والقواعد</span></button>
           <button class="nav-item" data-view-button="inventory" type="button" title="المخزون والموردون"><svg class="nav-ic" aria-hidden="true"><use href="#ic-box"/></svg><span class="nav-label">المخزون والموردون</span></button>
           <button class="nav-item" data-view-button="staff" type="button" title="الموظفون والنسب"><svg class="nav-ic" aria-hidden="true"><use href="#ic-users"/></svg><span class="nav-label">الموظفون والنسب</span></button>
         </div>
@@ -1888,6 +1894,7 @@
               <button class="report-tab"        type="button" data-report-tab="reconciliation" role="tab">✓ الإغلاق اليومي</button>
               <button class="report-tab"        type="button" data-report-tab="byPatient"      role="tab">👤 حسب المريض</button>
               <button class="report-tab"        type="button" data-report-tab="perProcedure"   role="tab">📋 كل عملية</button>
+              <button class="report-tab"        type="button" data-report-tab="packages"       role="tab">📦 الباقات</button>
             </div>
             <div class="report-tab-group">
               <span class="report-tab-group-label">مالي</span>
@@ -1913,6 +1920,7 @@
             <option value="reconciliation">سجل المطابقة اليومية</option>
             <option value="byPatient">حسب المريض</option>
             <option value="perProcedure">كل عملية</option>
+            <option value="packages">الباقات</option>
             <option value="bookings">الحجوزات والجدول</option>
             <option value="patients">دليل المرضى والزوار</option>
             <option value="expenses">المصروفات</option>
@@ -2851,7 +2859,7 @@
       </div>
     </div>
   </div>
-  <script src="app.js?v=20260620s"></script>
+  <script src="app.js?v=20260620t"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>
