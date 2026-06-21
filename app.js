@@ -5494,6 +5494,37 @@ function outstandingByPatient() {
     .sort((a, b) => b.total - a.total);
 }
 
+function renderDashboardZones() {
+  const activePackages = (state.patientPackages || []).filter(pkg => packageComputedStatus(pkg) === "active");
+  const remainingSessions = activePackages.reduce((sum, pkg) => sum + packageRemaining(pkg), 0);
+  const kpiEl = document.querySelector('[data-dashboard-kpi="activePackages"]');
+  if (kpiEl) kpiEl.textContent = activePackages.length;
+  const kpiNote = document.querySelector('[data-dashboard-note="activePackages"]');
+  if (kpiNote) kpiNote.textContent = `${remainingSessions} جلسة متبقية`;
+
+  const outEl = document.querySelector("[data-dashboard-outstanding]");
+  if (outEl) {
+    const rows = outstandingByPatient().slice(0, 5);
+    outEl.innerHTML = rows.length
+      ? rows.map(row => `<div class="dash-row"><span>${row.name || "—"}</span><span class="dash-due">${canViewSensitive() ? money(row.total) : "—"}</span></div>`).join("")
+      : `<div class="empty-state">لا مستحقات — كل الحسابات مسددة.</div>`;
+  }
+
+  const sesEl = document.querySelector("[data-dashboard-sessions]");
+  if (sesEl) {
+    const todayDate = state.settings.activeDate;
+    const sessions = (state.bookings || [])
+      .filter(booking => booking.packageId && booking.status === "scheduled" && booking.date === todayDate)
+      .sort((a, b) => String(a.time).localeCompare(String(b.time)));
+    sesEl.innerHTML = sessions.length
+      ? sessions.slice(0, 6).map(booking => {
+          const patient = patientById(booking.patientId);
+          return `<div class="dash-row"><span>${patient ? patient.name : booking.patient} · ${booking.service}</span><span class="dash-time">${booking.time}</span></div>`;
+        }).join("")
+      : `<div class="empty-state">لا جلسات باقات مجدولة اليوم.</div>`;
+  }
+}
+
 function renderCollections() {
   if (!els.collectionsBody) return;
   if (!canViewSensitive()) {
@@ -9593,6 +9624,7 @@ function render() {
   renderServiceList();
   renderServiceBrowse();
   renderPackages();
+  renderDashboardZones();
   renderReferralSummary();
   renderCollections();
   renderRuleList();

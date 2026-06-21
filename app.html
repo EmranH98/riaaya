@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260620y">
+  <link rel="stylesheet" href="app.css?v=20260620z">
 </head>
 <body>
 
@@ -362,6 +362,28 @@
             <span>صافي اليوم</span>
             <strong data-dashboard-kpi="net">0 د.أ</strong>
             <small data-dashboard-note="net">المدفوع بعد المصروفات</small>
+          </article>
+          <article class="command-kpi teal">
+            <span>باقات نشطة</span>
+            <strong data-dashboard-kpi="activePackages">0</strong>
+            <small data-dashboard-note="activePackages">جلسات متبقية</small>
+          </article>
+        </div>
+
+        <div class="dash-zones">
+          <article class="panel">
+            <div class="panel-header">
+              <div><p class="eyebrow">تحصيل</p><h2>المستحقات على المرضى</h2></div>
+              <button class="text-button" type="button" data-view-button="collections">عرض الكل</button>
+            </div>
+            <div class="dash-list" data-dashboard-outstanding></div>
+          </article>
+          <article class="panel">
+            <div class="panel-header">
+              <div><p class="eyebrow">قادم</p><h2>جلسات اليوم القادمة</h2></div>
+              <button class="text-button" type="button" data-view-button="bookings">التقويم</button>
+            </div>
+            <div class="dash-list" data-dashboard-sessions></div>
           </article>
         </div>
 
@@ -2915,7 +2937,7 @@
       </form>
     </div>
   </div>
-  <script src="app.js?v=20260620y"></script>
+  <script src="app.js?v=20260620z"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>
