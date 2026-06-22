@@ -3751,6 +3751,73 @@ td {
   font-size: 22px;
 }
 
+/* Operations breakdown (aggregated distribution by category/service/payment/team) */
+.report-breakdown {
+  border: 1px solid rgba(36,21,19,0.08);
+  border-radius: 16px;
+  background: white;
+  padding: 14px 16px 6px;
+  margin-bottom: 18px;
+}
+.report-breakdown .breakdown-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.report-breakdown .breakdown-title {
+  font-size: 13px;
+  font-weight: 900;
+  color: var(--ink-soft);
+}
+.report-breakdown .breakdown-tabs {
+  display: inline-flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  background: var(--teal-pale);
+  border-radius: 999px;
+  padding: 4px;
+}
+.report-breakdown .breakdown-tab {
+  border: 0;
+  background: transparent;
+  color: var(--teal-dark);
+  font-weight: 800;
+  font-size: 13px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.report-breakdown .breakdown-tab.active {
+  background: var(--teal);
+  color: #fff;
+}
+.report-breakdown table { width: 100%; }
+.report-breakdown tfoot th {
+  background: var(--teal-pale);
+  color: var(--teal-dark);
+  font-weight: 900;
+}
+.report-breakdown .breakdown-bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 26px;
+  border-radius: 7px;
+  overflow: hidden;
+  padding-inline: 8px;
+  background: linear-gradient(to left, var(--teal-pale) var(--bar, 0%), transparent var(--bar, 0%));
+}
+.report-breakdown .breakdown-bar span {
+  position: relative;
+  font-weight: 800;
+  color: var(--ink);
+}
+.report-breakdown .report-empty { color: var(--ink-soft); text-align: center; padding: 14px; }
+
 .profit-equation {
   display: grid;
   gap: 4px;

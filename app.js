@@ -7950,6 +7950,66 @@ function renderByPatientReport(entries) {
   `;
 }
 
+// Aggregated breakdown of operations by a chosen dimension (category / service /
+// payment method / team), with subtotals, share %, and a grand-total row.
+let operationsBreakdownDim = "category";
+const BREAKDOWN_DIMS = [
+  { key: "category", label: "الفئة", keyFn: entry => entryCategory(entry) || "بدون فئة" },
+  { key: "service", label: "الخدمة", keyFn: entry => serviceLabel(entry) || "—" },
+  { key: "payment", label: "طريقة الدفع", keyFn: entry => entryPaymentLabel(entry) || "—" },
+  { key: "team", label: "الفريق", keyFn: entry => {
+    const names = [getStaffMember(entry.doctorId)?.name, getStaffMember(entry.specialistId)?.name].filter(Boolean);
+    return names.length ? names.join(" / ") : "بانتظار التعيين";
+  } }
+];
+
+function reportBreakdown(entries) {
+  const dim = BREAKDOWN_DIMS.find(item => item.key === operationsBreakdownDim) || BREAKDOWN_DIMS[0];
+  const rows = billableEntries(entries);
+  const groups = new Map();
+  rows.forEach(entry => {
+    const key = dim.keyFn(entry);
+    const group = groups.get(key) || { key, count: 0, paid: 0, cost: 0, profit: 0 };
+    group.count += 1;
+    group.paid += paidAmount(entry);
+    group.cost += entryCost(entry);
+    group.profit += profitAmount(entry);
+    groups.set(key, group);
+  });
+  const list = [...groups.values()].sort((a, b) => b.paid - a.paid);
+  const grand = list.reduce((total, group) => ({
+    count: total.count + group.count, paid: total.paid + group.paid,
+    cost: total.cost + group.cost, profit: total.profit + group.profit
+  }), { count: 0, paid: 0, cost: 0, profit: 0 });
+  const maxPaid = Math.max(1, ...list.map(group => group.paid));
+  const tabs = BREAKDOWN_DIMS.map(item =>
+    `<button type="button" class="breakdown-tab${item.key === dim.key ? " active" : ""}" data-breakdown-dim="${item.key}">${item.label}</button>`
+  ).join("");
+  const bodyRows = list.length ? list.map(group => `
+    <tr>
+      <td><div class="breakdown-bar" style="--bar:${Math.round(group.paid / maxPaid * 100)}%"><span>${group.key}</span></div></td>
+      <td>${group.count}</td>
+      <td>${money(group.paid)}</td>
+      <td>${money(group.cost)}</td>
+      <td>${money(group.profit)}</td>
+      <td>${grand.paid ? Math.round(group.paid / grand.paid * 100) : 0}%</td>
+    </tr>`).join("") : `<tr><td colspan="6" class="report-empty">لا توجد بيانات للتوزيع.</td></tr>`;
+  return `
+    <div class="report-breakdown">
+      <div class="breakdown-head">
+        <span class="breakdown-title">التوزيع حسب</span>
+        <div class="breakdown-tabs">${tabs}</div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>${dim.label}</th><th>عدد</th><th>المحصّل</th><th>التكلفة</th><th>الربح</th><th>الحصة</th></tr></thead>
+          <tbody>${bodyRows}</tbody>
+          <tfoot><tr><th>الإجمالي</th><th>${grand.count}</th><th>${money(grand.paid)}</th><th>${money(grand.cost)}</th><th>${money(grand.profit)}</th><th>100%</th></tr></tfoot>
+        </table>
+      </div>
+    </div>`;
+}
+
 function renderPerProcedureReport(entries) {
   const isEnglish = currentLanguage() === "en";
   const label = isEnglish
@@ -8017,6 +8077,7 @@ function renderPerProcedureReport(entries) {
       { label: label.directCost, value: money(rows.reduce((sum, entry) => sum + entryCost(entry), 0)) },
       { label: label.profitBeforePayouts, value: money(rows.reduce((sum, entry) => sum + profitAmount(entry), 0)) }
     ])}
+    ${reportBreakdown(entries)}
     <div class="table-wrap report-table">
       <table>
         <thead>
@@ -11285,6 +11346,15 @@ document.querySelectorAll("[data-report-tab]").forEach(btn => {
     );
     renderReports();
   });
+});
+
+// Operations breakdown: switch the aggregation dimension (delegated — the buttons
+// are re-rendered with the report each time).
+document.addEventListener("click", event => {
+  const dimBtn = event.target.closest("[data-breakdown-dim]");
+  if (!dimBtn) return;
+  operationsBreakdownDim = dimBtn.dataset.breakdownDim;
+  renderReports();
 });
 
 // Reports nav group: each item opens the reports view with that report selected.
