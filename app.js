@@ -5141,7 +5141,7 @@ function renderPatientDirectory() {
     return `
       <tr class="${selectedPatientId === patient.id ? "selected-row" : ""}">
         <td>${canUseFeature("patient_number") ? patient.patientNumber : "—"}</td>
-        <td><button class="table-link" type="button" data-open-patient="${patient.id}">${patient.name}</button></td>
+        <td><span class="cell-with-avatar">${genderAvatar(patient, 32)}<button class="table-link" type="button" data-open-patient="${patient.id}">${patient.name}</button></span></td>
         <td><span class="pill">${profileTypeLabel(patient.profileType)}</span></td>
         <td>${canSeePhone ? (patient.phone || "-") : "مخفي"}</td>
         <td>${displayDate(patientLastActivity(patient)) || "-"}</td>

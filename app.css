@@ -7378,6 +7378,9 @@ html[dir="ltr"] label {
 .catalog-act.open { background: var(--teal-pale); color: var(--teal-dark); border-color: var(--teal); }
 .catalog-act.open:hover { background: var(--teal); color: #fff; }
 
+/* Name cell with leading avatar */
+.cell-with-avatar { display: inline-flex; align-items: center; gap: 9px; }
+
 /* Gender sticker avatars (no photos) — brand-teal palette, sex-shaped silhouette */
 .g-avatar { width: var(--av,38px); height: var(--av,38px); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; overflow: hidden; font-weight: 800; font-size: calc(var(--av,38px) * 0.42); color: var(--teal-dark); background: var(--teal-pale); }
 .g-avatar svg { width: 100%; height: 100%; display: block; }
