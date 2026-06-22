@@ -122,36 +122,38 @@ button {
 }
 
 .brand-logo-mark {
-  width: 46px;
-  height: 46px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, var(--teal), #7edbd1);
+  width: 48px;
+  height: 48px;
+  border-radius: 15px;
+  background: linear-gradient(135deg, #12b8a6, #0c8e84);
   display: grid;
   place-items: center;
   color: #ffffff;
   flex: 0 0 auto;
+  box-shadow: 0 8px 18px rgba(15,157,143,.22);
 }
 
 .brand-logo-mark svg {
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   fill: #ffffff;
 }
 
 .brand strong {
   display: block;
   font-family: "Cairo", sans-serif;
-  font-size: 20px;
+  font-size: 23px;
   line-height: 1.05;
-  letter-spacing: .02em;
-  color: var(--teal-dark);
+  letter-spacing: .01em;
+  color: #0c8e84;
 }
 
 .brand strong em {
   font-style: normal;
-  font-size: 15px;
+  font-size: 18px;
   color: #177e77;
   font-weight: 700;
+  letter-spacing: .02em;
 }
 
 .brand small {
@@ -7340,3 +7342,27 @@ html[dir="ltr"] label {
 .rule-person-check { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border: 1px solid var(--line); border-radius: 999px; cursor: pointer; font-size: 13px; background: #fff; transition: background .12s, border-color .12s; }
 .rule-person-check:has(input:checked) { background: var(--teal-pale); border-color: var(--teal); color: var(--teal); font-weight: 700; }
 .rule-person-check input { accent-color: var(--teal); }
+
+/* Gender sticker avatars (no photos) — brand-teal palette, sex-shaped silhouette */
+.g-avatar { width: var(--av,38px); height: var(--av,38px); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; overflow: hidden; font-weight: 800; font-size: calc(var(--av,38px) * 0.42); color: var(--teal-dark); background: var(--teal-pale); }
+.g-avatar svg { width: 100%; height: 100%; display: block; }
+.g-avatar .g-bg { fill: var(--teal-pale); }
+.g-avatar .g-fig { fill: var(--teal); }
+
+/* Daily workflow "highway" */
+.day-highway-card { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px 20px 22px; margin-bottom: 18px; box-shadow: 0 8px 20px rgba(24,62,86,.05); }
+.highway-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 24px; }
+.highway-head h3 { margin: 0; font-size: 18px; color: var(--ink); }
+.highway-head p { margin: 4px 0 0; color: var(--ink-soft); font-size: 13px; }
+.highway-progress { background: var(--teal-pale); color: var(--teal-dark); font-weight: 800; font-size: 12px; padding: 6px 12px; border-radius: 999px; white-space: nowrap; }
+.highway-road { position: relative; display: flex; justify-content: space-between; gap: 8px; padding: 0 8px; }
+.highway-road::before { content: ""; position: absolute; top: 28px; inset-inline: 40px; height: 36px; transform: translateY(-50%); background: #20323f; border-radius: 12px; z-index: 0; }
+.highway-road::after { content: ""; position: absolute; top: 28px; inset-inline: 52px; transform: translateY(-50%); border-top: 3px dashed rgba(255,255,255,.45); z-index: 1; }
+.highway-step { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; flex: 1; min-width: 0; }
+.highway-node { width: 56px; height: 56px; border-radius: 50%; background: #fff; border: 3px solid #cfd8de; display: grid; place-items: center; color: #8aa0ad; box-shadow: 0 4px 10px rgba(24,62,86,.08); }
+.highway-node .nav-ic { width: 24px; height: 24px; }
+.highway-step.done .highway-node { background: var(--teal); border-color: var(--teal); color: #fff; }
+.highway-step strong { font-size: 13px; color: var(--ink); }
+.highway-step small { font-size: 11px; color: var(--ink-soft); line-height: 1.4; max-width: 130px; }
+.highway-check { font-weight: 900; color: var(--status-done); font-size: 14px; height: 16px; }
+@media (max-width: 760px){ .highway-road { flex-wrap: wrap; gap: 18px; justify-content: center; } .highway-road::before, .highway-road::after { display: none; } .highway-step { flex: 0 0 40%; } }

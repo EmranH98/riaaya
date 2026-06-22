@@ -4407,6 +4407,46 @@ function renderBookingFunnel() {
   `).join("");
 }
 
+// The "highway": today's workflow as five stations on a road
+// (appointment → arrival → service → payment → closing), each marked done
+// based on the real state of the working day.
+function renderDayHighway() {
+  const host = document.querySelector("[data-day-highway]");
+  if (!host) return;
+  const date = state.settings.activeDate;
+  const bookingsToday = (state.bookings || []).filter(booking => booking.date === date);
+  const entriesToday = (state.entries || []).filter(entry => entry.date === date && isBillableEntry(entry));
+  const arrived = bookingsToday.some(booking => ["arrived", "confirmed", "completed"].includes(booking.status)) || entriesToday.length > 0;
+  const paidToday = entriesToday.reduce((sum, entry) => sum + paidAmount(entry), 0);
+  const recos = state.reconciliations;
+  const closedToday = Array.isArray(recos)
+    ? recos.some(record => record.date === date)
+    : Boolean(recos && typeof recos === "object" && recos[date]);
+  const steps = [
+    { ic: "calendar", label: "موعد", sub: "حجز وتأكيد الموعد", done: bookingsToday.length > 0 },
+    { ic: "user", label: "وصول المريض", sub: "تسجيل الوصول", done: arrived },
+    { ic: "receipt", label: "الخدمة / العملية", sub: "تقديم الخدمة أو العملية", done: entriesToday.length > 0 },
+    { ic: "cash", label: "الدفع", sub: "تحصيل المبلغ", done: paidToday > 0 },
+    { ic: "check", label: "الإغلاق", sub: "إغلاق الملف والمطابقة", done: closedToday }
+  ];
+  const doneCount = steps.filter(step => step.done).length;
+  host.innerHTML = `
+    <div class="highway-head">
+      <div><h3>سير العمل اليومي</h3><p>تابع سير العمل وأكمل كل خطوة بسلاسة</p></div>
+      <span class="highway-progress">${doneCount}/${steps.length} مكتملة</span>
+    </div>
+    <div class="highway-road">
+      ${steps.map(step => `
+        <div class="highway-step ${step.done ? "done" : ""}">
+          <div class="highway-node"><svg class="nav-ic" aria-hidden="true"><use href="#ic-${step.ic}"/></svg></div>
+          <strong>${step.label}</strong>
+          <small>${step.sub}</small>
+          <span class="highway-check" aria-hidden="true">${step.done ? "✓" : ""}</span>
+        </div>
+      `).join("")}
+    </div>`;
+}
+
 function renderDashboardSchedule() {
   if (!els.dashboardSchedule) return;
   const bookings = activeBookings().slice(0, 6);
@@ -4420,6 +4460,7 @@ function renderDashboardSchedule() {
     return `
       <div class="dashboard-appointment ${booking.status}">
         <time>${displayTime(booking.time)}</time>
+        ${genderAvatar(patient || booking, 36)}
         <div>
           <button class="table-link" type="button" data-open-patient="${patient?.id || ""}">${booking.patient}</button>
           <span>${serviceLabel(booking)} | ${member?.name || "غير معين"}</span>
@@ -5034,6 +5075,23 @@ function genderLabel(gender) {
     ? { female: "Female", male: "Male" }
     : { female: "أنثى", male: "ذكر" };
   return labels[gender] || "-";
+}
+
+// Gender-based sticker avatar (no real photos) in the brand teal palette.
+// Female = dress silhouette, male = shoulders silhouette, unknown = initial.
+function genderAvatar(person, size = 38) {
+  const raw = ((person && (person.gender || person.sex)) || "").toString().toLowerCase();
+  const name = (person && (person.name || person.patient)) || "";
+  const female = ["female", "أنثى", "f", "انثى"].includes(raw);
+  const male = ["male", "ذكر", "m"].includes(raw);
+  if (female) {
+    return `<span class="g-avatar female" style="--av:${size}px" title="${name}" aria-hidden="true"><svg viewBox="0 0 40 40"><circle class="g-bg" cx="20" cy="20" r="20"/><g class="g-fig"><circle cx="20" cy="15" r="5.6"/><path d="M20 21.5c-3.2 0-5.4 1.6-6.4 4.3L10.4 35h19.2l-3.2-9.2c-1-2.7-3.2-4.3-6.4-4.3z"/></g></svg></span>`;
+  }
+  if (male) {
+    return `<span class="g-avatar male" style="--av:${size}px" title="${name}" aria-hidden="true"><svg viewBox="0 0 40 40"><circle class="g-bg" cx="20" cy="20" r="20"/><g class="g-fig"><circle cx="20" cy="15" r="5.8"/><path d="M10.4 34.5c0-5.6 4.3-9 9.6-9s9.6 3.4 9.6 9z"/></g></svg></span>`;
+  }
+  const initial = (name.trim().charAt(0) || "؟");
+  return `<span class="g-avatar neutral" style="--av:${size}px" title="${name}">${initial}</span>`;
 }
 
 function filteredPatients() {
@@ -9985,6 +10043,7 @@ function render() {
   renderServiceBrowse();
   renderPackages();
   renderDashboardZones();
+  renderDayHighway();
   renderReferralSummary();
   renderCollections();
   renderRuleList();
