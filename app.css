@@ -3818,6 +3818,42 @@ td {
 }
 .report-breakdown .report-empty { color: var(--ink-soft); text-align: center; padding: 14px; }
 
+/* Period comparison strip (this window vs previous equal-length window) */
+.report-comparison {
+  border: 1px solid rgba(36,21,19,0.08);
+  border-radius: 16px;
+  background: white;
+  padding: 12px 14px;
+  margin-bottom: 18px;
+}
+.report-comparison .cmp-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.report-comparison .cmp-head span { font-size: 13px; font-weight: 900; color: var(--ink-soft); }
+.report-comparison .cmp-head em { font-size: 12px; font-style: normal; color: var(--ink-soft); opacity: .8; }
+.report-comparison .cmp-cells {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+.report-comparison .cmp-cell {
+  border: 1px solid rgba(36,21,19,0.06);
+  border-radius: 12px;
+  background: #fbfdfc;
+  padding: 10px 12px;
+}
+.report-comparison .cmp-cell span { display: block; font-size: 12px; font-weight: 800; color: var(--ink-soft); }
+.report-comparison .cmp-cell strong { display: block; margin: 3px 0; font-family: "Cairo", sans-serif; font-size: 19px; color: var(--brown-ink); }
+.report-comparison .cmp-delta { font-style: normal; font-weight: 900; font-size: 13px; }
+.report-comparison .cmp-cell.up .cmp-delta { color: #1A5C38; }
+.report-comparison .cmp-cell.down .cmp-delta { color: #a32d2d; }
+.report-comparison .cmp-cell.flat .cmp-delta { color: var(--ink-soft); }
+
 /* Reports revenue-trend chart card */
 .report-trend {
   border: 1px solid rgba(36,21,19,0.08);

@@ -8000,6 +8000,42 @@ function renderByPatientReport(entries) {
   `;
 }
 
+// Period comparison: current window vs the immediately-preceding equal-length
+// window, with ▲/▼ deltas on revenue, operation count, and average ticket.
+function periodComparisonStrip(from, to, filters) {
+  if (!from || !to) return "";
+  const isEnglish = currentLanguage() === "en";
+  const dayMs = 86400000;
+  const start = new Date(from + "T12:00:00").getTime();
+  const end = new Date(to + "T12:00:00").getTime();
+  const spanDays = Math.max(1, Math.round((end - start) / dayMs) + 1);
+  const prevTo = new Date(start - dayMs).toISOString().slice(0, 10);
+  const prevFrom = new Date(start - spanDays * dayMs).toISOString().slice(0, 10);
+  const metric = rows => {
+    const revenue = rows.reduce((sum, entry) => sum + paidAmount(entry), 0);
+    return { revenue, count: rows.length, avg: rows.length ? revenue / rows.length : 0 };
+  };
+  const cur = metric(billableEntries(entriesForDateRange(from, to).filter(entry => entryMatchesReportFilters(entry, filters))));
+  const prev = metric(billableEntries(entriesForDateRange(prevFrom, prevTo).filter(entry => entryMatchesReportFilters(entry, filters))));
+  const cell = (labelAr, labelEn, value, now, before) => {
+    let dir = "flat", text = "0%";
+    if (!before) { dir = now ? "up" : "flat"; text = now ? (isEnglish ? "new" : "جديد") : "—"; }
+    else { const pct = Math.round((now - before) / before * 100); dir = pct > 0 ? "up" : pct < 0 ? "down" : "flat"; text = `${Math.abs(pct)}%`; }
+    const arrow = dir === "up" ? "▲" : dir === "down" ? "▼" : "—";
+    return `<div class="cmp-cell ${dir}"><span>${isEnglish ? labelEn : labelAr}</span><strong>${value}</strong><em class="cmp-delta">${arrow} ${text}</em></div>`;
+  };
+  const note = isEnglish ? `vs ${prevFrom} → ${prevTo}` : `مقابل ${displayDate(prevFrom)} – ${displayDate(prevTo)}`;
+  return `
+    <div class="report-comparison">
+      <div class="cmp-head"><span>${isEnglish ? "Compared to previous period" : "مقارنة بالفترة السابقة"}</span><em>${note}</em></div>
+      <div class="cmp-cells">
+        ${cell("المحصّل", "Revenue", money(cur.revenue), cur.revenue, prev.revenue)}
+        ${cell("عدد العمليات", "Operations", cur.count, cur.count, prev.count)}
+        ${cell("متوسط العملية", "Avg ticket", money(cur.avg), cur.avg, prev.avg)}
+      </div>
+    </div>`;
+}
+
 // Revenue-over-time trend for a report's entries. Buckets by the data's actual
 // span (daily up to ~31 days, otherwise grouped so there are ≤ ~26 points) and
 // reuses the dashboard's .trend-* SVG styling.
@@ -8634,7 +8670,7 @@ function renderReports() {
     content = renderExpensesReport(pagination.items);
   } else if (reportType === "profit") {
     pagination = paginateItems(allEntries, 1, Math.max(allEntries.length, 1));
-    content = renderProfitReport(allEntries, allExpenses);
+    content = periodComparisonStrip(from, to, filters) + renderProfitReport(allEntries, allExpenses);
   } else if (reportType === "reconciliation") {
     pagination = paginateItems(allReconciliations, reportPage, pageSize);
     content = renderCashReconciliationReport(pagination.items, allReconciliations);
@@ -8672,7 +8708,7 @@ function renderReports() {
       ? renderByPatientReport(pagination.items)
       : reportType === "assignments"
         ? renderAssignmentsReport(pagination.items)
-        : renderPerProcedureReport(pagination.items, allEntries);
+        : periodComparisonStrip(from, to, filters) + renderPerProcedureReport(pagination.items, allEntries);
   }
 
   reportPage = pagination.page;
