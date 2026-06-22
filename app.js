@@ -7606,6 +7606,7 @@ function renderProfitReport(entries, expenses) {
       { label: label.expenses, value: money(summary.expensesTotal) },
       { label: label.profit, value: money(summary.profit), note: label.explanation }
     ])}
+    ${reportTrendChart(entries)}
     ${pnlStatement(summary, expenses, isEnglish)}
     <div class="table-wrap report-table">
       <table>
@@ -7999,6 +8000,69 @@ function renderByPatientReport(entries) {
   `;
 }
 
+// Revenue-over-time trend for a report's entries. Buckets by the data's actual
+// span (daily up to ~31 days, otherwise grouped so there are ≤ ~26 points) and
+// reuses the dashboard's .trend-* SVG styling.
+function reportTrendChart(entries) {
+  const rows = billableEntries(entries).filter(entry => entry.date);
+  const dates = rows.map(entry => entry.date).sort();
+  if (new Set(dates).size < 2) return "";
+  const showSensitive = canViewSensitive();
+  const dayMs = 86400000;
+  const start = new Date(dates[0] + "T12:00:00").getTime();
+  const end = new Date(dates[dates.length - 1] + "T12:00:00").getTime();
+  const totalDays = Math.max(1, Math.round((end - start) / dayMs) + 1);
+  const bucketDays = totalDays <= 31 ? 1 : Math.ceil(totalDays / 26);
+  const buckets = [];
+  for (let offset = 0; offset < totalDays; offset += bucketDays) {
+    const bStart = start + offset * dayMs;
+    buckets.push({ start: bStart, end: bStart + bucketDays * dayMs, date: new Date(bStart).toISOString().slice(0, 10), paid: 0, count: 0 });
+  }
+  rows.forEach(entry => {
+    const time = new Date(entry.date + "T12:00:00").getTime();
+    let bucket = buckets.find(item => time >= item.start && time < item.end);
+    if (!bucket) bucket = time < buckets[0].start ? buckets[0] : buckets[buckets.length - 1];
+    bucket.paid += paidAmount(entry);
+    bucket.count += 1;
+  });
+  const values = buckets.map(bucket => showSensitive ? bucket.paid : bucket.count);
+  if (!values.reduce((sum, value) => sum + value, 0)) return "";
+  const width = 780, height = 220;
+  const pad = { top: 26, right: 18, bottom: 34, left: 18 };
+  const maximum = Math.max(...values, 1);
+  const usableWidth = width - pad.left - pad.right;
+  const usableHeight = height - pad.top - pad.bottom;
+  const points = values.map((value, index) => ({
+    x: pad.left + (buckets.length === 1 ? usableWidth / 2 : index * usableWidth / (buckets.length - 1)),
+    y: pad.top + usableHeight - (value / maximum) * usableHeight,
+    value, date: buckets[index].date
+  }));
+  const line = points.map(point => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(" ");
+  const area = `${pad.left},${pad.top + usableHeight} ${line} ${pad.left + usableWidth},${pad.top + usableHeight}`;
+  const formatter = new Intl.DateTimeFormat(currentLanguage() === "en" ? "en-US" : "ar-JO", { day: "numeric", month: "numeric" });
+  const grid = [0, 0.25, 0.5, 0.75, 1].map(portion => {
+    const y = pad.top + usableHeight * portion;
+    return `<line class="trend-grid" x1="${pad.left}" y1="${y}" x2="${pad.left + usableWidth}" y2="${y}"></line>`;
+  }).join("");
+  const step = Math.max(1, Math.ceil(points.length / 8));
+  const title = currentLanguage() === "en" ? "Revenue trend" : "اتجاه الإيراد";
+  const totalPaid = buckets.reduce((sum, bucket) => sum + bucket.paid, 0);
+  return `
+    <div class="report-trend">
+      <div class="report-trend-head"><span>${title}</span><strong>${showSensitive ? money(totalPaid) : values.reduce((sum, value) => sum + value, 0)}</strong></div>
+      <svg class="trend-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="${title}">
+        ${grid}
+        <polygon class="trend-area" points="${area}"></polygon>
+        <polyline class="trend-line" points="${line}"></polyline>
+        ${points.map((point, index) => `
+          <circle class="trend-dot" cx="${point.x}" cy="${point.y}" r="3.5"></circle>
+          ${index % step === 0 || index === points.length - 1 ? `<text class="trend-value" text-anchor="middle" x="${point.x}" y="${Math.max(point.y - 9, 12)}">${showSensitive ? Math.round(point.value) : point.value}</text>` : ""}
+          ${index % step === 0 || index === points.length - 1 ? `<text class="trend-label" text-anchor="middle" x="${point.x}" y="${height - 10}">${formatter.format(new Date(point.date + "T12:00:00"))}</text>` : ""}
+        `).join("")}
+      </svg>
+    </div>`;
+}
+
 // Aggregated breakdown of operations by a chosen dimension (category / service /
 // payment method / team), with subtotals, share %, and a grand-total row.
 let operationsBreakdownDim = "category";
@@ -8059,7 +8123,7 @@ function reportBreakdown(entries) {
     </div>`;
 }
 
-function renderPerProcedureReport(entries) {
+function renderPerProcedureReport(entries, allEntries = entries) {
   const isEnglish = currentLanguage() === "en";
   const label = isEnglish
     ? {
@@ -8099,7 +8163,8 @@ function renderPerProcedureReport(entries) {
       empty: "لا توجد عمليات لهذا التاريخ."
     };
   const rows = billableEntries(entries);
-  const totals = totalsFor(rows);
+  const allRows = billableEntries(allEntries);
+  const totals = totalsFor(allRows);
   const body = rows.length ? rows.map((entry, index) => {
     const doctor = getStaffMember(entry.doctorId);
     const specialist = getStaffMember(entry.specialistId);
@@ -8121,12 +8186,13 @@ function renderPerProcedureReport(entries) {
   return `
     ${reportHeader(label.title, label.subtitle)}
     ${reportKpis([
-      { label: label.operationCount, value: rows.length },
+      { label: label.operationCount, value: allRows.length },
       { label: label.netRevenue, value: money(totals.paid) },
-      { label: label.directCost, value: money(rows.reduce((sum, entry) => sum + entryCost(entry), 0)) },
-      { label: label.profitBeforePayouts, value: money(rows.reduce((sum, entry) => sum + profitAmount(entry), 0)) }
+      { label: label.directCost, value: money(allRows.reduce((sum, entry) => sum + entryCost(entry), 0)) },
+      { label: label.profitBeforePayouts, value: money(allRows.reduce((sum, entry) => sum + profitAmount(entry), 0)) }
     ])}
-    ${reportBreakdown(entries)}
+    ${reportTrendChart(allEntries)}
+    ${reportBreakdown(allEntries)}
     <div class="table-wrap report-table">
       <table>
         <thead>
@@ -8606,7 +8672,7 @@ function renderReports() {
       ? renderByPatientReport(pagination.items)
       : reportType === "assignments"
         ? renderAssignmentsReport(pagination.items)
-        : renderPerProcedureReport(pagination.items);
+        : renderPerProcedureReport(pagination.items, allEntries);
   }
 
   reportPage = pagination.page;
