@@ -357,7 +357,7 @@ function changePassword(req, res) {
   }
 
   const updatedAt = nowIso();
-  db.prepare("update users set password_hash = ?, updated_at = ? where id = ?")
+  db.prepare("update users set password_hash = ?, must_change_password = 0, updated_at = ? where id = ?")
     .run(hashPassword(newPassword), updatedAt, auth.user.id);
 
   // Invalidate all other sessions for this user so old password can't be reused
@@ -373,7 +373,8 @@ function changePassword(req, res) {
     ipAddress: clientIp(req)
   });
 
-  sendJson(res, 200, { ok: true });
+  const updatedUser = db.prepare("select * from users where id = ?").get(auth.user.id);
+  sendJson(res, 200, { ok: true, user: publicUser(updatedUser) });
 }
 
 function logout(req, res) {
@@ -583,7 +584,7 @@ function resetPassword(req, res) {
     sendJson(res, 401, { error: "invalid_or_expired_token" });
     return;
   }
-  const user = db.prepare("select id, clinic_id from users where id = ?").get(resetToken.user_id);
+  const user = db.prepare("select id, clinic_id, email from users where id = ?").get(resetToken.user_id);
   if (!user) {
     sendJson(res, 404, { error: "user_not_found" });
     return;
@@ -593,6 +594,7 @@ function resetPassword(req, res) {
     .run(hashPassword(newPassword), nowIso(), user.id);
   db.prepare("delete from password_reset_tokens where token_hash = ?").run(hash);
   db.prepare("delete from sessions where user_id = ?").run(user.id);
+  clearLoginFailures(loginRateLimitKey(req, user.email));
 
   audit({
     clinicId: user.clinic_id,

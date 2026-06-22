@@ -2202,8 +2202,33 @@ function setSaveIndicator(state) {
   const form     = document.getElementById("change-password-form");
   if (!modal || !form) return;
 
-  function openModal() { modal.removeAttribute("hidden"); form.reset(); }
-  function closeModal() { modal.setAttribute("hidden", ""); }
+  const title = document.getElementById("change-password-modal-title");
+  const hint = form.querySelector(".change-password-hint");
+  const defaultTitle = title?.textContent || "تغيير كلمة المرور";
+  const defaultHint = hint?.textContent || "12 حرفاً على الأقل مع أرقام وحروف";
+  let forcedPasswordChange = false;
+
+  function openModal(options = {}) {
+    forcedPasswordChange = options.forced === true;
+    modal.toggleAttribute("data-force-password-change", forcedPasswordChange);
+    if (title) title.textContent = forcedPasswordChange ? "اختر كلمة مرور دائمة" : defaultTitle;
+    if (hint) {
+      hint.textContent = forcedPasswordChange
+        ? "أدخل كلمة المرور المؤقتة، ثم اختر كلمة مرور دائمة قوية قبل استخدام النظام."
+        : defaultHint;
+    }
+    if (cancelBtn) cancelBtn.hidden = forcedPasswordChange;
+    modal.removeAttribute("hidden");
+    form.reset();
+    form.elements.oldPassword?.focus();
+  }
+  function closeModal(options = {}) {
+    if (forcedPasswordChange && options.force !== true) return;
+    modal.setAttribute("hidden", "");
+    modal.removeAttribute("data-force-password-change");
+    forcedPasswordChange = false;
+    if (cancelBtn) cancelBtn.hidden = false;
+  }
 
   openBtn?.addEventListener("click", openModal);
   cancelBtn?.addEventListener("click", closeModal);
@@ -2247,7 +2272,10 @@ function setSaveIndicator(state) {
       });
       const result = await response.json().catch(() => ({}));
       if (response.ok) {
-        closeModal();
+        if (runtime.session?.user) {
+          runtime.session.user = result.user || { ...runtime.session.user, mustChangePassword: false };
+        }
+        closeModal({ force: true });
         showToast("✓ تم تغيير كلمة المرور بنجاح", "success");
       } else if (response.status === 401) {
         showToast("كلمة المرور الحالية غير صحيحة", "error");
@@ -2261,6 +2289,8 @@ function setSaveIndicator(state) {
       submitBtn.textContent = "حفظ كلمة المرور";
     }
   });
+
+  window.RiaayaOpenRequiredPasswordChange = () => openModal({ forced: true });
 })();
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -2563,6 +2593,9 @@ async function initializeApp() {
   applyRuntimeUI();
   render();
   enforce2faRequirement();
+  if (runtime.mode === "live" && runtime.session?.user?.mustChangePassword) {
+    window.RiaayaOpenRequiredPasswordChange?.();
+  }
   if (initializeClinicState) saveState();
   loadCommunicationBackendStatus();
   loadStorageSafetyStatus();
