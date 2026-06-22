@@ -723,8 +723,14 @@ document.addEventListener("click", async event => {
         })
       });
       if (!response.ok) throw new Error("save_failed");
-      await loadOwner();
-    } finally {
+      target.textContent = "✓ تم الحفظ";
+      target.style.background = "#1A5C38";
+      target.style.color = "#fff";
+      setTimeout(() => loadOwner(), 1100);
+    } catch {
+      target.textContent = "✗ تعذّر الحفظ — حاول مجدداً";
+      target.style.background = "#a32d2d";
+      target.style.color = "#fff";
       target.disabled = false;
     }
     return;
