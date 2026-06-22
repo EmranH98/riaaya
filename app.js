@@ -8661,8 +8661,99 @@ function renderRetentionReport(entries, patients) {
 }
 /* ──────────────────────────────────────────────────────────────────────────── */
 
+// Catalog of every report, shown as the table-first "report center" landing.
+const REPORTS_CATALOG = [
+  { type: "universal", name: "بحث شامل في العيادة", desc: "نتائج موحّدة من العمليات والحجوزات والمرضى والمصروفات والخدمات.", cat: "op", period: "من / إلى", columns: "المصدر، الحالة، الدفع، الطبيب" },
+  { type: "perProcedure", name: "تقرير كل عملية", desc: "قائمة عمليات تفصيلية مع الخدمة والفريق والدفع والمستحقات.", cat: "op", period: "الفترة", columns: "الوقت، المريض، الخدمة، الفريق، الحالة" },
+  { type: "packages", name: "تقرير الباقات والجلسات", desc: "بيع الباقات والجلسات المستخدمة والمتبقية وأداء كل موظف.", cat: "op", period: "الفترة", columns: "الموظف، الباقة، الجلسات، المدفوع" },
+  { type: "specialist", name: "تقرير الموظفين", desc: "مستحقات ونسب كل أخصائي حسب العمليات المنفّذة.", cat: "op", period: "الفترة", columns: "الموظف، العمليات، المحصّل، المستحق" },
+  { type: "byPatient", name: "حسب المريض", desc: "تجميع العمليات والمبالغ والزيارات لكل مريض.", cat: "op", period: "الفترة", columns: "المريض، الزيارات، المحصّل" },
+  { type: "audit", name: "سجل التعديلات", desc: "من عدّل، ماذا تغيّر، ومتى — مع فلاتر التاريخ والبحث.", cat: "op", period: "من / إلى", columns: "المستخدم، الإجراء، التفاصيل، الوقت" },
+  { type: "profit", name: "التقرير المالي (الأرباح والخسائر)", desc: "الإيراد ناقص التكلفة والمستحقات والمصروفات = صافي الربح.", cat: "fin", period: "الفترة", columns: "الإيراد، التكلفة، المصروف، الصافي" },
+  { type: "cash", name: "الكاش والمقبوضات", desc: "المقبوضات حسب كاش وفيزا وتحويل وحالة المطابقة.", cat: "fin", period: "الفترة", columns: "طريقة الدفع، المبلغ، المريض، المطابقة" },
+  { type: "patientBalance", name: "ميزان المريض", desc: "المدفوع والمتبقي وآخر تكملة حساب لكل مريض.", cat: "fin", period: "الفترة", columns: "المريض، المدفوع، المستحق، آخر دفعة" },
+  { type: "reconciliation", name: "الإغلاق اليومي", desc: "مطابقة الكاش والبطاقة والتحويل لكل يوم عمل.", cat: "fin", period: "الفترة", columns: "اليوم، المتوقع، الفعلي، الفرق" },
+  { type: "expenses", name: "المصروفات", desc: "مصروفات العيادة حسب البند والتاريخ والفئة.", cat: "fin", period: "الفترة", columns: "البند، المبلغ، التاريخ، الفئة" },
+  { type: "costs", name: "قائمة التكاليف", desc: "تكلفة كل خدمة وحالتها (فعّالة/متوقفة).", cat: "fin", period: "—", columns: "الخدمة، التكلفة، الحالة" },
+  { type: "retention", name: "الاحتفاظ بالمرضى — LTV والتسرب", desc: "قيمة المريض والزيارات المتكررة ونسبة الانقطاع.", cat: "ana", period: "السنة", columns: "LTV، آخر زيارة، الزيارات، التسرب" },
+  { type: "bookings", name: "الحجوزات والجدول", desc: "الحجوزات وحالاتها والفريق المتوقع لكل موعد.", cat: "ana", period: "الفترة", columns: "الوقت، المريض، الخدمة، الحالة" },
+  { type: "patients", name: "دليل المرضى والزوار", desc: "كل الملفات مع التصنيف ومعلومات التواصل.", cat: "ana", period: "الكل", columns: "المريض، الهاتف، الفئة، النوع" },
+  { type: "assignments", name: "تعيين الأخصائيين", desc: "العمليات بانتظار تعيين طبيب أو أخصائي.", cat: "ana", period: "الفترة", columns: "المريض، الخدمة، الحالة" }
+];
+const CATALOG_CATS = [{ key: "all", label: "كل التقارير" }, { key: "op", label: "تشغيلي" }, { key: "fin", label: "مالي" }, { key: "ana", label: "تحليلات" }];
+const CATALOG_TAGS = { op: "تشغيلي", fin: "مالي", ana: "تحليلات" };
+const CATALOG_FIN_GATED = ["profit", "reconciliation", "patientBalance", "byPatient", "perProcedure", "costs", "expenses", "retention", "packages", "cash", "audit", "specialist"];
+
+function catalogPeriodLabel() {
+  const { from, to } = reportDateRange();
+  if (!from || !to) return "—";
+  return from === to ? displayDate(from) : `${displayDate(from)} – ${displayDate(to)}`;
+}
+
+function renderReportCenter() {
+  const visible = REPORTS_CATALOG.filter(report => canViewSensitive() || !CATALOG_FIN_GATED.includes(report.type));
+  let rows = visible;
+  if (catalogCategory !== "all") rows = rows.filter(report => report.cat === catalogCategory);
+  if (catalogQuery) rows = rows.filter(report => matchesSmartQuery([report.name, report.desc, report.columns, CATALOG_TAGS[report.cat]], catalogQuery));
+  const now = new Date();
+  const updated = `اليوم ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  const tabs = CATALOG_CATS.map(cat => `<button type="button" class="catalog-tab${cat.key === catalogCategory ? " active" : ""}" data-catalog-cat="${cat.key}">${cat.label}</button>`).join("");
+  const body = rows.length ? rows.map(report => `
+    <tr>
+      <td><span class="catalog-name">${report.name}</span><span class="catalog-desc">${report.desc}</span></td>
+      <td><span class="catalog-tag ${report.cat}">${CATALOG_TAGS[report.cat]}</span></td>
+      <td>${report.period}</td>
+      <td class="catalog-cols">${report.columns}</td>
+      <td>${updated}</td>
+      <td><span class="catalog-status"><i class="cstatus-dot"></i>جاهز</span></td>
+      <td><div class="catalog-actions">
+        <button type="button" class="catalog-act open" data-open-report="${report.type}">فتح</button>
+        <button type="button" class="catalog-act" data-open-report="${report.type}" data-then-export="xls">XLS</button>
+        <button type="button" class="catalog-act" data-open-report="${report.type}" data-then-export="print">طباعة</button>
+      </div></td>
+    </tr>`).join("") : `<tr><td colspan="7" class="report-empty">لا توجد تقارير مطابقة.</td></tr>`;
+  return `
+    <div class="report-center">
+      <div class="report-center-head">
+        <h2>مركز التقارير</h2>
+        <p>كل تقرير يظهر كصف واضح — افتحه لتظهر النتائج كجدول قابل للفلترة والتصدير.</p>
+      </div>
+      <div class="catalog-kpis">
+        <div class="catalog-kpi"><span>عدد التقارير</span><strong>${visible.length}</strong></div>
+        <div class="catalog-kpi"><span>تشغيلية</span><strong>${visible.filter(r => r.cat === "op").length}</strong></div>
+        <div class="catalog-kpi"><span>مالية</span><strong>${visible.filter(r => r.cat === "fin").length}</strong></div>
+        <div class="catalog-kpi"><span>تحليلية</span><strong>${visible.filter(r => r.cat === "ana").length}</strong></div>
+        <div class="catalog-kpi"><span>الفترة الحالية</span><strong>${catalogPeriodLabel()}</strong></div>
+      </div>
+      <div class="catalog-toolbar">
+        <div class="catalog-tabs">${tabs}</div>
+        <input class="catalog-search" type="search" data-catalog-search placeholder="ابحث عن تقرير..." value="${catalogQuery}">
+      </div>
+      <div class="table-wrap report-table catalog-table">
+        <table>
+          <thead><tr><th>التقرير</th><th>التصنيف</th><th>الفترة</th><th>الأعمدة الرئيسية</th><th>آخر تحديث</th><th>الحالة</th><th>الإجراء</th></tr></thead>
+          <tbody>${body}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+// Reports are "table-first": the default landing is a catalog table (one row per
+// report). Opening a report shows its filterable, exportable results.
+let reportCenterMode = true;
+let catalogCategory = "all";
+let catalogQuery = "";
+
 function renderReports() {
   if (!els.reportPage || !els.reportSelect) return;
+  const panelEl = els.reportPage.closest(".full-report-panel");
+  if (panelEl) panelEl.classList.toggle("report-center-mode", reportCenterMode);
+  if (reportCenterMode) {
+    if (els.reportVisuals) els.reportVisuals.innerHTML = "";
+    if (els.reportPagination) els.reportPagination.innerHTML = "";
+    els.reportPage.innerHTML = renderReportCenter();
+    return;
+  }
   const { from, to } = reportDateRange();
   const filters = reportFilterValues();
   const allEntries = (!filters.source || filters.source === "operation")
@@ -8772,7 +8863,7 @@ function renderReports() {
   reportPage = pagination.page;
   renderReportVisuals(allEntries, allBookings, allPatients, universalItems, allExpenses);
   renderPagination(els.reportPagination, pagination, "reports");
-  els.reportPage.innerHTML = content;
+  els.reportPage.innerHTML = `<button class="report-back-btn" type="button" data-report-back>→ مركز التقارير</button>` + content;
 }
 
 function entryCategory(entry) {
@@ -11549,6 +11640,7 @@ document.querySelectorAll("[data-report-tab]").forEach(btn => {
   btn.addEventListener("click", () => {
     const val = btn.dataset.reportTab;
     if (!val || !els.reportSelect) return;
+    reportCenterMode = false;
     els.reportSelect.value = val;
     // Update active tab style
     document.querySelectorAll("[data-report-tab]").forEach(b =>
@@ -11567,11 +11659,46 @@ document.addEventListener("click", event => {
   renderReports();
 });
 
+// Report center (table-first): open a report row, switch category, or go back.
+document.addEventListener("click", event => {
+  const openBtn = event.target.closest("[data-open-report]");
+  if (openBtn) {
+    if (!canView("reports")) return;
+    const type = openBtn.dataset.openReport;
+    reportCenterMode = false;
+    setView("reports");
+    if (els.reportSelect) els.reportSelect.value = type;
+    document.querySelectorAll("[data-report-tab]").forEach(tab => tab.classList.toggle("active", tab.dataset.reportTab === type));
+    renderReports();
+    const exp = openBtn.dataset.thenExport;
+    if (exp === "xls") document.querySelector("[data-export-report-xls]")?.click();
+    else if (exp === "print") document.querySelector("[data-print-selected-report]")?.click();
+    return;
+  }
+  const catBtn = event.target.closest("[data-catalog-cat]");
+  if (catBtn) { catalogCategory = catBtn.dataset.catalogCat; renderReports(); return; }
+  const backBtn = event.target.closest("[data-report-back]");
+  if (backBtn) { reportCenterMode = true; renderReports(); return; }
+  const centerBtn = event.target.closest("[data-report-center]");
+  if (centerBtn) { if (!canView("reports")) return; reportCenterMode = true; setView("reports"); renderReports(); }
+});
+
+// Catalog search — re-render then restore focus/caret so typing isn't interrupted.
+document.addEventListener("input", event => {
+  const search = event.target.closest("[data-catalog-search]");
+  if (!search) return;
+  catalogQuery = search.value;
+  renderReports();
+  const fresh = document.querySelector("[data-catalog-search]");
+  if (fresh) { fresh.focus(); fresh.setSelectionRange(fresh.value.length, fresh.value.length); }
+});
+
 // Reports nav group: each item opens the reports view with that report selected.
 document.querySelectorAll("[data-report-jump]").forEach(button => {
   button.addEventListener("click", () => {
     if (!canView("reports")) return;
     const type = button.dataset.reportJump;
+    reportCenterMode = false;
     setView("reports");
     if (els.reportSelect) els.reportSelect.value = type;
     document.querySelectorAll("[data-report-tab]").forEach(tab => tab.classList.toggle("active", tab.dataset.reportTab === type));
