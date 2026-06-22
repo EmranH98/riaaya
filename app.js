@@ -1183,6 +1183,7 @@ function findOrCreatePatientByName(name) {
   const patient = normalizePatient({ name: clean, profileType: "patient" });
   state.patients = state.patients || [];
   state.patients.push(patient);
+  logEdit("إضافة ملف مريض", patient.name);
   return patient;
 }
 
@@ -2811,6 +2812,7 @@ function ensurePatientFile(name, phone = "") {
     createdAt: today
   });
   state.patients.push(patient);
+  logEdit("إضافة ملف مريض", patient.name);
   return patient;
 }
 
@@ -10998,6 +11000,7 @@ if (els.bookingForm) {
       notes: data.notes.trim(),
       createdAt: new Date().toISOString()
     }, state.services));
+    logEdit("حجز موعد", `${data.patient.trim()} · ${service?.name || "خدمة"} · ${data.date} ${data.time}`);
     els.bookingForm.reset();
     els.bookingForm.elements.date.value = state.settings.activeDate;
     const selectedService = getService(els.bookingServiceSelect.value) || activeServices()[0];
@@ -11160,6 +11163,7 @@ function openCategoryRowPrompt(category) {
       expectedAmount: service ? service.defaultPrice : 0,
       status: "scheduled"
     }, state.services));
+    logEdit("حجز موعد", `${patient.name} · ${service ? service.name : "خدمة"} · ${data.date || state.settings.activeDate} ${data.time || "09:00"}`);
     close();
     saveState();
     render();
@@ -11442,6 +11446,7 @@ els.entryForm.addEventListener("submit", event => {
       status: "scheduled",
       notes: data.notes.trim()
     }, state.services));
+    logEdit("حجز موعد", `${data.patient.trim()} · ${firstLine.service} · ${data.scheduleDate || state.settings.activeDate} ${data.scheduleTime || "09:00"}`);
     const scheduledReturnView = runtime.operationReturnView || "bookings";
     resetEntryFormDefaults();
     saveState();
@@ -11782,6 +11787,7 @@ if (els.packageSessionForm) {
       status: "scheduled",
       notes: `جلسة باقة: ${pkg.name}`
     }, state.services));
+    logEdit("حجز جلسة باقة", `${patient ? patient.name : "مريض"} · ${pkg.name} · ${data.date} ${data.time || "09:00"}`);
     els.packageSessionForm.reset();
     saveState();
     render();
