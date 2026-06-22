@@ -7474,6 +7474,58 @@ function clinicProfitSummary(entries, expenses) {
   return { rows, gross, collected, unpaid, directCost, salaries, expensesTotal, profit };
 }
 
+// Vertical P&L statement: revenue → gross profit → net profit (waterfall), plus a
+// cash-position panel (collected by method + receivables) and expenses by group.
+function pnlStatement(summary, expenses, isEnglish) {
+  const t = isEnglish
+    ? { pnl: "Profit & Loss", revenue: "Collected revenue", directCost: "Direct operation cost",
+        grossProfit: "Gross profit", payouts: "Team payouts", expenses: "Operating expenses",
+        net: "Net profit", margin: "margin", cash: "Cash position", c: "Cash", card: "Card",
+        transfer: "Transfer", receivable: "Unbilled / receivables", byGroup: "Expenses by group", other: "Other" }
+    : { pnl: "قائمة الأرباح والخسائر", revenue: "الإيراد المحصّل", directCost: "تكلفة العمليات المباشرة",
+        grossProfit: "مجمل الربح", payouts: "مستحقات الفريق", expenses: "المصروفات التشغيلية",
+        net: "صافي الربح", margin: "هامش", cash: "الوضع النقدي", c: "نقد", card: "بطاقة",
+        transfer: "تحويل", receivable: "ذمم غير محصّلة", byGroup: "المصروفات حسب البند", other: "أخرى" };
+  const pay = totalsFor(summary.rows);
+  const grossProfit = summary.collected - summary.directCost;
+  const margin = summary.collected > 0 ? Math.round(summary.profit / summary.collected * 100) : 0;
+  const groups = new Map();
+  (expenses || []).forEach(expense => {
+    const key = expenseGroupName(expense) || t.other;
+    groups.set(key, (groups.get(key) || 0) + numberValue(expense.amount));
+  });
+  const groupList = [...groups.entries()].sort((a, b) => b[1] - a[1]);
+  const line = (text, value, opts = {}) => `
+    <div class="pnl-line${opts.cls ? " " + opts.cls : ""}">
+      <span>${text}</span><strong>${opts.minus ? "−&nbsp;" : ""}${money(Math.abs(value))}</strong>
+    </div>`;
+  return `
+    <div class="pnl-grid">
+      <div class="pnl-statement">
+        <h4>${t.pnl}</h4>
+        ${line(t.revenue, summary.collected)}
+        ${line(t.directCost, summary.directCost, { minus: true })}
+        ${line(t.grossProfit, grossProfit, { cls: "subtotal" })}
+        ${line(t.payouts, summary.salaries, { minus: true })}
+        ${line(t.expenses, summary.expensesTotal, { minus: true })}
+        ${line(`${t.net} · ${t.margin} ${margin}%`, summary.profit, { cls: "net " + (summary.profit >= 0 ? "positive" : "negative") })}
+      </div>
+      <div class="pnl-side">
+        <div class="pnl-card">
+          <h4>${t.cash}</h4>
+          ${line(t.c, pay.cash)}
+          ${line(t.card, pay.card)}
+          ${line(t.transfer, pay.transfer)}
+          ${line(t.receivable, summary.unpaid, { cls: "receivable" })}
+        </div>
+        ${groupList.length ? `<div class="pnl-card">
+          <h4>${t.byGroup}</h4>
+          ${groupList.map(([name, amount]) => line(name, amount)).join("")}
+        </div>` : ""}
+      </div>
+    </div>`;
+}
+
 function renderProfitReport(entries, expenses) {
   const isEnglish = currentLanguage() === "en";
   const label = isEnglish
@@ -7554,10 +7606,7 @@ function renderProfitReport(entries, expenses) {
       { label: label.expenses, value: money(summary.expensesTotal) },
       { label: label.profit, value: money(summary.profit), note: label.explanation }
     ])}
-    <div class="profit-equation">
-      <strong>${label.formula}</strong>
-      <span>${money(summary.collected)} - ${money(summary.directCost)} - ${money(summary.salaries)} - ${money(summary.expensesTotal)} = ${money(summary.profit)}</span>
-    </div>
+    ${pnlStatement(summary, expenses, isEnglish)}
     <div class="table-wrap report-table">
       <table>
         <thead>

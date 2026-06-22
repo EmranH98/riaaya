@@ -3818,6 +3818,61 @@ td {
 }
 .report-breakdown .report-empty { color: var(--ink-soft); text-align: center; padding: 14px; }
 
+/* P&L statement (waterfall) + cash position + expenses-by-group */
+.pnl-grid {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 14px;
+  margin: 0 0 18px;
+}
+@media (max-width: 720px) { .pnl-grid { grid-template-columns: 1fr; } }
+.pnl-statement, .pnl-card {
+  border: 1px solid #dfeae6;
+  border-radius: 14px;
+  background: #fbfdfc;
+  padding: 12px 14px;
+}
+.pnl-statement { border-inline-start: 4px solid var(--teal); }
+.pnl-side { display: grid; gap: 14px; align-content: start; }
+.pnl-grid h4 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 900;
+  color: var(--teal-dark);
+}
+.pnl-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px dashed rgba(36,21,19,0.08);
+  font-weight: 700;
+  color: var(--ink);
+}
+.pnl-line:last-child { border-bottom: 0; }
+.pnl-line strong { font-family: "Cairo", sans-serif; }
+.pnl-line.subtotal {
+  background: var(--teal-pale);
+  border-radius: 8px;
+  padding: 7px 8px;
+  margin: 2px 0;
+  border-bottom: 0;
+}
+.pnl-line.net {
+  margin-top: 4px;
+  padding: 9px 8px;
+  border-radius: 8px;
+  border-bottom: 0;
+  font-weight: 900;
+  font-size: 15px;
+}
+.pnl-line.net.positive { background: var(--teal); color: #fff; }
+.pnl-line.net.positive strong { color: #fff; }
+.pnl-line.net.negative { background: #a32d2d; color: #fff; }
+.pnl-line.net.negative strong { color: #fff; }
+.pnl-line.receivable strong { color: #a3692d; }
+
 .profit-equation {
   display: grid;
   gap: 4px;
