@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260622v">
+  <link rel="stylesheet" href="app.css?v=20260622w">
 </head>
 <body>
 
@@ -67,12 +67,12 @@
   <div class="app-shell">
     <aside class="sidebar">
       <a class="brand" href="index.html" aria-label="العودة إلى الصفحة الرئيسية">
-        <span class="brand-logo-mark" aria-hidden="true">
-          <svg viewBox="0 0 24 24"><defs><linearGradient id="riaayaHeart" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3fcdbb"/><stop offset="1" stop-color="#0c8e84"/></linearGradient></defs><path fill="url(#riaayaHeart)" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-        </span>
         <span class="brand-text">
           <strong>رعاية <em>| RIAAYA</em></strong>
           <small>نظام إدارة العيادات</small>
+        </span>
+        <span class="brand-logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><defs><linearGradient id="riaayaHeart" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3fcdbb"/><stop offset="1" stop-color="#0c8e84"/></linearGradient></defs><path fill="url(#riaayaHeart)" d="M12 21a1.6 1.6 0 0 1-1.06-.4C7.34 17.43 2 12.66 2 8.32A4.83 4.83 0 0 1 6.9 3.5 5.3 5.3 0 0 1 12 6.27 5.3 5.3 0 0 1 17.1 3.5 4.83 4.83 0 0 1 22 8.32c0 4.34-5.34 9.11-8.94 12.28A1.6 1.6 0 0 1 12 21z"/></svg>
         </span>
       </a>
 
@@ -286,27 +286,31 @@
             </div>
             <span class="status-pill good">مركز اليوم</span>
           </div>
-          <div class="daily-command-grid">
-            <article class="daily-command-tile next">
-              <span>القادم</span>
-              <strong data-daily-command-next-time>--:--</strong>
-              <button type="button" data-daily-command-next-name data-open-patient="">لا يوجد موعد قريب</button>
-              <small data-daily-command-next-meta>الجدول فارغ لهذا الوقت</small>
-            </article>
-            <article class="daily-command-tile revenue" data-sensitive>
-              <span>المدفوع</span>
-              <strong data-daily-command-revenue>0 د.أ</strong>
-              <small data-daily-command-revenue-note>0 عملية</small>
-            </article>
-            <article class="daily-command-tile reconcile" data-sensitive>
-              <span>المطابقة</span>
+          <div class="kpi-row">
+            <article class="kpi-card reconcile" data-sensitive>
+              <div class="kpi-card-head"><span class="kpi-card-label">المطابقة اليومية</span><span class="kpi-bubble purple"><svg class="nav-ic" aria-hidden="true"><use href="#ic-check"/></svg></span></div>
               <strong data-daily-command-reconcile-status>بانتظار</strong>
               <small data-daily-command-reconcile-note>لم يتم إغلاق اليوم بعد</small>
             </article>
-            <article class="daily-command-tile alerts">
-              <span>تنبيهات</span>
+            <article class="kpi-card alerts">
+              <div class="kpi-card-head"><span class="kpi-card-label">تنبيهات</span><span class="kpi-bubble amber"><svg class="nav-ic" aria-hidden="true"><use href="#ic-spark"/></svg></span></div>
               <strong data-daily-command-alerts>0</strong>
               <small data-daily-command-alerts-note>لا توجد إجراءات عاجلة</small>
+            </article>
+            <article class="kpi-card revenue" data-sensitive>
+              <div class="kpi-card-head"><span class="kpi-card-label">المدفوعات</span><span class="kpi-bubble teal"><svg class="nav-ic" aria-hidden="true"><use href="#ic-cash"/></svg></span></div>
+              <strong data-daily-command-revenue>0 د.أ</strong>
+              <small data-daily-command-revenue-note>0 عملية</small>
+            </article>
+            <article class="kpi-card ops">
+              <div class="kpi-card-head"><span class="kpi-card-label">عمليات اليوم</span><span class="kpi-bubble teal"><svg class="nav-ic" aria-hidden="true"><use href="#ic-receipt"/></svg></span></div>
+              <strong data-daily-command-ops>0</strong>
+              <small data-daily-command-ops-note>—</small>
+            </article>
+            <article class="kpi-card bookings">
+              <div class="kpi-card-head"><span class="kpi-card-label">حجوزات اليوم</span><span class="kpi-bubble teal"><svg class="nav-ic" aria-hidden="true"><use href="#ic-calendar"/></svg></span></div>
+              <strong data-daily-command-bookings>0</strong>
+              <small data-daily-command-bookings-note>—</small>
             </article>
           </div>
           <div class="daily-command-actions">
@@ -2981,7 +2985,7 @@
       </form>
     </div>
   </div>
-  <script src="app.js?v=20260622v"></script>
+  <script src="app.js?v=20260622w"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>

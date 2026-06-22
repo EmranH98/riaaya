@@ -1898,6 +1898,10 @@ const els = {
   dailyCommandReconcileNote: document.querySelector("[data-daily-command-reconcile-note]"),
   dailyCommandAlerts: document.querySelector("[data-daily-command-alerts]"),
   dailyCommandAlertsNote: document.querySelector("[data-daily-command-alerts-note]"),
+  dailyCommandOps: document.querySelector("[data-daily-command-ops]"),
+  dailyCommandOpsNote: document.querySelector("[data-daily-command-ops-note]"),
+  dailyCommandBookings: document.querySelector("[data-daily-command-bookings]"),
+  dailyCommandBookingsNote: document.querySelector("[data-daily-command-bookings-note]"),
   operationModal: document.querySelector("[data-operation-modal]"),
   entryForm: document.querySelector("[data-entry-form]"),
   paymentQuickRow: document.querySelector("[data-payment-quick-row]"),
@@ -4691,33 +4695,33 @@ function renderDashboardCommandCenter(entries) {
 
 function renderDailyCommandCenter(entries, totals, diffs) {
   if (!els.dailyCommandDate) return;
-  const booking = nextVisitorBooking();
-  const patient = booking ? (getPatient(booking.patientId) || findPatientByName(booking.patient)) : null;
   const notifications = operationalNotifications();
   const urgent = notifications.filter(notification => notification.severity !== "info");
   const revenueVisible = canViewSensitive();
+  const date = state.settings.activeDate;
+  const yesterday = new Date(new Date(date + "T12:00:00").getTime() - 86400000).toISOString().slice(0, 10);
 
-  els.dailyCommandDate.textContent = displayDate(state.settings.activeDate);
+  els.dailyCommandDate.textContent = displayDate(date);
   els.dailyCommandClinic.textContent = state.settings.clinicName || "عيادة رعاية";
 
-  if (booking) {
-    const phone = booking.phone || patient?.phone || "";
-    const meta = [serviceLabel(booking), bookingStatusLabel(booking.status), canUseFeature("see_mobile") ? phone : ""].filter(Boolean).join(" | ");
-    els.dailyCommandNextTime.textContent = displayTime(booking.time);
-    els.dailyCommandNextName.textContent = booking.patient;
-    els.dailyCommandNextName.dataset.openPatient = patient?.id || "";
-    els.dailyCommandNextMeta.textContent = meta || "موعد قريب يحتاج متابعة";
-  } else {
-    els.dailyCommandNextTime.textContent = "--:--";
-    els.dailyCommandNextName.textContent = "لا يوجد موعد قريب";
-    els.dailyCommandNextName.dataset.openPatient = "";
-    els.dailyCommandNextMeta.textContent = "الجدول فارغ لهذا الوقت";
-  }
+  // Day-over-day deltas for operations / bookings / payments
+  const yEntries = (state.entries || []).filter(entry => entry.date === yesterday && isBillableEntry(entry));
+  const todayBookings = (state.bookings || []).filter(booking => booking.date === date);
+  const yBookings = (state.bookings || []).filter(booking => booking.date === yesterday);
+  const deltaLabel = (now, before) => {
+    const diff = now - before;
+    if (!diff) return "كما أمس";
+    return `${diff > 0 ? "▲ +" : "▼ "}${Math.abs(diff)} عن أمس`;
+  };
 
   if (revenueVisible) {
+    const paidY = yEntries.reduce((sum, entry) => sum + paidAmount(entry), 0);
+    const pct = paidY > 0 ? Math.round((totals.paid - paidY) / paidY * 100) : null;
     els.dailyCommandRevenue.textContent = money(totals.paid);
-    els.dailyCommandRevenueNote.textContent = `${totals.count} ${totals.count === 1 ? "عملية" : "عمليات"} اليوم${totals.unpaid ? ` | غير مدفوع ${money(totals.unpaid)}` : ""}`;
-    els.dailyCommandReconcileStatus.textContent = !diffs ? "بانتظار" : Math.abs(diffs.totalDiff) < 0.01 ? "✓ مطابق" : "فرق";
+    els.dailyCommandRevenueNote.textContent = pct === null
+      ? `${totals.count} ${totals.count === 1 ? "عملية" : "عمليات"} اليوم`
+      : `${pct >= 0 ? "▲ +" : "▼ "}${Math.abs(pct)}% عن أمس`;
+    els.dailyCommandReconcileStatus.textContent = !diffs ? "بانتظار" : Math.abs(diffs.totalDiff) < 0.01 ? "متوازنة" : "فرق";
     els.dailyCommandReconcileNote.textContent = !diffs
       ? "لم يتم إغلاق اليوم بعد"
       : Math.abs(diffs.totalDiff) < 0.01 ? "الإغلاق متطابق" : `الفرق ${money(diffs.totalDiff)}`;
@@ -4726,6 +4730,15 @@ function renderDailyCommandCenter(entries, totals, diffs) {
     els.dailyCommandRevenueNote.textContent = "حسب صلاحيات هذا الحساب";
     els.dailyCommandReconcileStatus.textContent = "مخفي";
     els.dailyCommandReconcileNote.textContent = "الإغلاق المالي غير ظاهر لهذا الدور";
+  }
+
+  if (els.dailyCommandOps) {
+    els.dailyCommandOps.textContent = totals.count;
+    els.dailyCommandOpsNote.textContent = deltaLabel(totals.count, yEntries.length);
+  }
+  if (els.dailyCommandBookings) {
+    els.dailyCommandBookings.textContent = todayBookings.length;
+    els.dailyCommandBookingsNote.textContent = deltaLabel(todayBookings.length, yBookings.length);
   }
 
   els.dailyCommandAlerts.textContent = urgent.length;
@@ -4762,38 +4775,46 @@ function renderRevenueTrend(series = weeklySeries(14)) {
   if (!els.revenueTrend) return;
   const showSensitive = canViewSensitive();
   const width = 780;
-  const height = 230;
-  const padding = { top: 28, right: 18, bottom: 38, left: 18 };
-  const values = series.map(day => showSensitive ? day.totals.paid : day.totals.count);
-  const maximum = Math.max(...values, 1);
+  const height = 240;
+  const padding = { top: 30, right: 18, bottom: 40, left: 18 };
+  const revVals = series.map(day => showSensitive ? day.totals.paid : day.totals.count);
+  const expVals = showSensitive
+    ? series.map(day => (state.expenses || []).filter(exp => (exp.date || "").slice(0, 10) === day.date).reduce((sum, exp) => sum + numberValue(exp.amount), 0))
+    : [];
+  const maximum = Math.max(...revVals, ...expVals, 1);
   const usableWidth = width - padding.left - padding.right;
   const usableHeight = height - padding.top - padding.bottom;
-  const points = values.map((value, index) => ({
+  const toPoints = vals => vals.map((value, index) => ({
     x: padding.left + (series.length === 1 ? usableWidth / 2 : index * usableWidth / (series.length - 1)),
     y: padding.top + usableHeight - (value / maximum) * usableHeight,
-    value,
-    date: series[index].date
+    value, date: series[index].date
   }));
-  const line = points.map(point => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(" ");
-  const area = `${padding.left},${padding.top + usableHeight} ${line} ${padding.left + usableWidth},${padding.top + usableHeight}`;
-  const formatter = new Intl.DateTimeFormat(currentLanguage() === "en" ? "en-US" : "ar-JO", {
-    day: "numeric",
-    month: "numeric"
-  });
+  const revPts = toPoints(revVals);
+  const revLine = revPts.map(point => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(" ");
+  const revArea = `${padding.left},${padding.top + usableHeight} ${revLine} ${padding.left + usableWidth},${padding.top + usableHeight}`;
+  const expPts = expVals.length ? toPoints(expVals) : [];
+  const expLine = expPts.map(point => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(" ");
+  const formatter = new Intl.DateTimeFormat(currentLanguage() === "en" ? "en-US" : "ar-JO", { day: "numeric", month: "numeric" });
   const gridLines = [0, 0.25, 0.5, 0.75, 1].map(portion => {
     const y = padding.top + usableHeight * portion;
     return `<line class="trend-grid" x1="${padding.left}" y1="${y}" x2="${padding.left + usableWidth}" y2="${y}"></line>`;
   }).join("");
+  const legend = showSensitive
+    ? `<div class="trend-legend"><span class="leg rev">الإيرادات</span><span class="leg exp">المصروفات</span></div>`
+    : "";
   els.revenueTrend.innerHTML = `
-    <svg class="trend-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="اتجاه الحركة خلال أربعة عشر يوماً">
+    ${legend}
+    <svg class="trend-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="اتجاه الإيرادات والمصروفات خلال أربعة عشر يوماً">
       ${gridLines}
-      <polygon class="trend-area" points="${area}"></polygon>
-      <polyline class="trend-line" points="${line}"></polyline>
-      ${points.map((point, index) => `
-        <circle class="trend-dot" cx="${point.x}" cy="${point.y}" r="4"></circle>
-        ${index % 2 === 0 || index === points.length - 1 ? `<text class="trend-value" text-anchor="middle" x="${point.x}" y="${Math.max(point.y - 10, 12)}">${showSensitive ? Math.round(point.value) : point.value}</text>` : ""}
+      <polygon class="trend-area" points="${revArea}"></polygon>
+      <polyline class="trend-line" points="${revLine}"></polyline>
+      ${expPts.length ? `<polyline class="trend-line expenses" points="${expLine}"></polyline>` : ""}
+      ${revPts.map((point, index) => `
+        <circle class="trend-dot" cx="${point.x}" cy="${point.y}" r="3.5"></circle>
+        ${index % 3 === 0 || index === revPts.length - 1 ? `<text class="trend-value" text-anchor="middle" x="${point.x}" y="${Math.max(point.y - 9, 12)}">${showSensitive ? Math.round(point.value) : point.value}</text>` : ""}
         <text class="trend-label" text-anchor="middle" x="${point.x}" y="${height - 12}">${formatter.format(new Date(`${point.date}T12:00:00`))}</text>
       `).join("")}
+      ${expPts.map(point => `<circle class="trend-dot expenses" cx="${point.x}" cy="${point.y}" r="3"></circle>`).join("")}
     </svg>
   `;
 }
@@ -6940,6 +6961,7 @@ function renderBookingList() {
     const canSendSms     = canUseFeature("see_mobile") && phone && canUseFeature("send_sms_campaigns");
     return `
       <div class="staff-card booking-card">
+        ${genderAvatar(patient || booking, 42)}
         <div>
           <strong>${booking.time} | ${booking.patient}</strong>
           <p>${serviceLabel(booking)}${phone && canUseFeature("see_mobile") ? ` | ${phone}` : ""}</p>
@@ -8262,11 +8284,12 @@ function renderPerProcedureReport(entries, allEntries = entries) {
   const body = rows.length ? rows.map((entry, index) => {
     const doctor = getStaffMember(entry.doctorId);
     const specialist = getStaffMember(entry.specialistId);
+    const rowPatient = getPatient(entry.patientId) || findPatientByName(entry.patient);
     return `
       <tr class="report-edit-row" data-edit-entry="${entry.id}" title="اضغط للتعديل">
         <td>${index + 1}</td>
         <td>${displayDate(entry.date)}</td>
-        <td>${entry.patient}</td>
+        <td><span class="cell-with-avatar">${genderAvatar(rowPatient || entry, 30)}${entry.patient}</span></td>
         <td>${serviceLabel(entry)}</td>
         <td>${[doctor?.name, specialist?.name].filter(Boolean).join(" / ") || label.pendingAssignment}</td>
         <td>${entryPaymentLabel(entry)}</td>
