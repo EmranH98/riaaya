@@ -65,6 +65,7 @@ const today = `${jordanDateParts.year}-${jordanDateParts.month}-${jordanDatePart
 
 const VIEW_LABELS = {
   dashboard: "ملخص اليوم",
+  growth: "فرص النمو",
   entries: "عمليات اليوم",
   patients: "ملفات المرضى والزوار",
   bookings: "الحجوزات",
@@ -1705,6 +1706,10 @@ function loadState() {
       expenseGroups: Array.isArray(saved.expenseGroups) ? saved.expenseGroups.map(normalizeExpenseGroup) : seed.expenseGroups,
       expenses: Array.isArray(saved.expenses) ? saved.expenses.map(normalizeExpense) : seed.expenses,
       importHistory: Array.isArray(saved.importHistory) ? saved.importHistory.map(normalizeImportHistory) : [],
+      packageTemplates: Array.isArray(saved.packageTemplates) ? saved.packageTemplates.map(normalizePackageTemplate) : seed.packageTemplates,
+      patientPackages: Array.isArray(saved.patientPackages) ? saved.patientPackages.map(normalizePatientPackage) : seed.patientPackages,
+      auditTrail: Array.isArray(saved.auditTrail) ? saved.auditTrail : [],
+      growthLog: Array.isArray(saved.growthLog) ? saved.growthLog : [],
       bookings,
       patients,
       accounts,
@@ -1835,6 +1840,8 @@ function hydrateClinicState(saved, clinic, accounts) {
     outboundMessages: Array.isArray(source.outboundMessages) ? source.outboundMessages.map(normalizeOutboundMessage) : [],
     receipts: Array.isArray(source.receipts) ? source.receipts.map(normalizeReceipt) : [],
     notificationReads: source.notificationReads || {},
+    auditTrail: Array.isArray(source.auditTrail) ? source.auditTrail : [],
+    growthLog: Array.isArray(source.growthLog) ? source.growthLog : [],
     integrations: {
       whatsapp: { ...base.integrations.whatsapp, ...(source.integrations?.whatsapp || {}) },
       sms: { ...base.integrations.sms, ...(source.integrations?.sms || {}) },
@@ -1887,6 +1894,7 @@ const els = {
   permissionFeatureSelect: document.querySelector("[data-permission-feature-select]"),
   permissionCatalog: document.querySelector("[data-permission-catalog]"),
   permissionTable: document.querySelector("[data-permission-table]"),
+  growthCenter: document.querySelector("[data-growth-center]"),
   dailyCommandDate: document.querySelector("[data-daily-command-date]"),
   dailyCommandClinic: document.querySelector("[data-daily-command-clinic]"),
   dailyCommandNextTime: document.querySelector("[data-daily-command-next-time]"),
@@ -10156,6 +10164,148 @@ function renderAlerts(entries, totals, diffs) {
   }
 }
 
+// ── Growth engine ──────────────────────────────────────────────────────────
+// Turns the clinic's own data into a daily money to-do list: who is due for a
+// session, whose package is ending, who lapsed, and who owes a balance — each
+// with a ready-to-send WhatsApp message. Respects a per-segment cooldown so the
+// same patient isn't pestered, and the marketing-consent flag.
+const GROWTH_COOLDOWN_DAYS = 14;
+const GROWTH_DUE_DAYS = 21;
+const GROWTH_LAPSED_DAYS = 90;
+const GROWTH_TEMPLATES = {
+  dueForSession: "مرحباً {name} 🌟 حان وقت جلستك القادمة في {clinic}. متبقٍ لديك {n} جلسة — يسعدنا حجز موعدك، متى يناسبك؟",
+  packageRenewal: "مرحباً {name} 💚 باقتك في {clinic} شارفت على الانتهاء (متبقٍ {n}). جدّدها الآن واستفد من عرض خاص.",
+  lapsed: "اشتقنا لك {name}! 🌿 مرّ {days} يوماً منذ آخر زيارة لك في {clinic}. لديك عرض ترحيبي عند عودتك — احجز الآن.",
+  outstanding: "مرحباً {name}، تذكير ودّي بوجود مبلغ مستحق بقيمة {amount} في {clinic}. نقدّر تسويته في زيارتك القادمة 🙏"
+};
+const GROWTH_SEGMENT_LABELS = {
+  dueForSession: "حان وقت الجلسة", packageRenewal: "تجديد باقة", lapsed: "استعادة مريض", outstanding: "تحصيل مستحق"
+};
+function growthTemplate(key) {
+  return (state.settings && state.settings.growthTemplates && state.settings.growthTemplates[key]) || GROWTH_TEMPLATES[key];
+}
+function fillTemplate(tpl, vars) {
+  return String(tpl || "").replace(/\{(\w+)\}/g, (_, k) => (vars[k] != null ? vars[k] : ""));
+}
+function daysBetweenDates(dateStr, ref) {
+  if (!dateStr) return Infinity;
+  const d = new Date(`${dateStr}T12:00:00`).getTime();
+  const r = new Date(`${ref}T12:00:00`).getTime();
+  if (Number.isNaN(d) || Number.isNaN(r)) return Infinity;
+  return Math.round((r - d) / 86400000);
+}
+function patientLastVisitDate(patientId, name) {
+  let last = "";
+  (state.entries || []).forEach(entry => {
+    const mine = (patientId && entry.patientId === patientId) || (!patientId && name && entry.patient === name);
+    if (mine && entry.date && (!last || entry.date > last)) last = entry.date;
+  });
+  return last;
+}
+function patientHasUpcoming(patientId) {
+  const today = state.settings.activeDate;
+  return (state.bookings || []).some(booking =>
+    booking.patientId === patientId && booking.date >= today && !["cancelled", "no_show"].includes(booking.status));
+}
+function growthContactedRecently(patientId, segment) {
+  const today = state.settings.activeDate;
+  return (state.growthLog || []).some(log =>
+    log.patientId === patientId && log.segment === segment && daysBetweenDates((log.at || "").slice(0, 10), today) < GROWTH_COOLDOWN_DAYS);
+}
+function recordGrowthContact(patientId, segment) {
+  state.growthLog = state.growthLog || [];
+  state.growthLog.push({ patientId, segment, at: new Date().toISOString() });
+  if (state.growthLog.length > 2000) state.growthLog = state.growthLog.slice(-2000);
+  logEdit("تواصل تسويقي", `${patientById(patientId)?.name || ""} · ${GROWTH_SEGMENT_LABELS[segment] || segment}`);
+  saveState();
+  renderGrowthCenter();
+}
+function growthSegments() {
+  const today = state.settings.activeDate;
+  const patientsById = new Map((state.patients || []).map(patient => [patient.id, patient]));
+  const activePkgByPatient = new Map();
+  (state.patientPackages || []).forEach(pkg => {
+    if (pkg.status !== "active") return;
+    const remaining = Math.max(0, (pkg.totalSessions || 0) - (pkg.usedSessions || 0));
+    const cur = activePkgByPatient.get(pkg.patientId);
+    activePkgByPatient.set(pkg.patientId, {
+      minRemaining: cur ? Math.min(cur.minRemaining, remaining) : remaining,
+      totalRemaining: (cur ? cur.totalRemaining : 0) + remaining
+    });
+  });
+
+  const due = [], renewal = [], lapsed = [], outstanding = [];
+  (state.patients || []).forEach(patient => {
+    if (patient.active === false || !patient.phone) return;
+    const sinceVisit = daysBetweenDates(patientLastVisitDate(patient.id, patient.name), today);
+    const upcoming = patientHasUpcoming(patient.id);
+    const pkg = activePkgByPatient.get(patient.id);
+    const base = { id: patient.id, name: patient.name, phone: patient.phone, gender: patient.gender, consent: patient.marketingConsent };
+
+    if (pkg && pkg.totalRemaining >= 1 && !upcoming && sinceVisit >= GROWTH_DUE_DAYS && sinceVisit !== Infinity
+        && !growthContactedRecently(patient.id, "dueForSession")) {
+      due.push({ ...base, n: pkg.totalRemaining, days: sinceVisit, meta: `آخر زيارة قبل ${sinceVisit} يوم · متبقٍ ${pkg.totalRemaining} جلسة` });
+    }
+    if (pkg && pkg.minRemaining <= 1 && !growthContactedRecently(patient.id, "packageRenewal")) {
+      renewal.push({ ...base, n: pkg.minRemaining, meta: `متبقٍ ${pkg.minRemaining} جلسة في الباقة` });
+    }
+    if (!pkg && !upcoming && sinceVisit !== Infinity && sinceVisit > GROWTH_LAPSED_DAYS
+        && !growthContactedRecently(patient.id, "lapsed")) {
+      lapsed.push({ ...base, days: sinceVisit, meta: `لم يزر منذ ${sinceVisit} يوم` });
+    }
+  });
+  outstandingByPatient().forEach(row => {
+    const patient = patientsById.get(row.patientId);
+    if (!patient || !patient.phone) return;
+    const amount = (row.operations || 0) + (row.packages || 0);
+    if (amount <= 0.5 || growthContactedRecently(row.patientId, "outstanding")) return;
+    outstanding.push({ id: row.patientId, name: row.name || patient.name, phone: patient.phone, gender: patient.gender, consent: patient.marketingConsent, amount: money(amount), meta: `مستحق ${money(amount)}` });
+  });
+
+  return [
+    { key: "dueForSession", title: "حان وقت الجلسة القادمة", icon: "ic-calendar", tone: "teal", desc: "مرضى لديهم جلسات متبقية ولم يزوروا مؤخراً — ادعهم للحجز.", patients: due },
+    { key: "packageRenewal", title: "باقات شارفت على الانتهاء", icon: "ic-package", tone: "purple", desc: "جدّد الباقة قبل أن تنتهي وحافظ على الإيراد المتكرر.", patients: renewal },
+    { key: "lapsed", title: "مرضى منقطعون (٩٠+ يوم)", icon: "ic-user", tone: "amber", desc: "استعدهم برسالة ترحيبية وعرض خاص.", patients: lapsed },
+    { key: "outstanding", title: "مبالغ مستحقة للتحصيل", icon: "ic-cash", tone: "red", desc: "تذكير ودّي بالسداد في الزيارة القادمة.", patients: outstanding }
+  ];
+}
+function renderGrowthCenter() {
+  if (!els.growthCenter) return;
+  const clinic = state.settings.clinicName || "عيادتنا";
+  const segments = growthSegments();
+  const total = segments.reduce((sum, seg) => sum + seg.patients.length, 0);
+  const kpis = `<div class="growth-kpis">
+      <div class="growth-kpi total"><span>إجمالي الفرص اليوم</span><strong>${total}</strong></div>
+      ${segments.map(seg => `<div class="growth-kpi"><span>${seg.title}</span><strong>${seg.patients.length}</strong></div>`).join("")}
+    </div>`;
+  const cards = segments.map(seg => {
+    const rows = seg.patients.length ? seg.patients.map(person => {
+      const message = fillTemplate(growthTemplate(seg.key), { name: person.name, clinic, n: person.n, days: person.days, amount: person.amount });
+      const wa = phoneDigits(person.phone);
+      const waLink = wa ? `https://wa.me/${wa}?text=${encodeURIComponent(message)}` : "";
+      return `<li class="growth-row">
+          ${genderAvatar(person, 34)}
+          <div class="growth-row-main">
+            <strong>${person.name}${person.consent ? "" : ` <span class="growth-optout" title="لم يسجّل موافقة تسويق">بدون موافقة</span>`}</strong>
+            <small>${person.meta}</small>
+          </div>
+          <div class="growth-row-actions">
+            ${waLink ? `<a class="growth-wa" href="${waLink}" target="_blank" rel="noreferrer" data-growth-sent="${person.id}" data-growth-seg="${seg.key}"><svg class="nav-ic" aria-hidden="true"><use href="#ic-chat"/></svg> واتساب</a>` : `<span class="growth-nophone">لا يوجد رقم</span>`}
+            <button class="growth-done" type="button" data-growth-done="${person.id}" data-growth-seg="${seg.key}" title="إخفاء من القائمة لمدة ${GROWTH_COOLDOWN_DAYS} يوم">تم</button>
+          </div>
+        </li>`;
+    }).join("") : `<li class="growth-empty">لا توجد فرص ضمن هذه الفئة حالياً 🎉</li>`;
+    return `<article class="growth-card ${seg.tone}">
+        <div class="growth-card-head">
+          <span class="growth-bubble ${seg.tone}"><svg class="nav-ic" aria-hidden="true"><use href="#${seg.icon}"/></svg></span>
+          <div><h3>${seg.title}<span class="growth-count">${seg.patients.length}</span></h3><p>${seg.desc}</p></div>
+        </div>
+        <ul class="growth-list">${rows}</ul>
+      </article>`;
+  }).join("");
+  els.growthCenter.innerHTML = kpis + `<div class="growth-grid">${cards}</div>`;
+}
+
 function render() {
   renderAccessControls();
   const entries = activeEntries();
@@ -10192,6 +10342,7 @@ function render() {
   renderDashboardZones();
   renderDayHighway();
   renderReferralSummary();
+  renderGrowthCenter();
   renderCollections();
   renderRuleList();
   renderInventoryKpis();
@@ -11713,6 +11864,16 @@ document.addEventListener("click", event => {
   if (!dimBtn) return;
   operationsBreakdownDim = dimBtn.dataset.breakdownDim;
   renderReports();
+});
+
+// Growth center: sending WhatsApp or pressing "تم" records the contact (so the
+// patient drops off the list for the cooldown window). The WhatsApp link opens
+// normally — we don't preventDefault.
+document.addEventListener("click", event => {
+  const waBtn = event.target.closest("[data-growth-sent]");
+  if (waBtn) { recordGrowthContact(waBtn.dataset.growthSent, waBtn.dataset.growthSeg); return; }
+  const doneBtn = event.target.closest("[data-growth-done]");
+  if (doneBtn) { recordGrowthContact(doneBtn.dataset.growthDone, doneBtn.dataset.growthSeg); return; }
 });
 
 // Report center (table-first): open a report row, switch category, or go back.

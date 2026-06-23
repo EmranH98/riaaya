@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260622x">
+  <link rel="stylesheet" href="app.css?v=20260622y">
 </head>
 <body>
 
@@ -84,6 +84,7 @@
         <div class="nav-group">
           <button class="nav-group-label" type="button" data-nav-group="daily"><span>اليومي</span><svg class="nav-group-chevron" aria-hidden="true"><use href="#ic-chevron"/></svg></button>
           <button class="nav-item active" data-view-button="dashboard" type="button" title="ملخص اليوم"><svg class="nav-ic" aria-hidden="true"><use href="#ic-dashboard"/></svg><span class="nav-label">ملخص اليوم</span></button>
+          <button class="nav-item" data-view-button="growth" type="button" title="فرص النمو والتسويق"><svg class="nav-ic" aria-hidden="true"><use href="#ic-spark"/></svg><span class="nav-label">فرص النمو</span></button>
           <button class="nav-item" data-view-button="entries" type="button" title="عمليات اليوم"><svg class="nav-ic" aria-hidden="true"><use href="#ic-receipt"/></svg><span class="nav-label">عمليات اليوم</span></button>
           <button class="nav-item" data-view-button="packages" type="button" title="الباقات والجلسات"><svg class="nav-ic" aria-hidden="true"><use href="#ic-package"/></svg><span class="nav-label">الباقات والجلسات</span></button>
           <button class="nav-item" data-view-button="bookings" type="button" title="الحجوزات"><svg class="nav-ic" aria-hidden="true"><use href="#ic-calendar"/></svg><span class="nav-label">الحجوزات</span></button>
@@ -1929,6 +1930,19 @@
             </div>
           </div>
           <div class="salary-slip" data-salary-slip></div>
+        </article>
+      </section>
+
+      <section class="view" data-view="growth">
+        <article class="panel full-report-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">محرّك النمو</p>
+              <h2>فرص النمو</h2>
+              <p class="muted-hint">مهامك اليومية لإعادة المرضى وزيادة الحجوزات — كل فرصة مع رسالة واتساب جاهزة للإرسال.</p>
+            </div>
+          </div>
+          <div class="growth-center" data-growth-center></div>
         </article>
       </section>
 
