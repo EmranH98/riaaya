@@ -3991,6 +3991,10 @@ td {
 .growth-nophone { font-size: 11px; color: var(--ink-muted); }
 .growth-empty { padding: 22px 16px; text-align: center; color: var(--ink-soft); font-size: 13px; }
 
+/* Bulk-add services table rows */
+.bulk-row input { width: 100%; }
+.ct-table td { vertical-align: middle; }
+
 /* Owner impersonation banner */
 .impersonation-banner {
   position: sticky; top: 0; z-index: 300;

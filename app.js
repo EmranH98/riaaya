@@ -13024,6 +13024,69 @@ if (els.serviceForm) {
   });
 })();
 
+// ── Bulk add services: a full-screen table, one row per new service ─────────
+(function initBulkServices() {
+  const modal = document.querySelector("[data-bulk-services-modal]");
+  if (!modal) return;
+  const bodyEl = modal.querySelector("[data-bulk-services-body]");
+  const summaryEl = modal.querySelector("[data-bulk-services-summary]");
+  const close = () => { modal.hidden = true; };
+
+  const rowHtml = () => `<tr class="bulk-row">
+    <td><input type="text" data-bulk-name placeholder="اسم الخدمة"></td>
+    <td><input type="text" data-bulk-category list="service-categories" placeholder="الفئة"></td>
+    <td><input type="text" data-bulk-subcategory list="service-subcategories" placeholder="الفئة الفرعية"></td>
+    <td><input type="number" min="0" step="0.01" data-bulk-price placeholder="السعر"></td>
+    <td><input type="number" min="0" step="0.01" data-bulk-cost placeholder="التكلفة"></td>
+  </tr>`;
+
+  function updateSummary() {
+    const filled = [...bodyEl.querySelectorAll("[data-bulk-name]")].filter(input => input.value.trim()).length;
+    summaryEl.textContent = filled ? `${filled} خدمة جاهزة للحفظ` : "لم تُدخل أي خدمة بعد";
+  }
+
+  function render(rowCount = 8) {
+    bodyEl.innerHTML = `<table class="ct-table"><thead><tr><th>اسم الخدمة</th><th>الفئة</th><th>الفئة الفرعية</th><th>السعر</th><th>التكلفة</th></tr></thead><tbody>${rowHtml().repeat(rowCount)}</tbody></table>`;
+    updateSummary();
+  }
+
+  modal.querySelector("[data-bulk-add-row]").addEventListener("click", () => {
+    bodyEl.querySelector("tbody").insertAdjacentHTML("beforeend", rowHtml());
+  });
+  bodyEl.addEventListener("input", updateSummary);
+
+  modal.querySelector("[data-bulk-services-save]").addEventListener("click", () => {
+    if (!canViewSensitive()) return;
+    const rows = [...bodyEl.querySelectorAll(".bulk-row")];
+    const created = [];
+    rows.forEach(row => {
+      const name = row.querySelector("[data-bulk-name]").value.trim();
+      if (!name) return;
+      state.services.push(normalizeService({
+        id: nextId("service"),
+        name,
+        category: row.querySelector("[data-bulk-category]").value.trim(),
+        subcategory: row.querySelector("[data-bulk-subcategory]").value.trim(),
+        defaultPrice: row.querySelector("[data-bulk-price]").value,
+        defaultCost: row.querySelector("[data-bulk-cost]").value,
+        active: true
+      }));
+      created.push(name);
+    });
+    if (!created.length) { showToast("أدخل اسم خدمة واحدة على الأقل", "warn"); return; }
+    logEdit("إضافة خدمات بالجملة", `${created.length} خدمة: ${created.slice(0, 5).join("، ")}${created.length > 5 ? "…" : ""}`);
+    close();
+    saveState();
+    render();
+    showToast(`تمت إضافة ${created.length} خدمة`, "success");
+  });
+
+  modal.querySelector("[data-bulk-services-close]").addEventListener("click", close);
+  modal.addEventListener("click", event => { if (event.target === modal) close(); });
+  document.addEventListener("keydown", event => { if (event.key === "Escape" && !modal.hidden) close(); });
+  document.addEventListener("click", event => { if (event.target.closest("[data-open-bulk-services]") && canViewSensitive()) { render(); modal.hidden = false; } });
+})();
+
 // ── Commission matrix: one full-screen table, a value per service, applied to
 // chosen employees — creates many rules at once. ───────────────────────────
 (function initCommissionTable() {

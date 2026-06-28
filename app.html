@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260623o">
+  <link rel="stylesheet" href="app.css?v=20260623p">
 </head>
 <body>
 
@@ -1298,6 +1298,7 @@
               <p class="eyebrow">كتالوج الخدمات</p>
               <h2>إضافة خدمة وتسعيرها</h2>
             </div>
+            <button class="dark-button" type="button" data-open-bulk-services title="إضافة عدة خدمات دفعة واحدة">⊞ إضافة بالجملة</button>
           </div>
           <form class="entry-form" data-service-form>
             <label>
@@ -3053,6 +3054,22 @@
     </div>
   </div>
 
+  <div class="commission-table-modal" data-bulk-services-modal hidden>
+    <div class="commission-table-panel" role="dialog" aria-modal="true" aria-label="إضافة خدمات بالجملة">
+      <header class="ct-header">
+        <h2>إضافة خدمات بالجملة</h2>
+        <button class="icon-button" type="button" data-bulk-services-close aria-label="إغلاق">×</button>
+      </header>
+      <p class="ct-label" style="padding:8px 20px 0">املأ صفاً لكل خدمة (الاسم مطلوب). الصفوف الفارغة تُتجاهل.</p>
+      <div class="ct-body" data-bulk-services-body></div>
+      <footer class="ct-footer">
+        <button class="ghost-button" type="button" data-bulk-add-row>＋ إضافة صف</button>
+        <span class="ct-summary" data-bulk-services-summary>—</span>
+        <button class="primary-button" type="button" data-bulk-services-save>حفظ كل الخدمات</button>
+      </footer>
+    </div>
+  </div>
+
   <div class="commission-table-modal" data-commission-table-modal hidden>
     <div class="commission-table-panel" role="dialog" aria-modal="true" aria-label="جدول العمولات">
       <header class="ct-header">
@@ -3133,7 +3150,7 @@
       </form>
     </div>
   </div>
-  <script src="app.js?v=20260623o"></script>
+  <script src="app.js?v=20260623p"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>
