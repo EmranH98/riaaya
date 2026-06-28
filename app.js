@@ -3156,6 +3156,8 @@ function calculateMemberPayout(entry, member) {
   const isEnglish = currentLanguage() === "en";
   const appliesTo = member.role === "doctor" ? "doctor" : "specialist";
   const rule = findRule(appliesTo, member.id, entry.serviceId, entryCategory(entry));
+  // Salary-only staff earn no default commission — only an explicit per-service rule pays out.
+  if (!rule && member.model === "none") return null;
   const quantity = Math.max(numberValue(entry.quantity) || 1, 1);
   const gross = paidAmount(entry);
   const profit = profitAmount(entry);
@@ -12155,6 +12157,7 @@ els.entryForm.addEventListener("submit", event => {
 
 // ── Staff commission model hint ────────────────────────────────────────────
 const MODEL_HINTS = {
+  none:      "هذا الموظف على راتب فقط — لا تُحتسب له عمولة افتراضية (يمكن إضافة قاعدة لخدمة بعينها لاحقاً)",
   pct_net:   "تُحتسب النسبة من صافي الربح = المقبوض − التكلفة",
   pct_gross: "تُحتسب النسبة من كامل المبلغ المقبوض قبل خصم التكلفة",
   fixed:     "مبلغ ثابت بالدينار لكل عملية بصرف النظر عن السعر"
@@ -12163,11 +12166,14 @@ function updateStaffModelHint() {
   const model = els.staffModelSelect?.value;
   if (els.staffModelHint) els.staffModelHint.textContent = MODEL_HINTS[model] || "";
   if (els.staffRateLabel) {
+    const salaryOnly = model === "none";
+    els.staffRateLabel.style.display = salaryOnly ? "none" : "";
     const rateEl = els.staffRateLabel.querySelector("input");
     els.staffRateLabel.firstChild.textContent = model === "fixed" ? "المبلغ الثابت (د.أ)" : "النسبة %";
     if (rateEl) {
       rateEl.max = model === "fixed" ? "" : "100";
       rateEl.placeholder = model === "fixed" ? "25" : "50";
+      if (salaryOnly) rateEl.value = "";
     }
   }
 }

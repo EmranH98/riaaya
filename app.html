@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260622y">
+  <link rel="stylesheet" href="app.css?v=20260622z">
 </head>
 <body>
 
@@ -1145,6 +1145,7 @@
               <label data-sensitive>
                 نموذج الاحتساب
                 <select name="model" data-staff-model-select>
+                  <option value="none">بدون عمولة (راتب فقط)</option>
                   <option value="pct_net">نسبة من الربح — بعد خصم التكلفة</option>
                   <option value="pct_gross">نسبة من المقبوض — قبل التكلفة</option>
                   <option value="fixed">مبلغ ثابت لكل عملية</option>
@@ -1152,7 +1153,7 @@
               </label>
               <label data-sensitive data-staff-rate-label>
                 النسبة %
-                <input name="rate" type="number" min="0" step="0.01" placeholder="50" required>
+                <input name="rate" type="number" min="0" step="0.01" placeholder="50">
                 <small data-staff-model-hint>تُحتسب من صافي الربح بعد خصم تكلفة الخدمة</small>
               </label>
 
@@ -2999,7 +3000,7 @@
       </form>
     </div>
   </div>
-  <script src="app.js?v=20260622y"></script>
+  <script src="app.js?v=20260622z"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>
