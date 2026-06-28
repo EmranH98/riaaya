@@ -4468,15 +4468,38 @@ function renderRulePersonSelect() {
 function renderRuleServiceSelect() {
   if (!els.ruleServiceSelect) return;
   const editing = _editingRuleId ? (state.rules || []).find(rule => rule.id === _editingRuleId) : null;
-  const checkedServices = new Set(editing ? (editing.serviceIds?.length ? editing.serviceIds : (editing.serviceId ? [editing.serviceId] : [])) : []);
+  const checked = new Set(editing ? (editing.serviceIds?.length ? editing.serviceIds : (editing.serviceId ? [editing.serviceId] : [])) : []);
   const services = (state.services || []).filter(service => service.active !== false);
-  els.ruleServiceSelect.innerHTML = services.length
-    ? services.map(service => `
-      <label class="rule-person-check">
-        <input type="checkbox" name="serviceId" value="${service.id}"${checkedServices.has(service.id) ? " checked" : ""}>
-        <span>${service.name}${service.category ? ` <em>(${service.category})</em>` : ""}</span>
-      </label>`).join("")
-    : `<div class="empty-state">أضف خدمات أولاً.</div>`;
+  if (!services.length) { els.ruleServiceSelect.innerHTML = `<div class="empty-state">أضف خدمات أولاً.</div>`; return; }
+  const byCat = new Map();
+  services.forEach(svc => {
+    const cat = svc.category || "بدون فئة";
+    const sub = svc.subcategory || "";
+    if (!byCat.has(cat)) byCat.set(cat, new Map());
+    const subMap = byCat.get(cat);
+    if (!subMap.has(sub)) subMap.set(sub, []);
+    subMap.get(sub).push(svc);
+  });
+  const svcRow = (svc, cat, subKey) =>
+    `<label class="rule-tree-service${checked.has(svc.id) ? " on" : ""}"><input type="checkbox" name="serviceId" value="${svc.id}"${checked.has(svc.id) ? " checked" : ""} data-svc-cat="${cat}" data-svc-subkey="${subKey}"><span class="rule-tree-plus">${checked.has(svc.id) ? "✓" : "+"}</span><span>${svc.name}</span></label>`;
+  const selCount = list => list.filter(svc => checked.has(svc.id)).length;
+  els.ruleServiceSelect.innerHTML = [...byCat.entries()].map(([cat, subMap]) => {
+    const all = [...subMap.values()].flat();
+    const noSub = subMap.get("") || [];
+    const subs = [...subMap.entries()].filter(([sub]) => sub).sort((a, b) => a[0].localeCompare(b[0], "ar"));
+    return `
+      <details class="rule-tree-cat"${selCount(all) ? " open" : ""}>
+        <summary><span class="rule-tree-cat-name">${cat}</span><span class="tree-count">${selCount(all)}/${all.length}</span></summary>
+        <label class="rule-tree-all"><input type="checkbox" data-rule-cat-all="${cat}"> تحديد كل «${cat}»</label>
+        ${noSub.map(svc => svcRow(svc, cat, `${cat}__`)).join("")}
+        ${subs.map(([sub, list]) => `
+          <details class="rule-tree-sub" open>
+            <summary><span class="rule-tree-sub-name">${sub}</span><span class="tree-count">${selCount(list)}/${list.length}</span></summary>
+            <label class="rule-tree-all"><input type="checkbox" data-rule-sub-all="${cat}__${sub}"> تحديد كل «${sub}»</label>
+            ${list.map(svc => svcRow(svc, cat, `${cat}__${sub}`)).join("")}
+          </details>`).join("")}
+      </details>`;
+  }).join("");
 }
 
 function renderInventorySelects() {
@@ -12475,6 +12498,31 @@ document.addEventListener("change", event => {
 document.addEventListener("click", event => {
   const editBtn = event.target.closest("[data-edit-rule]");
   if (editBtn) startEditRule(editBtn.dataset.editRule);
+});
+
+// Rule services tree: a category/subcategory "select all" toggles its services;
+// each service shows +/✓. Handles 100s of services without a flat checkbox wall.
+function updateRuleSvcRow(cb) {
+  const label = cb.closest(".rule-tree-service");
+  if (!label) return;
+  label.classList.toggle("on", cb.checked);
+  const plus = label.querySelector(".rule-tree-plus");
+  if (plus) plus.textContent = cb.checked ? "✓" : "+";
+}
+document.addEventListener("change", event => {
+  const cb = event.target;
+  if (cb.tagName !== "INPUT" || !els.ruleServiceSelect || !els.ruleServiceSelect.contains(cb)) return;
+  if (cb.dataset.ruleCatAll !== undefined || cb.dataset.ruleSubAll !== undefined) {
+    const cat = cb.dataset.ruleCatAll, subKey = cb.dataset.ruleSubAll;
+    els.ruleServiceSelect.querySelectorAll('[name="serviceId"]').forEach(svc => {
+      if ((cat !== undefined && svc.dataset.svcCat === cat) || (subKey !== undefined && svc.dataset.svcSubkey === subKey)) {
+        svc.checked = cb.checked;
+        updateRuleSvcRow(svc);
+      }
+    });
+  } else if (cb.name === "serviceId") {
+    updateRuleSvcRow(cb);
+  }
 });
 
 // Growth center: sending WhatsApp or pressing "تم" records the contact (so the
