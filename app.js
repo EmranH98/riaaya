@@ -12376,8 +12376,45 @@ function generateTestData() {
   }));
   state.patients.push(...patients);
 
+  // Categorized services (with subcategories) so the tree, the operation
+  // drill-down, and the row→category restriction all have realistic data.
+  const seedServices = [
+    ["ليزر كامل الجسم","ليزر","نساء",120,20],["ليزر الوجه","ليزر","نساء",40,8],
+    ["ليزر الساقين","ليزر","نساء",60,12],["ليزر الظهر","ليزر","رجال",70,14],
+    ["فيلر شفايف","فيلر","ستايلج",150,60],["فيلر خدود","فيلر","ستايلج",180,70],
+    ["فيلر ذقن","فيلر","كيسينس",160,65],["بوتوكس جبهة","بوتوكس","",120,45],
+    ["تنظيف بشرة عميق","فيشل","",45,10],["هيدرافيشل","فيشل","",70,18],
+    ["تبييض أسنان","أسنان","",90,25],["حشوة تجميلية","أسنان","",50,15]
+  ];
+  seedServices.forEach(([name, category, subcategory, price, cost]) => {
+    if (!(state.services || []).some(svc => svc.name === name)) {
+      state.services.push(normalizeService({ id: nextId("service"), name, category, subcategory, defaultPrice: price, defaultCost: cost, active: true }));
+    }
+  });
+  const categoryForLabel = label => {
+    const lower = String(label || "").toLowerCase();
+    if (lower.includes("laser") || lower.includes("ليزر")) return "ليزر";
+    if (lower.includes("facial") || lower.includes("فيشل") || lower.includes("فيشيال")) return "فيشل";
+    if (lower.includes("doctor") || lower.includes("طبيب") || lower.includes("أسنان")) return "أسنان";
+    return "";
+  };
+  (state.scheduleColumns || []).forEach(col => {
+    const cat = categoryForLabel(col.label);
+    if (cat && !(col.categories || []).length) col.categories = [cat];
+  });
+  // Two sellable products + a sale, so the Products page has data.
+  (state.inventory || []).slice(0, 2).forEach((item, i) => {
+    item.isProduct = true;
+    if (!item.salePrice) item.salePrice = (asNumber(item.unitCost) || 5) * 2 + i * 5;
+  });
+
   const cols = (state.scheduleColumns || []).filter(col => col.active !== false);
   const services = (state.services || []).filter(svc => svc.active !== false);
+  const serviceForColumn = col => {
+    const cat = (col.categories || [])[0] || "";
+    const pool = cat ? services.filter(svc => svc.category === cat) : services;
+    return pool.length ? pool : services;
+  };
   const staff = state.staff || [];
   const doctors = staff.filter(member => member.role === "doctor");
   const specialists = staff.filter(member => member.role === "specialist");
@@ -12388,9 +12425,10 @@ function generateTestData() {
   for (let d = 0; d <= 2; d++) {
     const date = dateOffset(d, state.settings.activeDate);
     cols.forEach((col, ci) => {
+      const pool = serviceForColumn(col);
       for (let n = 0; n < 3; n++) {
         const patient = patients[bookingN % patients.length];
-        const service = services[bookingN % services.length];
+        const service = pool[bookingN % pool.length];
         state.bookings.push(normalizeBooking({
           id: nextId("booking"), date, time: times[(ci * 3 + n) % times.length],
           patientId: patient.id, patient: patient.name, phone: patient.phone,
