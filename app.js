@@ -4231,6 +4231,7 @@ function renderAccessControls() {
 
 function setView(viewName) {
   const targetView = canView(viewName) ? viewName : firstAllowedView();
+  if (targetView !== "bookings") setCalendarFocus(false);
   let activeButton = null;
   els.viewButtons.forEach(button => {
     const isActive = button.dataset.viewButton === targetView;
@@ -12406,6 +12407,26 @@ function generateTestData() {
 document.addEventListener("click", async event => {
   if (!event.target.closest("[data-seed-test-data]")) return;
   if (await showConfirm("سيتم إضافة مرضى وحجوزات وعمليات تجريبية لتعبئة العيادة للاختبار. متابعة؟")) generateTestData();
+});
+
+// Calendar maximize: slide the sidebar off-screen so the calendar goes full width.
+// The sidebar reveals when the mouse reaches the right edge, and hides on leave.
+function setCalendarFocus(on) {
+  const shell = document.querySelector(".app-shell");
+  if (!shell) return;
+  shell.classList.toggle("calendar-focus", on);
+  if (!on) shell.classList.remove("sidebar-peek");
+  document.querySelectorAll("[data-calendar-maximize]").forEach(btn => btn.classList.toggle("active", on));
+}
+document.addEventListener("click", event => {
+  if (!event.target.closest("[data-calendar-maximize]")) return;
+  setCalendarFocus(!document.querySelector(".app-shell")?.classList.contains("calendar-focus"));
+});
+document.addEventListener("mousemove", event => {
+  const shell = document.querySelector(".app-shell");
+  if (!shell?.classList.contains("calendar-focus")) return;
+  if (event.clientX > window.innerWidth - 16) shell.classList.add("sidebar-peek");
+  else if (event.clientX < window.innerWidth - 290) shell.classList.remove("sidebar-peek");
 });
 
 // Calendar: show/hide the management area (KPIs, legend, column controls). Hidden
