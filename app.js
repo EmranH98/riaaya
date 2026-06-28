@@ -5769,7 +5769,7 @@ function serviceTreeHtml(services) {
     subMap.get(sub).push(svc);
   });
   const serviceRow = svc => showSensitive
-    ? `<div class="tree-service" data-edit-service="${svc.id}" role="button" tabindex="0" title="اضغط للتعديل"><span class="tree-service-name">${svc.name}</span><span class="tree-service-price">${money(svc.defaultPrice)}${svc.active === false ? " · متوقفة" : ""}</span></div>`
+    ? `<div class="tree-service"><button class="tree-service-main" type="button" data-edit-service="${svc.id}" title="اضغط للتعديل"><span class="tree-service-name">${svc.name}</span><span class="tree-service-price">${money(svc.defaultPrice)}${svc.active === false ? " · متوقفة" : ""}</span></button><button class="tree-service-del" type="button" data-delete-service="${svc.id}" title="حذف الخدمة" aria-label="حذف ${svc.name}">×</button></div>`
     : `<div class="tree-service readonly"><span class="tree-service-name">${svc.name}</span><span class="tree-service-price">${money(svc.defaultPrice)}</span></div>`;
   return [...byCat.entries()].map(([cat, subMap]) => {
     const total = [...subMap.values()].reduce((sum, arr) => sum + arr.length, 0);
