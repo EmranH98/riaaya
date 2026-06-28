@@ -2147,6 +2147,8 @@ const els = {
   bookingDoctorSelect: document.querySelector("[data-booking-doctor-select]"),
   bookingSpecialistSelect: document.querySelector("[data-booking-specialist-select]"),
   bookingServiceSelect: document.querySelector("[data-booking-service-select]"),
+  bookingCategorySelect: document.querySelector("[data-booking-category]"),
+  bookingSubcategorySelect: document.querySelector("[data-booking-subcategory]"),
   bookingColumnSelect: document.querySelector("[data-booking-column-select]"),
   scheduleColumnForm: document.querySelector("[data-schedule-column-form]"),
   scheduleColumnList: document.querySelector("[data-schedule-column-list]"),
@@ -4404,11 +4406,41 @@ function renderStaffSelects() {
   }
 
   if (els.bookingServiceSelect) {
-    els.bookingServiceSelect.innerHTML = services.length
-      ? services.map(service => `<option value="${service.id}">${service.name}</option>`).join("")
-      : `<option value="">أضف خدمة أولاً</option>`;
+    // The chosen calendar row (column) can restrict bookings to its category.
+    const bookingCol = (state.scheduleColumns || []).find(col => col.id === els.bookingColumnSelect?.value);
+    const colCategory = (bookingCol?.categories || [])[0] || "";
+    const allCats = serviceCategories();
+    if (els.bookingCategorySelect) {
+      const catField = els.bookingCategorySelect.closest("[data-booking-category-field]");
+      if (colCategory) {
+        els.bookingCategorySelect.innerHTML = `<option value="${colCategory}">${colCategory}</option>`;
+        els.bookingCategorySelect.value = colCategory;
+        els.bookingCategorySelect.disabled = true;
+      } else {
+        const current = els.bookingCategorySelect.value;
+        els.bookingCategorySelect.disabled = false;
+        els.bookingCategorySelect.innerHTML = `<option value="">كل الفئات</option>` + allCats.map(cat => `<option value="${cat}">${cat}</option>`).join("");
+        els.bookingCategorySelect.value = allCats.includes(current) ? current : "";
+      }
+      if (catField) catField.hidden = allCats.length === 0;
+    }
+    const activeCat = colCategory || els.bookingCategorySelect?.value || "";
+    if (els.bookingSubcategorySelect) {
+      const subs = [...new Set(services.filter(svc => !activeCat || (svc.category || "") === activeCat).map(svc => svc.subcategory).filter(Boolean))].sort((a, b) => a.localeCompare(b, "ar"));
+      const currentSub = els.bookingSubcategorySelect.value;
+      els.bookingSubcategorySelect.innerHTML = `<option value="">الكل</option>` + subs.map(sub => `<option value="${sub}">${sub}</option>`).join("");
+      els.bookingSubcategorySelect.value = subs.includes(currentSub) ? currentSub : "";
+      const subField = els.bookingSubcategorySelect.closest("[data-booking-subcategory-field]");
+      if (subField) subField.hidden = subs.length === 0;
+    }
+    const activeSub = els.bookingSubcategorySelect?.value || "";
+    const filtered = services.filter(svc =>
+      (!activeCat || (svc.category || "") === activeCat) && (!activeSub || (svc.subcategory || "") === activeSub));
+    els.bookingServiceSelect.innerHTML = filtered.length
+      ? filtered.map(service => `<option value="${service.id}">${service.name}</option>`).join("")
+      : `<option value="">${activeCat ? "لا خدمات في هذه الفئة" : "أضف خدمة أولاً"}</option>`;
 
-    const selectedService = getService(els.bookingServiceSelect.value) || services[0];
+    const selectedService = getService(els.bookingServiceSelect.value) || filtered[0];
     if (selectedService && els.bookingForm && !els.bookingForm.elements.expectedAmount.value) {
       els.bookingForm.elements.expectedAmount.value = selectedService.defaultPrice || "";
     }
@@ -12679,6 +12711,9 @@ document.querySelectorAll("[data-report-jump]").forEach(button => {
 els.serviceBrowseCategory?.addEventListener("change", renderServiceBrowse);
 els.operationCategorySelect?.addEventListener("change", renderStaffSelects);
 els.operationSubcategorySelect?.addEventListener("change", renderStaffSelects);
+els.bookingCategorySelect?.addEventListener("change", renderStaffSelects);
+els.bookingSubcategorySelect?.addEventListener("change", renderStaffSelects);
+els.bookingColumnSelect?.addEventListener("change", renderStaffSelects);
 els.serviceBrowseSearch?.addEventListener("input", renderServiceBrowse);
 
 // Edit a package sale directly from the report (price, cost, paid, category, status).

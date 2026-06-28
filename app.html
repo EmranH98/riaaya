@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260623s">
+  <link rel="stylesheet" href="app.css?v=20260623t">
 </head>
 <body>
 
@@ -1067,6 +1067,14 @@
               <label>
                 الهاتف
                 <input name="phone" type="tel" placeholder="0790000000">
+              </label>
+              <label data-booking-category-field hidden>
+                الفئة
+                <select data-booking-category><option value="">كل الفئات</option></select>
+              </label>
+              <label data-booking-subcategory-field hidden>
+                الفئة الفرعية
+                <select data-booking-subcategory><option value="">الكل</option></select>
               </label>
               <label>
                 الخدمة
@@ -3159,7 +3167,7 @@
       </form>
     </div>
   </div>
-  <script src="app.js?v=20260623s"></script>
+  <script src="app.js?v=20260623t"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>
