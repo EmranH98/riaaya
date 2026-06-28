@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260623h">
+  <link rel="stylesheet" href="app.css?v=20260623i">
 </head>
 <body>
 
@@ -1509,6 +1509,23 @@
           <button class="sub-nav-tab active" type="button" data-inventory-tab="items">📦 المخزون</button>
           <button class="sub-nav-tab" type="button" data-inventory-tab="suppliers">🏭 الموردون</button>
           <button class="sub-nav-tab" type="button" data-inventory-tab="orders">📋 الطلبات</button>
+          <button class="sub-nav-tab" type="button" data-inventory-tab="count">🔢 الجرد الفعلي</button>
+        </div>
+
+        <div class="split-layout" data-inventory-section="count" style="display:none">
+          <article class="panel">
+            <div class="panel-header">
+              <div><p class="eyebrow">الجرد الفعلي</p><h2>جرد المخزون</h2></div>
+            </div>
+            <p class="subtitle" style="margin:0 0 14px">أدخل العدد الفعلي لكل صنف. يقارنه النظام مع المسجّل ومع ما استهلكته العمليات، يسجّل الفروقات، ويُحدّث الكمية للواقع.</p>
+            <div data-physical-count></div>
+          </article>
+          <article class="panel">
+            <div class="panel-header">
+              <div><p class="eyebrow">السجل والمطابقة</p><h2>عمليات الجرد السابقة</h2></div>
+            </div>
+            <div data-count-history></div>
+          </article>
         </div>
 
         <div class="kpi-grid inventory-kpis">
@@ -3072,7 +3089,7 @@
       </form>
     </div>
   </div>
-  <script src="app.js?v=20260623h"></script>
+  <script src="app.js?v=20260623i"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>

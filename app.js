@@ -4896,6 +4896,21 @@ function operationalNotifications() {
       view: "communications"
     });
   }
+
+  // Last physical count had unexplained discrepancies — alert the admin.
+  const lastCount = (state.inventoryCounts || []).slice(-1)[0];
+  if (lastCount) {
+    const disc = lastCount.lines.filter(line => Math.abs(line.variance) > 0.009);
+    if (disc.length) {
+      notifications.push({
+        id: `count-discrepancy-${lastCount.id}`,
+        severity: "warn",
+        title: `فروقات جرد في ${disc.length} صنف`,
+        body: disc.slice(0, 3).map(line => `${line.name} ${line.variance > 0 ? "+" : ""}${line.variance}`).join("، "),
+        view: "inventory"
+      });
+    }
+  }
   return notifications;
 }
 
@@ -10707,6 +10722,8 @@ function render() {
   renderInventorySelects();
   populateConsumeSelects();
   renderProducts();
+  renderPhysicalCount();
+  renderCountHistory();
   renderKpis(entries, totals, diffs);
   renderDashboardSummary(entries, totals, diffs, weekEntries, weekTotals);
   renderDashboardCommandCenter(entries);
@@ -12243,6 +12260,81 @@ document.querySelectorAll("[data-report-tab]").forEach(btn => {
     );
     renderReports();
   });
+});
+
+// ── Physical inventory count + discrepancy report ─────────────────────────
+function consumedSinceCount(itemId, since) {
+  return -(state.inventoryMovements || [])
+    .filter(move => move.itemId === itemId && ["consumption", "sale"].includes(move.reason) && (!since || move.at >= since))
+    .reduce((sum, move) => sum + move.qty, 0);
+}
+
+function renderPhysicalCount() {
+  const host = document.querySelector("[data-physical-count]");
+  if (!host) return;
+  const items = (state.inventory || []).filter(item => item.active !== false);
+  if (!items.length) { host.innerHTML = `<div class="empty-state">أضف أصنافاً للمخزون أولاً.</div>`; return; }
+  const since = (state.inventoryCounts || []).slice(-1)[0]?.at || "";
+  host.innerHTML = `
+    <form data-physical-count-form>
+      <div class="table-wrap"><table class="practical-table">
+        <thead><tr><th>الصنف</th><th>المسجّل في النظام</th><th>استُهلك منذ آخر جرد</th><th>العدد الفعلي</th></tr></thead>
+        <tbody>${items.map(item => `
+          <tr>
+            <td><strong>${item.name}</strong></td>
+            <td>${numberValue(item.quantity)} ${item.unit}</td>
+            <td>${consumedSinceCount(item.id, since)} ${item.unit}</td>
+            <td><input type="number" min="0" step="0.01" data-count-item="${item.id}" value="${numberValue(item.quantity)}" style="width:110px"></td>
+          </tr>`).join("")}</tbody>
+      </table></div>
+      <button class="primary-button" type="submit" style="margin-top:14px">حفظ الجرد ومطابقته</button>
+    </form>`;
+}
+
+function renderCountHistory() {
+  const host = document.querySelector("[data-count-history]");
+  if (!host) return;
+  const counts = (state.inventoryCounts || []).slice().reverse();
+  if (!counts.length) { host.innerHTML = `<div class="empty-state">لا توجد عمليات جرد بعد.</div>`; return; }
+  host.innerHTML = counts.map(record => {
+    const disc = record.lines.filter(line => Math.abs(line.variance) > 0.009);
+    return `<div class="staff-card${disc.length ? " editing" : ""}">
+      <div>
+        <strong>جرد ${displayDate(record.date)} — ${record.who}</strong>
+        <p>${record.lines.length} صنف · ${disc.length ? `<span class="stock-low">${disc.length} فرق غير مُفسَّر</span>` : "كل الأصناف مطابقة ✓"}</p>
+        ${disc.length ? `<small>${disc.map(line => `${line.name}: ${line.variance > 0 ? "+" : ""}${line.variance} ${line.unit || ""}`).join("، ")}</small>` : ""}
+      </div>
+    </div>`;
+  }).join("");
+}
+
+document.addEventListener("submit", event => {
+  const form = event.target.closest("[data-physical-count-form]");
+  if (!form) return;
+  event.preventDefault();
+  if (!canViewSensitive()) return;
+  const since = (state.inventoryCounts || []).slice(-1)[0]?.at || "";
+  const lines = [];
+  form.querySelectorAll("[data-count-item]").forEach(input => {
+    const item = getInventoryItem(input.dataset.countItem);
+    if (!item) return;
+    const system = asNumber(item.quantity);
+    const counted = asNumber(input.value);
+    const variance = Math.round((counted - system) * 100) / 100;
+    lines.push({ itemId: item.id, name: item.name, unit: item.unit, system, counted, variance, consumed: consumedSinceCount(item.id, since) });
+    if (Math.abs(variance) > 0.009) {
+      item.quantity = counted;
+      state.inventoryMovements = state.inventoryMovements || [];
+      state.inventoryMovements.push({ id: nextId("invmove"), itemId: item.id, qty: variance, reason: "count_adjust", date: state.settings.activeDate, at: new Date().toISOString() });
+    }
+  });
+  const record = { id: nextId("count"), date: state.settings.activeDate, at: new Date().toISOString(), who: currentAccount()?.name || currentAccount()?.email || "—", lines };
+  state.inventoryCounts = [...(state.inventoryCounts || []), record];
+  const disc = lines.filter(line => Math.abs(line.variance) > 0.009);
+  logEdit("جرد مخزون", `${lines.length} صنف · ${disc.length} فرق${disc.length ? ": " + disc.map(l => `${l.name} ${l.variance > 0 ? "+" : ""}${l.variance}`).join("، ") : ""}`);
+  saveState();
+  render();
+  showToast(disc.length ? `تم الجرد — ${disc.length} صنف به فرق غير مُفسَّر ⚠️` : "تم الجرد — كل الأصناف مطابقة ✓", disc.length ? "warn" : "success");
 });
 
 // Test-data seeder — fills the clinic with realistic bookings, operations and
