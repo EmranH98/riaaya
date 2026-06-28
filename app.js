@@ -2708,15 +2708,35 @@ function nearestAllowedDate(account) {
   return today;
 }
 
+const BRAND_VARS = ["--teal", "--teal-light", "--teal-dark", "--teal-pale", "--sidebar-text-active", "--status-done", "--status-done-pale"];
+// Derive the whole teal family (+ sidebar/status accents) from one brand color
+// so an owner-set clinic color re-skins the entire app, not just buttons.
+function applyBrandColor(hex) {
+  const root = document.documentElement;
+  const rgb = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
+  const clamp = value => Math.max(0, Math.min(255, Math.round(value)));
+  const toHex = arr => "#" + arr.map(value => clamp(value).toString(16).padStart(2, "0")).join("");
+  const towardWhite = t => rgb.map(channel => channel + (255 - channel) * t);
+  const darken = t => rgb.map(channel => channel * (1 - t));
+  root.style.setProperty("--teal", hex);
+  root.style.setProperty("--teal-light", toHex(towardWhite(0.14)));
+  root.style.setProperty("--teal-dark", toHex(darken(0.22)));
+  root.style.setProperty("--teal-pale", toHex(towardWhite(0.88)));
+  root.style.setProperty("--sidebar-text-active", hex);
+  root.style.setProperty("--status-done", hex);
+  root.style.setProperty("--status-done-pale", toHex(towardWhite(0.88)));
+}
+function clearBrandColor() {
+  BRAND_VARS.forEach(variable => document.documentElement.style.removeProperty(variable));
+}
+
 function applyRuntimeUI() {
   const live = runtime.mode === "live";
   const branding = runtime.session?.clinic?.branding || {};
-  if (live && branding.accentColor) {
-    document.documentElement.style.setProperty("--teal", branding.accentColor);
-    document.documentElement.style.setProperty("--teal-light", branding.accentColor);
+  if (live && branding.accentColor && /^#[0-9a-fA-F]{6}$/.test(branding.accentColor)) {
+    applyBrandColor(branding.accentColor);
   } else {
-    document.documentElement.style.removeProperty("--teal");
-    document.documentElement.style.removeProperty("--teal-light");
+    clearBrandColor();
   }
   if (els.runtimeLabel) {
     els.runtimeLabel.textContent = live ? (branding.workspaceLabel || "مساحة عيادة آمنة") : "نموذج تجريبي تفاعلي";

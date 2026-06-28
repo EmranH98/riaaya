@@ -140,13 +140,13 @@ button {
   font-size: 23px;
   line-height: 1.05;
   letter-spacing: .01em;
-  color: #0c8e84;
+  color: var(--teal-dark);
 }
 
 .brand strong em {
   font-style: normal;
   font-size: 18px;
-  color: #177e77;
+  color: var(--teal);
   font-weight: 700;
   letter-spacing: .02em;
 }
