@@ -1022,6 +1022,7 @@ function normalizeService(service) {
     id: service.id || nextId("service"),
     name: service.name || "خدمة بدون اسم",
     category: service.category || service.group || "",
+    subcategory: service.subcategory || service.sub_category || service.subgroup || "",
     defaultPrice: asNumber(service.defaultPrice ?? service.default_price),
     defaultCost: asNumber(service.defaultCost ?? service.default_cost ?? service.doctor_cost),
     consumes: Array.isArray(service.consumes)
@@ -2132,6 +2133,7 @@ const els = {
   operationSchedulePanel: document.querySelector("[data-operation-schedule]"),
   operationScheduleColumn: document.querySelector("[data-operation-schedule-column]"),
   operationCategorySelect: document.querySelector("[data-operation-category]"),
+  operationSubcategorySelect: document.querySelector("[data-operation-subcategory]"),
   serviceCategoryList: document.querySelector("#service-categories"),
   bookingDoctorSelect: document.querySelector("[data-booking-doctor-select]"),
   bookingSpecialistSelect: document.querySelector("[data-booking-specialist-select]"),
@@ -4333,9 +4335,25 @@ function renderStaffSelects() {
     els.operationCategorySelect.parentElement.hidden = categories.length === 0;
   }
 
+  if (els.operationSubcategorySelect) {
+    const activeCategory = els.operationCategorySelect?.value || "";
+    const subs = [...new Set(services
+      .filter(service => !activeCategory || (service.category || "") === activeCategory)
+      .map(service => service.subcategory).filter(Boolean))].sort((a, b) => a.localeCompare(b, "ar"));
+    const currentSub = els.operationSubcategorySelect.value;
+    els.operationSubcategorySelect.innerHTML = `<option value="">الكل</option>`
+      + subs.map(sub => `<option value="${sub}">${sub}</option>`).join("");
+    els.operationSubcategorySelect.value = subs.includes(currentSub) ? currentSub : "";
+    const field = els.operationSubcategorySelect.closest("[data-operation-subcategory-field]");
+    if (field) field.hidden = subs.length === 0;
+  }
+
   if (els.serviceSelect) {
     const activeCategory = els.operationCategorySelect?.value || "";
-    const filtered = activeCategory ? services.filter(service => (service.category || "") === activeCategory) : services;
+    const activeSub = els.operationSubcategorySelect?.value || "";
+    const filtered = services.filter(service =>
+      (!activeCategory || (service.category || "") === activeCategory)
+      && (!activeSub || (service.subcategory || "") === activeSub));
     els.serviceSelect.innerHTML = filtered.length
       ? filtered.map(service => `<option value="${service.id}">${service.name}</option>`).join("")
       : `<option value="">${activeCategory ? "لا خدمات في هذه الفئة" : "أضف خدمة أولاً"}</option>`;
@@ -5607,6 +5625,38 @@ function serviceBrowseTableHtml(services) {
     </div>`;
 }
 
+function serviceTreeHtml(services) {
+  if (!services.length) return `<div class="empty-state">لا توجد خدمات مطابقة. أضف خدمة لتظهر في الشجرة.</div>`;
+  const showSensitive = canViewSensitive();
+  const byCat = new Map();
+  services.forEach(svc => {
+    const cat = svc.category || "بدون فئة";
+    const sub = svc.subcategory || "";
+    if (!byCat.has(cat)) byCat.set(cat, new Map());
+    const subMap = byCat.get(cat);
+    if (!subMap.has(sub)) subMap.set(sub, []);
+    subMap.get(sub).push(svc);
+  });
+  const serviceRow = svc => showSensitive
+    ? `<div class="tree-service" data-edit-service="${svc.id}" role="button" tabindex="0" title="اضغط للتعديل"><span class="tree-service-name">${svc.name}</span><span class="tree-service-price">${money(svc.defaultPrice)}${svc.active === false ? " · متوقفة" : ""}</span></div>`
+    : `<div class="tree-service readonly"><span class="tree-service-name">${svc.name}</span><span class="tree-service-price">${money(svc.defaultPrice)}</span></div>`;
+  return [...byCat.entries()].map(([cat, subMap]) => {
+    const total = [...subMap.values()].reduce((sum, arr) => sum + arr.length, 0);
+    const noSub = subMap.get("") || [];
+    const subs = [...subMap.entries()].filter(([sub]) => sub).sort((a, b) => a[0].localeCompare(b[0], "ar"));
+    return `
+      <details class="tree-cat" open>
+        <summary><span class="tree-cat-name">${cat}</span><span class="tree-count">${total}</span></summary>
+        ${noSub.length ? `<div class="tree-services">${noSub.map(serviceRow).join("")}</div>` : ""}
+        ${subs.map(([sub, list]) => `
+          <details class="tree-sub" open>
+            <summary><span class="tree-sub-name">${sub}</span><span class="tree-count">${list.length}</span></summary>
+            <div class="tree-services">${list.map(serviceRow).join("")}</div>
+          </details>`).join("")}
+      </details>`;
+  }).join("");
+}
+
 function renderServiceBrowse() {
   if (els.serviceBrowseCategory) {
     const categories = serviceCategories();
@@ -5615,10 +5665,19 @@ function renderServiceBrowse() {
       + categories.map(category => `<option value="${category}">${category}</option>`).join("");
     els.serviceBrowseCategory.value = current;
   }
+  const subDatalist = document.getElementById("service-subcategories");
+  if (subDatalist) {
+    const subs = [...new Set((state.services || []).map(svc => svc.subcategory).filter(Boolean))].sort((a, b) => a.localeCompare(b, "ar"));
+    subDatalist.innerHTML = subs.map(sub => `<option value="${sub}"></option>`).join("");
+  }
   if (els.serviceBrowse) {
     const category = els.serviceBrowseCategory?.value || "";
-    const query = els.serviceBrowseSearch?.value || "";
-    els.serviceBrowse.innerHTML = serviceBrowseTableHtml(serviceBrowseRows(category, query));
+    const query = (els.serviceBrowseSearch?.value || "").trim().toLowerCase();
+    const filtered = (state.services || []).filter(svc =>
+      (!category || (svc.category || "") === category)
+      && (!query || `${svc.name} ${svc.category || ""} ${svc.subcategory || ""}`.toLowerCase().includes(query))
+    );
+    els.serviceBrowse.innerHTML = serviceTreeHtml(filtered);
   }
 }
 
@@ -12239,6 +12298,8 @@ document.querySelectorAll("[data-report-jump]").forEach(button => {
 
 // Services browse: category + search filter the treatments table.
 els.serviceBrowseCategory?.addEventListener("change", renderServiceBrowse);
+els.operationCategorySelect?.addEventListener("change", renderStaffSelects);
+els.operationSubcategorySelect?.addEventListener("change", renderStaffSelects);
 els.serviceBrowseSearch?.addEventListener("input", renderServiceBrowse);
 
 // Edit a package sale directly from the report (price, cost, paid, category, status).
@@ -12594,6 +12655,7 @@ if (els.serviceForm) {
       id: nextId("service"),
       name: data.name.trim(),
       category: newCategory,
+      subcategory: (data.subcategory || "").trim(),
       defaultPrice: data.defaultPrice,
       defaultCost: data.defaultCost,
       consumes: _servicePendingConsumes,
@@ -12665,6 +12727,7 @@ if (els.serviceForm) {
     form.elements.serviceId.value = service.id;
     form.elements.name.value = service.name || "";
     form.elements.category.value = service.category || "";
+    if (form.elements.subcategory) form.elements.subcategory.value = service.subcategory || "";
     form.elements.defaultPrice.value = numberValue(service.defaultPrice);
     if (form.elements.defaultCost) form.elements.defaultCost.value = numberValue(service.defaultCost);
     form.elements.active.value = service.active === false ? "false" : "true";
@@ -12683,6 +12746,7 @@ if (els.serviceForm) {
     if (!service) { close(); return; }
     service.name = (data.name || "").trim() || service.name;
     service.category = (data.category || "").trim();
+    service.subcategory = (data.subcategory || "").trim();
     service.defaultPrice = numberValue(data.defaultPrice);
     if (data.defaultCost !== undefined) service.defaultCost = numberValue(data.defaultCost);
     service.active = data.active !== "false";

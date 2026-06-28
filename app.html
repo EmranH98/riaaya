@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260623f">
+  <link rel="stylesheet" href="app.css?v=20260623g">
 </head>
 <body>
 
@@ -671,6 +671,10 @@
                     الفئة
                     <select data-operation-category><option value="">كل الفئات</option></select>
                   </label>
+                  <label data-operation-subcategory-field hidden>
+                    الفئة الفرعية
+                    <select data-operation-subcategory><option value="">الكل</option></select>
+                  </label>
                   <label>
                     الخدمة
                     <select name="serviceId" data-service-select required></select>
@@ -1295,6 +1299,11 @@
             <label data-service-new-category-wrap hidden>
               اسم الفئة الجديدة
               <input name="categoryNew" type="text" placeholder="مثال: ليزر، فيشل، بوتوكس">
+            </label>
+            <label>
+              الفئة الفرعية / العلامة (اختياري)
+              <input name="subcategory" type="text" list="service-subcategories" placeholder="مثال: ستايلج، كيسينس — تحت فئة فيلر">
+              <datalist id="service-subcategories"></datalist>
             </label>
             <label>
               السعر الافتراضي (اختياري)
@@ -3040,6 +3049,7 @@
         <input type="hidden" name="serviceId">
         <label>اسم الخدمة<input name="name" type="text" required></label>
         <label>الفئة<input name="category" type="text" list="service-categories" placeholder="ليزر، فيشل..."></label>
+        <label>الفئة الفرعية / العلامة<input name="subcategory" type="text" list="service-subcategories" placeholder="ستايلج، كيسينس..."></label>
         <label>السعر الافتراضي<input name="defaultPrice" type="number" min="0" step="0.01"></label>
         <label data-sensitive>التكلفة المباشرة<input name="defaultCost" type="number" min="0" step="0.01"></label>
         <label>الحالة<select name="active"><option value="true">فعالة</option><option value="false">متوقفة</option></select></label>
@@ -3059,7 +3069,7 @@
       </form>
     </div>
   </div>
-  <script src="app.js?v=20260623f"></script>
+  <script src="app.js?v=20260623g"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>
