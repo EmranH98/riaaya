@@ -12601,21 +12601,23 @@ function applyAccountViewMode() {
 // The sidebar auto-hides by default on every page (reveals when the mouse hits
 // the right edge, hides when the pointer leaves it). The topbar toggle PINS it
 // open so it stays visible; clicking again returns to auto-hide. Persisted.
-function setNavPinned(pinned) {
+// Two independent sidebar controls, each remembered per user:
+//   • the ☰ inside the sidebar collapses it to icons (nav-collapsed) — "minimize"
+//   • this topbar toggle makes the sidebar auto-hide (reveal on mouse-to-edge)
+// Default: the sidebar is visible (auto-hide off) so both controls are reachable.
+function setNavAutohide(on) {
   const shell = document.querySelector(".app-shell");
   if (!shell) return;
-  shell.classList.toggle("nav-autohide", !pinned);     // auto-hide unless pinned
-  if (!pinned) shell.classList.remove("nav-collapsed"); // auto-hide replaces the icons-collapse (they conflict)
-  if (pinned) shell.classList.remove("sidebar-peek");
-  document.querySelectorAll("[data-nav-autohide-toggle]").forEach(btn => btn.classList.toggle("active", pinned));
-  try { localStorage.setItem("riaaya-nav-pinned", pinned ? "1" : "0"); } catch {}
+  shell.classList.toggle("nav-autohide", on);
+  if (!on) shell.classList.remove("sidebar-peek");
+  document.querySelectorAll("[data-nav-autohide-toggle]").forEach(btn => btn.classList.toggle("active", on));
+  try { localStorage.setItem("riaaya-nav-autohide", on ? "1" : "0"); } catch {}
 }
 document.addEventListener("click", event => {
   if (!event.target.closest("[data-nav-autohide-toggle]")) return;
-  const pinnedNow = !document.querySelector(".app-shell")?.classList.contains("nav-autohide");
-  setNavPinned(!pinnedNow);
+  setNavAutohide(!document.querySelector(".app-shell")?.classList.contains("nav-autohide"));
 });
-try { setNavPinned(localStorage.getItem("riaaya-nav-pinned") === "1"); } catch { setNavPinned(false); }
+try { setNavAutohide(localStorage.getItem("riaaya-nav-autohide") === "1"); } catch {}
 
 // Calendar: show/hide the management area (KPIs, legend, column controls). Hidden
 // by default; the toggle is data-sensitive so restricted staff only ever see the rows.

@@ -4093,9 +4093,11 @@ body.kiosk-locked .global-search { display: none; }
 .app-shell.calendar-focus .runtime-banner,
 .app-shell.calendar-focus .clinic-strip { display: none; }
 
-/* While auto-hiding, the ☰ icons-collapse toggle is hidden — auto-hide already
-   minimizes the sidebar, and the two grid modes conflict if combined. */
-.app-shell.nav-autohide .nav-collapse-toggle { display: none; }
+/* The ☰ icons-collapse and auto-hide coexist: auto-hide owns the grid (single
+   column, fixed panel), and a collapsed sidebar simply makes that hidden panel
+   78px wide so the peek reveals icons instead of the full menu. */
+.app-shell.nav-autohide.nav-collapsed { grid-template-columns: 1fr; }
+.app-shell.nav-autohide.nav-collapsed .sidebar { width: 78px; }
 
 /* Collapsible calendar management — KPIs + legend + column controls hidden by default.
    Restricted employees never get the toggle (data-sensitive), so they only see the rows. */
