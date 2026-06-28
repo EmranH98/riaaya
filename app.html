@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260623g">
+  <link rel="stylesheet" href="app.css?v=20260623h">
 </head>
 <body>
 
@@ -252,7 +252,10 @@
           <strong>أنت داخل النموذج التجريبي العام</strong>
           <span>البيانات محفوظة على هذا الجهاز فقط ولا تخص عيادة حقيقية.</span>
         </div>
-        <a href="/register" class="dark-button">إنشاء حساب عيادة آمن</a>
+        <div class="runtime-banner-actions">
+          <button type="button" class="text-button" data-seed-test-data title="تعبئة العيادة بحجوزات وعمليات ومرضى للاختبار">＋ بيانات اختبار</button>
+          <a href="/register" class="dark-button">إنشاء حساب عيادة آمن</a>
+        </div>
       </section>
 
       <section class="clinic-strip" data-sensitive>
@@ -995,6 +998,7 @@
               <p class="calendar-summary" data-booking-calendar-summary>اختر يوماً لعرض حجوزاته.</p>
             </div>
             <div class="calendar-actions">
+              <button class="text-button" type="button" data-calendar-manage-toggle data-sensitive title="إظهار/إخفاء إعدادات وإدارة التقويم">⚙ الإعدادات</button>
               <button class="primary-button" type="button" data-open-operation-modal>＋ تسجيل عملية</button>
               <div class="calendar-date-picker">
                 <button class="icon-button" type="button" data-booking-day-nav="prev" aria-label="اليوم السابق" title="اليوم السابق">‹</button>
@@ -3068,7 +3072,7 @@
       </form>
     </div>
   </div>
-  <script src="app.js?v=20260623g"></script>
+  <script src="app.js?v=20260623h"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>

@@ -4015,6 +4015,14 @@ td {
 .tree-service-name { font-weight: 700; color: var(--ink); }
 .tree-service-price { font-size: 12.5px; color: var(--ink-soft); font-weight: 800; }
 
+/* Collapsible calendar management — KPIs + legend + column controls hidden by default.
+   Restricted employees never get the toggle (data-sensitive), so they only see the rows. */
+.view[data-view="bookings"]:not(.calendar-manage-open) .booking-kpis,
+.view[data-view="bookings"]:not(.calendar-manage-open) .booking-calendar-legend,
+.view[data-view="bookings"]:not(.calendar-manage-open) .schedule-column-controls { display: none; }
+[data-calendar-manage-toggle] { font-weight: 800; }
+[data-calendar-manage-toggle].active { background: var(--teal); color: #fff; border-color: var(--teal); }
+
 /* Calendar compact date picker (replaces the month grid) */
 .calendar-date-picker { display: inline-flex; align-items: center; gap: 6px; background: var(--white); border: 1px solid var(--border); border-radius: 12px; padding: 4px 6px; }
 .calendar-date-picker input[type="date"] { border: 0; background: transparent; font-weight: 800; font-size: 14px; color: var(--ink); min-width: 140px; padding: 4px; }

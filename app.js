@@ -12245,6 +12245,86 @@ document.querySelectorAll("[data-report-tab]").forEach(btn => {
   });
 });
 
+// Test-data seeder — fills the clinic with realistic bookings, operations and
+// patients (Clinica-style) so the whole app can be exercised end to end.
+function generateTestData() {
+  const names = ["سارة عبدالله","محمد العتيبي","لطيفة خالد","فهد السالم","رنا علي","ماهر خليل","ريم خالد","سيف محمود","نور الهدى","عادل ناصر","بيان أحمد","جود عمر","ليان سمير","يزن قاسم","دانة فؤاد","تالا وليد","كرم سعيد","هلا منصور","زيد ربيع","مايا حسن","عبير سامي","وسام لؤي","رهف عماد","طارق فيصل"];
+  const genders = ["female","male","female","male","female","male"];
+  const patients = names.map((name, i) => normalizePatient({
+    id: nextId("patient"), name, phone: `079${String(1000000 + i * 41111).slice(0, 7)}`,
+    gender: genders[i % genders.length], rating: (i % 5) + 1,
+    referralSource: ["instagram","friend","google","walkin","tiktok","returning"][i % 6]
+  }));
+  state.patients.push(...patients);
+
+  const cols = (state.scheduleColumns || []).filter(col => col.active !== false);
+  const services = (state.services || []).filter(svc => svc.active !== false);
+  const staff = state.staff || [];
+  const doctors = staff.filter(member => member.role === "doctor");
+  const specialists = staff.filter(member => member.role === "specialist");
+  const times = ["08:00","08:30","09:00","09:30","10:00","10:30","11:00","11:30","12:00","13:00","13:30","14:00","14:30","15:00","16:00","16:30","17:00"];
+  const statuses = ["scheduled","confirmed","arrived","completed","scheduled","confirmed","cancelled"];
+  let bookingN = 0;
+
+  for (let d = 0; d <= 2; d++) {
+    const date = dateOffset(d, state.settings.activeDate);
+    cols.forEach((col, ci) => {
+      for (let n = 0; n < 3; n++) {
+        const patient = patients[bookingN % patients.length];
+        const service = services[bookingN % services.length];
+        state.bookings.push(normalizeBooking({
+          id: nextId("booking"), date, time: times[(ci * 3 + n) % times.length],
+          patientId: patient.id, patient: patient.name, phone: patient.phone,
+          serviceId: service?.id || "", service: service?.name || "خدمة",
+          scheduleColumnId: col.id, status: statuses[bookingN % statuses.length],
+          expectedAmount: service?.defaultPrice || 50, createdAt: new Date().toISOString()
+        }, state.services));
+        bookingN++;
+      }
+    });
+  }
+
+  let opN = 0;
+  for (let d = 1; d <= 7; d++) {
+    const date = dateOffset(-d, state.settings.activeDate);
+    for (let n = 0; n < 5; n++) {
+      const patient = patients[opN % patients.length];
+      const service = services[opN % services.length];
+      const entry = normalizeEntry({
+        id: nextId("entry"), date, patientId: patient.id, patient: patient.name,
+        serviceId: service?.id || "", service: service?.name,
+        amount: service?.defaultPrice || 60, quantity: 1, cost: service?.defaultCost || 0,
+        doctorId: opN % 2 === 0 ? (doctors[opN % Math.max(doctors.length, 1)]?.id || "") : "",
+        specialistId: specialists[opN % Math.max(specialists.length, 1)]?.id || "",
+        paymentMethod: ["cash","card","transfer"][opN % 3], status: "completed"
+      }, state.services);
+      state.entries.push(entry);
+      opN++;
+    }
+  }
+
+  logEdit("تعبئة بيانات اختبار", `${patients.length} مريض · ${bookingN} حجز · ${opN} عملية`);
+  saveState();
+  render();
+  showToast(`تمت إضافة ${patients.length} مريض و ${bookingN} حجز و ${opN} عملية للاختبار`, "success");
+}
+
+document.addEventListener("click", async event => {
+  if (!event.target.closest("[data-seed-test-data]")) return;
+  if (await showConfirm("سيتم إضافة مرضى وحجوزات وعمليات تجريبية لتعبئة العيادة للاختبار. متابعة؟")) generateTestData();
+});
+
+// Calendar: show/hide the management area (KPIs, legend, column controls). Hidden
+// by default; the toggle is data-sensitive so restricted staff only ever see the rows.
+document.addEventListener("click", event => {
+  const toggle = event.target.closest("[data-calendar-manage-toggle]");
+  if (!toggle) return;
+  const view = toggle.closest('[data-view="bookings"]');
+  if (!view) return;
+  const open = view.classList.toggle("calendar-manage-open");
+  toggle.classList.toggle("active", open);
+});
+
 // Calendar: compact date picker replaces the month grid — pick a day or step ±1.
 els.bookingDateInput?.addEventListener("change", event => {
   const value = event.target.value;
