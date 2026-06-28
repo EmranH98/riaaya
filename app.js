@@ -2785,6 +2785,7 @@ async function initializeApp() {
   }
   runtime.ready = true;
   applyRuntimeUI();
+  renderImpersonationBanner();
   render();
   enforce2faRequirement();
   if (runtime.mode === "live" && runtime.session?.user?.mustChangePassword) {
@@ -12430,6 +12431,26 @@ function generateTestData() {
 document.addEventListener("click", async event => {
   if (!event.target.closest("[data-seed-test-data]")) return;
   if (await showConfirm("سيتم إضافة مرضى وحجوزات وعمليات تجريبية لتعبئة العيادة للاختبار. متابعة؟")) generateTestData();
+});
+
+// Owner impersonation banner — shown while an owner is browsing a clinic.
+function renderImpersonationBanner() {
+  const imp = runtime.session?.impersonating;
+  let banner = document.querySelector("[data-impersonation-banner]");
+  if (!imp?.active) { banner?.remove(); return; }
+  if (!banner) {
+    banner = document.createElement("div");
+    banner.setAttribute("data-impersonation-banner", "");
+    banner.className = "impersonation-banner";
+    document.body.prepend(banner);
+    document.body.classList.add("has-impersonation-banner");
+  }
+  banner.innerHTML = `<span>↪ أنت تتصفّح عيادة <strong>${imp.clinicName || ""}</strong> كمالك المنصّة — كل إجراء يُسجَّل.</span><button type="button" data-exit-impersonation>خروج والعودة للمالك</button>`;
+}
+document.addEventListener("click", async event => {
+  if (!event.target.closest("[data-exit-impersonation]")) return;
+  try { await fetch("/api/auth/exit-impersonation", { method: "POST", headers: { "X-CSRF-Token": runtime.csrfToken } }); } catch {}
+  window.location.href = "/owner";
 });
 
 // Calendar maximize: slide the sidebar off-screen so the calendar goes full width.

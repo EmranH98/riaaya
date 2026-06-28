@@ -16,7 +16,7 @@ import {
   setPlatformSetting,
   slugifyClinic
 } from "../lib/database.js";
-import { requireSession } from "./auth.js";
+import { requireSession, impersonateClinic } from "./auth.js";
 import { clientIp, hashPassword, isValidEmail, normalizeEmail, safeText, temporaryPassword, validatePassword } from "../lib/security.js";
 import { storageReadiness } from "../lib/storage-policy.js";
 import { offsiteBackupStatus, testOffsiteConnectivity } from "../lib/offsite-backup.js";
@@ -777,6 +777,9 @@ export default async function ownerHandler(req, res, url) {
 
   const settingsMatch = url.pathname.match(/^\/api\/owner\/clinics\/([^/]+)\/override-settings$/);
   if (settingsMatch && req.method === "PATCH") return overrideClinicSettings(req, res, settingsMatch[1]);
+
+  const impersonateMatch = url.pathname.match(/^\/api\/owner\/clinics\/([^/]+)\/impersonate$/);
+  if (impersonateMatch && req.method === "POST") return impersonateClinic(req, res, impersonateMatch[1]);
 
   sendJson(res, 404, { error: "owner_route_not_found" });
 }

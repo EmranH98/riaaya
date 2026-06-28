@@ -3991,6 +3991,18 @@ td {
 .growth-nophone { font-size: 11px; color: var(--ink-muted); }
 .growth-empty { padding: 22px 16px; text-align: center; color: var(--ink-soft); font-size: 13px; }
 
+/* Owner impersonation banner */
+.impersonation-banner {
+  position: sticky; top: 0; z-index: 300;
+  display: flex; align-items: center; justify-content: center; gap: 16px; flex-wrap: wrap;
+  background: #a32d2d; color: #fff; padding: 9px 18px; font-weight: 800; font-size: 13.5px;
+}
+.impersonation-banner strong { color: #ffe0b8; }
+.impersonation-banner button {
+  border: 0; background: #fff; color: #a32d2d; font-weight: 900; font-size: 12.5px;
+  padding: 6px 14px; border-radius: 8px; cursor: pointer;
+}
+
 /* Commission matrix — full-screen table, a value per service */
 .commission-table-modal { position: fixed; inset: 0; background: rgba(14,65,80,.45); z-index: 200; display: flex; align-items: stretch; justify-content: center; padding: 24px; }
 .commission-table-modal[hidden] { display: none; }

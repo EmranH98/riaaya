@@ -72,6 +72,7 @@ export function authenticateRequest(req) {
       sessions.token_hash,
       sessions.csrf_token,
       sessions.expires_at,
+      sessions.impersonated_by_user_id,
       users.*,
       clinics.name as clinic_name,
       clinics.slug as clinic_slug,
@@ -130,7 +131,8 @@ export function authenticateRequest(req) {
     session: {
       tokenHash: row.token_hash,
       csrfToken: row.csrf_token,
-      expiresAt: row.expires_at
+      expiresAt: row.expires_at,
+      impersonatedBy: row.impersonated_by_user_id || null
     },
     user: publicUser(row),
     clinic: publicClinic(clinic)
@@ -175,14 +177,14 @@ export function requireSession(req, res, { owner = false, csrf = false } = {}) {
   return auth;
 }
 
-function createSession(req, res, userId) {
+function createSession(req, res, userId, impersonatedBy = null) {
   const token = randomToken();
   const csrfToken = randomToken(24);
   const createdAt = nowIso();
   const expiresAt = new Date(Date.now() + SESSION_SECONDS * 1000).toISOString();
   db.prepare(`
-    insert into sessions (token_hash, user_id, csrf_token, expires_at, ip_address, user_agent, created_at)
-    values (?, ?, ?, ?, ?, ?, ?)
+    insert into sessions (token_hash, user_id, csrf_token, expires_at, ip_address, user_agent, created_at, impersonated_by_user_id)
+    values (?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     tokenHash(token),
     userId,
@@ -190,10 +192,41 @@ function createSession(req, res, userId) {
     expiresAt,
     clientIp(req),
     String(req.headers["user-agent"] || "").slice(0, 500),
-    createdAt
+    createdAt,
+    impersonatedBy || null
   );
   res.setHeader("Set-Cookie", sessionCookie(token, SESSION_SECONDS));
   return { csrfToken, expiresAt };
+}
+
+// Owner enters a clinic safely: a fresh session for that clinic's admin, tagged
+// with the owner's id so the app shows a banner and the owner can be restored.
+export function impersonateClinic(req, res, clinicId) {
+  const auth = requireSession(req, res, { owner: true, csrf: true });
+  if (!auth) return;
+  const admin = db.prepare(
+    "select * from users where clinic_id = ? and role = 'admin' and active = 1 order by created_at asc limit 1"
+  ).get(clinicId);
+  if (!admin) { sendJson(res, 404, { error: "clinic_admin_not_found" }); return; }
+  const clinic = db.prepare("select * from clinics where id = ?").get(clinicId);
+  db.prepare("delete from sessions where token_hash = ?").run(auth.session.tokenHash);
+  createSession(req, res, admin.id, auth.user.id);
+  audit({ clinicId, userId: auth.user.id, action: "impersonate_start", entity: "clinic", entityId: clinicId, metadata: { clinic: clinic?.name, admin: admin.email, by: "platform_owner" }, ipAddress: clientIp(req) });
+  sendJson(res, 200, { ok: true, clinic: clinic?.name || "" });
+}
+
+// Exit impersonation: end the clinic session and restore the original owner.
+function exitImpersonation(req, res) {
+  const auth = requireSession(req, res, { csrf: true });
+  if (!auth) return;
+  const ownerId = auth.session.impersonatedBy;
+  if (!ownerId) { sendJson(res, 400, { error: "not_impersonating" }); return; }
+  const owner = db.prepare("select * from users where id = ? and role = 'platform_owner' and active = 1").get(ownerId);
+  if (!owner) { sendJson(res, 400, { error: "owner_not_found" }); return; }
+  db.prepare("delete from sessions where token_hash = ?").run(auth.session.tokenHash);
+  createSession(req, res, owner.id);
+  audit({ clinicId: auth.user.clinicId || null, userId: owner.id, action: "impersonate_end", entity: "clinic", entityId: auth.user.clinicId || null, metadata: { clinic: auth.clinic?.name, admin: auth.user.email }, ipAddress: clientIp(req) });
+  sendJson(res, 200, { ok: true });
 }
 
 function login(req, res) {
@@ -612,8 +645,16 @@ export default async function authHandler(req, res, url) {
   if (req.method === "GET" && url.pathname === "/api/auth/session") {
     const auth = authenticateRequest(req);
     sendJson(res, 200, auth
-      ? { authenticated: true, user: auth.user, clinic: auth.clinic, csrfToken: auth.session.csrfToken, expiresAt: auth.session.expiresAt }
+      ? {
+          authenticated: true, user: auth.user, clinic: auth.clinic,
+          csrfToken: auth.session.csrfToken, expiresAt: auth.session.expiresAt,
+          impersonating: auth.session.impersonatedBy ? { active: true, clinicName: auth.clinic?.name || "" } : null
+        }
       : { authenticated: false });
+    return;
+  }
+  if (req.method === "POST" && url.pathname === "/api/auth/exit-impersonation") {
+    exitImpersonation(req, res);
     return;
   }
   if (req.method === "POST" && url.pathname === "/api/auth/login") {

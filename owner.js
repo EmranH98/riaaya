@@ -137,6 +137,7 @@ function renderClinics() {
           <option value="white_glove" ${clinic.supportTier === "white_glove" ? "selected" : ""}>إعداد كامل</option>
         </select>
         <button type="button" data-save-clinic="${clinic.id}">حفظ التغييرات</button>
+        <button class="secondary-control" type="button" data-enter-clinic="${clinic.id}" title="الدخول إلى حساب العيادة كمالك (يُسجَّل)">↪ دخول العيادة</button>
         <button class="secondary-control" type="button" data-reset-clinic-password="${clinic.id}">كلمة مرور مؤقتة للمدير</button>
         <button class="secondary-control" type="button" data-reset-user-password="${clinic.id}">إعادة كلمة مرور موظف</button>
         <button class="secondary-control" type="button" data-disable-user-twofa="${clinic.id}">إيقاف 2FA لمستخدم</button>
@@ -737,6 +738,25 @@ document.addEventListener("click", async event => {
   }
 
   // Reset admin password
+  const enterClinicId = target.dataset.enterClinic;
+  if (enterClinicId) {
+    if (!confirm("سيتم الدخول إلى حساب هذه العيادة كمالك. سيُسجَّل هذا الإجراء في السجل. متابعة؟")) return;
+    target.disabled = true;
+    try {
+      const response = await fetch(`/api/owner/clinics/${enterClinicId}/impersonate`, {
+        method: "POST",
+        headers: { "X-CSRF-Token": ownerSession.csrfToken }
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "impersonate_failed");
+      window.location.href = "/app.html";
+    } catch (err) {
+      alert("تعذّر الدخول إلى العيادة: " + (err.message || ""));
+      target.disabled = false;
+    }
+    return;
+  }
+
   const resetAdminId = target.dataset.resetClinicPassword;
   if (resetAdminId) {
     if (!confirm("سيتم إلغاء جلسات مدير العيادة الحالية وإصدار كلمة مرور مؤقتة. هل تريد المتابعة؟")) return;
