@@ -1363,12 +1363,20 @@ function findOrCreatePatientByName(name) {
 function normalizeRule(rule) {
   const appliesTo = rule.appliesTo || rule.applies_to || "doctor";
   const isOldDoctorDefault = rule.id === "rule-doctors-net-default" && rule.model === "pct_net" && asNumber(rule.value) === 50;
+  const personIds = Array.isArray(rule.personIds)
+    ? [...new Set(rule.personIds.filter(Boolean))]
+    : ((rule.personId || rule.person_id) ? [rule.personId || rule.person_id] : []);
+  const serviceIds = Array.isArray(rule.serviceIds)
+    ? [...new Set(rule.serviceIds.filter(Boolean))]
+    : ((rule.serviceId || rule.service_id) ? [rule.serviceId || rule.service_id] : []);
   return {
     id: rule.id || nextId("rule"),
     name: isOldDoctorDefault ? "الأطباء | نسبة العضو من الربح الصافي" : rule.name || "قاعدة بدون اسم",
     appliesTo: appliesTo === "staff" ? "specialist" : appliesTo,
-    personId: rule.personId || rule.person_id || "",
-    serviceId: rule.serviceId || rule.service_id || "",
+    personId: personIds[0] || "",
+    personIds,
+    serviceId: serviceIds[0] || "",
+    serviceIds,
     category: rule.category || "",
     model: isOldDoctorDefault ? "member_rate" : rule.model || "pct_net",
     value: isOldDoctorDefault ? 0 : asNumber(rule.value),
@@ -3248,18 +3256,26 @@ function ruleModelLabel(model) {
 }
 
 function ruleDescription(rule) {
-  const person = rule.personId ? getStaffMember(rule.personId)?.name : "كل الفريق";
-  const service = rule.category ? `كل فئة: ${rule.category}` : (rule.serviceId ? getService(rule.serviceId)?.name : "كل الخدمات");
+  const people = rule.personIds?.length ? rule.personIds : (rule.personId ? [rule.personId] : []);
+  const services = rule.serviceIds?.length ? rule.serviceIds : (rule.serviceId ? [rule.serviceId] : []);
+  const personLabel = people.length
+    ? people.map(id => getStaffMember(id)?.name).filter(Boolean).join("، ")
+    : "كل الفريق";
+  const serviceLabelText = rule.category
+    ? `كل فئة: ${rule.category}`
+    : (services.length ? services.map(id => getService(id)?.name).filter(Boolean).join("، ") : "كل الخدمات");
   const value = rule.model === "member_rate" ? "حسب نسبة الموظف" : `${rule.value}%`;
   const fixedValue = rule.model === "fixed" ? money(rule.value) : value;
-  return `${roleLabel(rule.appliesTo)} | ${person} | ${service} | ${ruleModelLabel(rule.model)} (${fixedValue})`;
+  return `${roleLabel(rule.appliesTo)} | ${personLabel} | ${serviceLabelText} | ${ruleModelLabel(rule.model)} (${fixedValue})`;
 }
 
 function findRule(appliesTo, personId, serviceId, category = "") {
   const candidates = state.rules.filter(rule => {
+    const people = rule.personIds?.length ? rule.personIds : (rule.personId ? [rule.personId] : []);
+    const services = rule.serviceIds?.length ? rule.serviceIds : (rule.serviceId ? [rule.serviceId] : []);
     const roleMatches = rule.active !== false && rule.appliesTo === appliesTo;
-    const personMatches = !rule.personId || rule.personId === personId;
-    const serviceMatches = !rule.serviceId || rule.serviceId === serviceId;
+    const personMatches = !people.length || people.includes(personId);
+    const serviceMatches = !services.length || services.includes(serviceId);
     const categoryMatches = !rule.category || rule.category === category;
     return roleMatches && personMatches && serviceMatches && categoryMatches;
   });
@@ -3269,7 +3285,7 @@ function findRule(appliesTo, personId, serviceId, category = "") {
   return candidates
     .map(rule => ({
       rule,
-      score: (rule.personId ? 10 : 0) + (rule.serviceId ? 5 : 0) + (rule.category ? 3 : 0)
+      score: (rule.personIds?.length ? 10 : 0) + (rule.serviceIds?.length ? 5 : 0) + (rule.category ? 3 : 0)
     }))
     .sort((a, b) => b.score - a.score)[0].rule;
 }
@@ -4428,17 +4444,36 @@ function renderStaffSelects() {
   renderRulePersonSelect();
 }
 
+let _editingRuleId = "";
+
 function renderRulePersonSelect() {
   if (!els.rulePersonSelect || !els.ruleForm) return;
   const appliesTo = els.ruleForm.elements.appliesTo.value;
+  const editing = _editingRuleId ? (state.rules || []).find(rule => rule.id === _editingRuleId) : null;
+  const checkedPeople = new Set(editing ? (editing.personIds?.length ? editing.personIds : (editing.personId ? [editing.personId] : [])) : []);
   const people = state.staff.filter(member => member.role === appliesTo);
   els.rulePersonSelect.innerHTML = people.length
     ? people.map(member => `
       <label class="rule-person-check">
-        <input type="checkbox" name="personId" value="${member.id}">
+        <input type="checkbox" name="personId" value="${member.id}"${checkedPeople.has(member.id) ? " checked" : ""}>
         <span>${member.name}</span>
       </label>`).join("")
     : `<div class="empty-state">لا يوجد ${appliesTo === "doctor" ? "أطباء" : "أخصائيون"} بعد — أضف الموظفين أولاً.</div>`;
+  renderRuleServiceSelect();
+}
+
+function renderRuleServiceSelect() {
+  if (!els.ruleServiceSelect) return;
+  const editing = _editingRuleId ? (state.rules || []).find(rule => rule.id === _editingRuleId) : null;
+  const checkedServices = new Set(editing ? (editing.serviceIds?.length ? editing.serviceIds : (editing.serviceId ? [editing.serviceId] : [])) : []);
+  const services = (state.services || []).filter(service => service.active !== false);
+  els.ruleServiceSelect.innerHTML = services.length
+    ? services.map(service => `
+      <label class="rule-person-check">
+        <input type="checkbox" name="serviceId" value="${service.id}"${checkedServices.has(service.id) ? " checked" : ""}>
+        <span>${service.name}${service.category ? ` <em>(${service.category})</em>` : ""}</span>
+      </label>`).join("")
+    : `<div class="empty-state">أضف خدمات أولاً.</div>`;
 }
 
 function renderInventorySelects() {
@@ -6021,12 +6056,15 @@ function renderRuleList() {
   }
 
   els.ruleList.innerHTML = state.rules.map(rule => `
-    <div class="staff-card">
+    <div class="staff-card${rule.id === _editingRuleId ? " editing" : ""}">
       <div>
         <strong>${rule.name}</strong>
         <p>${ruleDescription(rule)}</p>
       </div>
-      <button class="icon-button danger" type="button" data-delete-rule="${rule.id}">حذف</button>
+      <div class="rule-card-actions">
+        <button class="text-button" type="button" data-edit-rule="${rule.id}">تعديل</button>
+        <button class="icon-button danger" type="button" data-delete-rule="${rule.id}">حذف</button>
+      </div>
     </div>
   `).join("");
 }
@@ -12238,6 +12276,12 @@ document.addEventListener("change", event => {
   renderReports();
 });
 
+// Commission rules: edit an existing القاعدة (load it back into the form).
+document.addEventListener("click", event => {
+  const editBtn = event.target.closest("[data-edit-rule]");
+  if (editBtn) startEditRule(editBtn.dataset.editRule);
+});
+
 // Growth center: sending WhatsApp or pressing "تم" records the contact (so the
 // patient drops off the list for the cooldown window). The WhatsApp link opens
 // normally — we don't preventDefault.
@@ -12963,31 +13007,52 @@ if (els.ruleForm) {
     if (!canViewSensitive()) return;
     const formData = new FormData(els.ruleForm);
     const data = Object.fromEntries(formData.entries());
-    const target = parseRuleTarget(data.serviceId);
-    // One named rule can be applied to several employees at once (a template):
-    // empty selection = the whole role.
+    // One named rule (القاعدة) can cover several employees AND several services
+    // at once; empty = the whole role / all services. Editable afterwards.
     const personIds = formData.getAll("personId").filter(Boolean);
-    const targets = personIds.length ? personIds : [""];
-    targets.forEach(personId => {
-      state.rules.push(normalizeRule({
-        id: nextId("rule"),
-        name: data.name.trim(),
-        appliesTo: data.appliesTo,
-        personId,
-        serviceId: target.serviceId,
-        category: target.category,
-        model: data.model,
-        value: data.model === "member_rate" ? 0 : data.value,
-        active: true
-      }));
-    });
-    logEdit("إضافة قاعدة", `${data.name.trim()} — ${targets.length} موظف`);
+    const serviceIds = formData.getAll("serviceId").filter(Boolean);
+    const ruleData = {
+      name: data.name.trim(),
+      appliesTo: data.appliesTo,
+      personIds,
+      serviceIds,
+      category: "",
+      model: data.model,
+      value: data.model === "member_rate" ? 0 : data.value,
+      active: true
+    };
+    const summary = `${ruleData.name} — ${personIds.length || "كل"} موظف · ${serviceIds.length || "كل"} خدمة`;
+    if (_editingRuleId) {
+      const idx = state.rules.findIndex(rule => rule.id === _editingRuleId);
+      if (idx >= 0) state.rules[idx] = normalizeRule({ ...ruleData, id: _editingRuleId });
+      logEdit("تعديل قاعدة", summary);
+    } else {
+      state.rules.push(normalizeRule({ id: nextId("rule"), ...ruleData }));
+      logEdit("إضافة قاعدة", summary);
+    }
+    _editingRuleId = "";
     els.ruleForm.reset();
+    const submitBtn = els.ruleForm.querySelector(".form-submit");
+    if (submitBtn) submitBtn.textContent = "حفظ القاعدة";
     saveState();
     render();
   });
 
   els.ruleForm.elements.appliesTo.addEventListener("change", renderRulePersonSelect);
+}
+
+function startEditRule(ruleId) {
+  const rule = (state.rules || []).find(item => item.id === ruleId);
+  if (!rule || !els.ruleForm) return;
+  _editingRuleId = ruleId;
+  els.ruleForm.elements.name.value = rule.name || "";
+  els.ruleForm.elements.appliesTo.value = rule.appliesTo || "doctor";
+  els.ruleForm.elements.model.value = rule.model || "pct_net";
+  els.ruleForm.elements.value.value = rule.model === "member_rate" ? "" : numberValue(rule.value);
+  renderRulePersonSelect();
+  const submitBtn = els.ruleForm.querySelector(".form-submit");
+  if (submitBtn) submitBtn.textContent = "تحديث القاعدة";
+  els.ruleForm.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
 function applyOrderToItem(order, shouldReceive = false) {

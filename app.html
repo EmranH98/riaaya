@@ -1206,6 +1206,7 @@
               </div>
             </div>
             <form class="entry-form" data-rule-form>
+              <input type="hidden" name="editingRuleId" data-rule-editing-id value="">
               <label>
                 اسم القاعدة
                 <input name="name" type="text" placeholder="د. ليلى — 60% ليزر" required>
@@ -1219,10 +1220,8 @@
               </label>
               <label>الموظفون (اضغط لاختيار من تُطبَّق عليهم — بدون اختيار = الكل)</label>
               <div class="rule-person-checks" data-rule-person-select></div>
-              <label>
-                الخدمة
-                <select name="serviceId" data-rule-service-select></select>
-              </label>
+              <label>الخدمات (اختر خدمة أو أكثر تشترك في نفس النسبة — بدون اختيار = كل الخدمات)</label>
+              <div class="rule-person-checks" data-rule-service-select></div>
               <label>
                 طريقة الحساب
                 <select name="model" required>
