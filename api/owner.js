@@ -60,8 +60,10 @@ function cleanLimits(input, plan, fallback) {
 function cleanBranding(input, fallback = {}) {
   const source = input && typeof input === "object" ? input : {};
   const accent = safeText(source.accentColor || fallback.accentColor || "", 20);
+  const sidebar = safeText(source.sidebarColor || fallback.sidebarColor || "", 20);
   return {
     accentColor: /^#[0-9a-f]{6}$/i.test(accent) ? accent : "",
+    sidebarColor: /^#[0-9a-f]{6}$/i.test(sidebar) ? sidebar : "",
     workspaceLabel: safeText(source.workspaceLabel || fallback.workspaceLabel || "", 80)
   };
 }

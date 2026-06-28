@@ -2708,23 +2708,34 @@ function nearestAllowedDate(account) {
   return today;
 }
 
-const BRAND_VARS = ["--teal", "--teal-light", "--teal-dark", "--teal-pale", "--sidebar-text-active", "--status-done", "--status-done-pale"];
-// Derive the whole teal family (+ sidebar/status accents) from one brand color
-// so an owner-set clinic color re-skins the entire app, not just buttons.
-function applyBrandColor(hex) {
+const BRAND_VARS = ["--teal", "--teal-light", "--teal-dark", "--teal-pale", "--status-done", "--status-done-pale", "--sidebar-bg", "--sidebar-text", "--sidebar-text-active", "--sidebar-active", "--sidebar-hover"];
+// Derive the whole palette — including the sidebar background — from one brand
+// color so an owner-set clinic color re-skins the entire app (sidebar included).
+// An optional explicit sidebar color overrides; either way it's forced dark
+// enough that the white nav text stays legible.
+function applyBrandColor(hex, sidebarHex) {
   const root = document.documentElement;
-  const rgb = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
+  const parse = value => [1, 3, 5].map(i => parseInt(value.slice(i, i + 2), 16));
   const clamp = value => Math.max(0, Math.min(255, Math.round(value)));
   const toHex = arr => "#" + arr.map(value => clamp(value).toString(16).padStart(2, "0")).join("");
-  const towardWhite = t => rgb.map(channel => channel + (255 - channel) * t);
-  const darken = t => rgb.map(channel => channel * (1 - t));
+  const towardWhite = (rgb, t) => rgb.map(channel => channel + (255 - channel) * t);
+  const darken = (rgb, t) => rgb.map(channel => channel * (1 - t));
+  const rgb = parse(hex);
   root.style.setProperty("--teal", hex);
-  root.style.setProperty("--teal-light", toHex(towardWhite(0.14)));
-  root.style.setProperty("--teal-dark", toHex(darken(0.22)));
-  root.style.setProperty("--teal-pale", toHex(towardWhite(0.88)));
-  root.style.setProperty("--sidebar-text-active", hex);
+  root.style.setProperty("--teal-light", toHex(towardWhite(rgb, 0.14)));
+  root.style.setProperty("--teal-dark", toHex(darken(rgb, 0.22)));
+  root.style.setProperty("--teal-pale", toHex(towardWhite(rgb, 0.88)));
   root.style.setProperty("--status-done", hex);
-  root.style.setProperty("--status-done-pale", toHex(towardWhite(0.88)));
+  root.style.setProperty("--status-done-pale", toHex(towardWhite(rgb, 0.88)));
+  // Sidebar background: explicit color if given, else a dark shade of the brand.
+  let side = sidebarHex && /^#[0-9a-fA-F]{6}$/.test(sidebarHex) ? parse(sidebarHex) : darken(rgb, 0.55);
+  const lum = 0.299 * side[0] + 0.587 * side[1] + 0.114 * side[2];
+  if (lum > 70) side = side.map(channel => channel * (60 / lum)); // keep it dark for white text
+  root.style.setProperty("--sidebar-bg", toHex(side));
+  root.style.setProperty("--sidebar-text", "rgba(255,255,255,0.65)");
+  root.style.setProperty("--sidebar-text-active", "#ffffff");
+  root.style.setProperty("--sidebar-active", "rgba(255,255,255,0.14)");
+  root.style.setProperty("--sidebar-hover", "rgba(255,255,255,0.08)");
 }
 function clearBrandColor() {
   BRAND_VARS.forEach(variable => document.documentElement.style.removeProperty(variable));
@@ -2734,7 +2745,7 @@ function applyRuntimeUI() {
   const live = runtime.mode === "live";
   const branding = runtime.session?.clinic?.branding || {};
   if (live && branding.accentColor && /^#[0-9a-fA-F]{6}$/.test(branding.accentColor)) {
-    applyBrandColor(branding.accentColor);
+    applyBrandColor(branding.accentColor, branding.sidebarColor);
   } else {
     clearBrandColor();
   }

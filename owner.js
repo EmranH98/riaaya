@@ -182,7 +182,8 @@ function renderClinics() {
           <section>
             <h3>الهوية والملاحظات</h3>
             <div class="branding-grid">
-              <label>لون العيادة<input data-clinic-branding="accentColor" type="color" value="${clinic.branding?.accentColor || "#0a7c5c"}"></label>
+              <label>لون العيادة (الأزرار والمؤشرات)<input data-clinic-branding="accentColor" type="color" value="${clinic.branding?.accentColor || "#0a7c5c"}"></label>
+              <label>لون الشريط الجانبي (اختياري)<input data-clinic-branding="sidebarColor" type="color" value="${clinic.branding?.sidebarColor || clinic.branding?.accentColor || "#0d2419"}"><small>اتركه فارغاً ليُشتق تلقائياً من لون العيادة — يُحفظ داكناً ليبقى النص واضحاً.</small></label>
               <label>اسم المساحة<input data-clinic-branding="workspaceLabel" type="text" value="${clinic.branding?.workspaceLabel || ""}" placeholder="مثلاً: مساحة VIP"></label>
               <label class="wide-field">ملاحظات داخلية<textarea data-clinic-owner-notes rows="4" placeholder="تسعير خاص، احتياج تدريب، ملاحظات المبيعات...">${clinic.ownerNotes || ""}</textarea></label>
               <div class="wide-field">
