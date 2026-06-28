@@ -12468,10 +12468,26 @@ document.addEventListener("click", event => {
 });
 document.addEventListener("mousemove", event => {
   const shell = document.querySelector(".app-shell");
-  if (!shell?.classList.contains("calendar-focus")) return;
+  if (!shell || (!shell.classList.contains("calendar-focus") && !shell.classList.contains("nav-autohide"))) return;
   if (event.clientX > window.innerWidth - 16) shell.classList.add("sidebar-peek");
   else if (event.clientX < window.innerWidth - 290) shell.classList.remove("sidebar-peek");
 });
+
+// Global auto-hide sidebar (any page): minimizes the sidebar off-screen; it
+// reveals when the mouse reaches the right edge. Persisted.
+function setNavAutohide(on) {
+  const shell = document.querySelector(".app-shell");
+  if (!shell) return;
+  shell.classList.toggle("nav-autohide", on);
+  if (!on) shell.classList.remove("sidebar-peek");
+  document.querySelectorAll("[data-nav-autohide-toggle]").forEach(btn => btn.classList.toggle("active", on));
+  try { localStorage.setItem("riaaya-nav-autohide", on ? "1" : "0"); } catch {}
+}
+document.addEventListener("click", event => {
+  if (!event.target.closest("[data-nav-autohide-toggle]")) return;
+  setNavAutohide(!document.querySelector(".app-shell")?.classList.contains("nav-autohide"));
+});
+try { if (localStorage.getItem("riaaya-nav-autohide") === "1") setNavAutohide(true); } catch {}
 
 // Calendar: show/hide the management area (KPIs, legend, column controls). Hidden
 // by default; the toggle is data-sensitive so restricted staff only ever see the rows.
