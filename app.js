@@ -4289,6 +4289,8 @@ function renderClinicForm() {
   els.clinicForm.elements.clinicName.value = state.settings.clinicName;
   els.clinicForm.elements.activeDate.value = state.settings.activeDate;
   els.clinicForm.elements.branch.value = state.settings.branch || "";
+  if (els.clinicForm.elements.workStart) els.clinicForm.elements.workStart.value = state.settings.workStart || "08:00";
+  if (els.clinicForm.elements.workEnd) els.clinicForm.elements.workEnd.value = state.settings.workEnd || "18:00";
   els.clinicTitle.textContent = state.settings.clinicName;
   if (els.bookingForm && !els.bookingForm.elements.date.value) {
     els.bookingForm.elements.date.value = state.settings.activeDate;
@@ -7018,8 +7020,8 @@ function isTimeOnScheduleSlot(timeString, stepMinutes = scheduleSlotMinutes()) {
 
 function dayScheduleSlots(bookings) {
   const stepMinutes = scheduleSlotMinutes();
-  const openMinute = 8 * 60;
-  const closeMinute = 18 * 60;
+  const openMinute = minutesFromTime(state.settings.workStart || "08:00");
+  const closeMinute = Math.max(minutesFromTime(state.settings.workEnd || "18:00"), openMinute + stepMinutes);
   const bookingMinutes = bookings.map(booking => minutesFromTime(booking.time));
   const firstMinute = bookingMinutes.length
     ? Math.min(openMinute, Math.floor(Math.min(...bookingMinutes) / stepMinutes) * stepMinutes)
@@ -12605,6 +12607,8 @@ els.clinicForm.addEventListener("submit", event => {
     clinicName: data.clinicName.trim(),
     activeDate: data.activeDate,
     branch: data.branch.trim(),
+    workStart: /^\d{2}:\d{2}$/.test(data.workStart) ? data.workStart : (state.settings.workStart || "08:00"),
+    workEnd: /^\d{2}:\d{2}$/.test(data.workEnd) ? data.workEnd : (state.settings.workEnd || "18:00"),
     language: currentLanguage()
   };
   if (els.bookingForm) {

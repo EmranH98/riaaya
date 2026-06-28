@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260623i">
+  <link rel="stylesheet" href="app.css?v=20260623j">
 </head>
 <body>
 
@@ -276,6 +276,14 @@
             <label>
               الفرع
               <input name="branch" type="text" placeholder="الفرع الرئيسي">
+            </label>
+            <label>
+              بداية الدوام
+              <input name="workStart" type="time" step="900" value="08:00">
+            </label>
+            <label>
+              نهاية الدوام
+              <input name="workEnd" type="time" step="900" value="18:00">
             </label>
             <button class="dark-button" type="submit">حفظ الإعدادات</button>
           </form>
@@ -3089,7 +3097,7 @@
       </form>
     </div>
   </div>
-  <script src="app.js?v=20260623i"></script>
+  <script src="app.js?v=20260623j"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>
