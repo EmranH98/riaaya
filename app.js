@@ -66,6 +66,7 @@ const today = `${jordanDateParts.year}-${jordanDateParts.month}-${jordanDatePart
 const VIEW_LABELS = {
   dashboard: "ملخص اليوم",
   growth: "فرص النمو",
+  products: "المنتجات",
   entries: "عمليات اليوم",
   patients: "ملفات المرضى والزوار",
   bookings: "الحجوزات",
@@ -1127,6 +1128,76 @@ document.addEventListener("click", event => {
   }
 });
 
+document.addEventListener("change", event => {
+  if (event.target.matches("[data-inventory-isproduct]")) {
+    const wrap = document.querySelector("[data-inventory-saleprice-wrap]");
+    if (wrap) wrap.hidden = !event.target.checked;
+  }
+});
+
+// ── Products: a sellable inventory item; selling deducts stock + books revenue ──
+function sellProduct(itemId, qty, paymentMethod, patientName) {
+  const item = getInventoryItem(itemId);
+  if (!item || !(qty > 0)) return false;
+  const amount = asNumber(item.salePrice) * qty;
+  const entry = normalizeEntry({
+    id: nextId("entry"),
+    date: state.settings.activeDate,
+    patient: (patientName || "").trim() || "بيع منتج",
+    service: item.name,
+    serviceId: "",
+    amount,
+    unitPrice: asNumber(item.salePrice),
+    quantity: qty,
+    cost: asNumber(item.unitCost) * qty,
+    discount: 0,
+    paymentMethod: paymentMethod || "cash",
+    status: "completed",
+    category: "منتجات",
+    productId: item.id
+  }, state.services);
+  state.entries.push(entry);
+  item.quantity = Math.max(0, asNumber(item.quantity) - qty);
+  state.inventoryMovements = state.inventoryMovements || [];
+  state.inventoryMovements.push({
+    id: nextId("invmove"), itemId: item.id, qty: -qty, reason: "sale",
+    entryId: entry.id, date: entry.date, at: new Date().toISOString()
+  });
+  logEdit("بيع منتج", `${item.name} × ${qty} · ${money(amount)}`);
+  saveState();
+  render();
+  return true;
+}
+
+function renderProducts() {
+  if (!els.productsList) return;
+  const products = (state.inventory || []).filter(item => item.isProduct && item.active !== false);
+  if (!products.length) {
+    els.productsList.innerHTML = `<div class="empty-state">لا توجد منتجات بعد. فعّل خيار «منتج للبيع» على أي صنف في المخزون لإظهاره هنا.</div>`;
+    return;
+  }
+  const showSensitive = canViewSensitive();
+  const rows = products.map(item => {
+    const margin = asNumber(item.salePrice) - asNumber(item.unitCost);
+    const low = item.lowThreshold > 0 && item.quantity <= item.lowThreshold;
+    return `
+      <tr>
+        <td><strong>${item.name}</strong>${item.sku ? ` <small>${item.sku}</small>` : ""}</td>
+        <td><span class="${low ? "stock-low" : ""}">${numberValue(item.quantity)} ${item.unit}</span></td>
+        <td>${money(asNumber(item.salePrice))}</td>
+        ${showSensitive ? `<td>${money(asNumber(item.unitCost))}</td><td>${money(margin)}</td>` : ""}
+        <td><button class="dark-button" type="button" data-sell-product="${item.id}" ${item.quantity <= 0 ? "disabled" : ""}>بيع</button></td>
+      </tr>`;
+  }).join("");
+  els.productsList.innerHTML = `
+    <div class="table-wrap">
+      <table class="practical-table">
+        <thead><tr><th>المنتج</th><th>المتوفر</th><th>سعر البيع</th>${showSensitive ? "<th>التكلفة</th><th>الربح/وحدة</th>" : ""}<th></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
 // Single source of truth for categories — gathered from services, packages, and
 // calendar columns so a category defined anywhere shows up in every picker.
 function serviceCategories() {
@@ -1606,6 +1677,8 @@ function normalizeInventoryItem(item) {
     quantity: asNumber(item.quantity ?? item.stock),
     lowThreshold: asNumber(item.lowThreshold ?? item.low_threshold ?? item.reorderPoint),
     unitCost: asNumber(item.unitCost ?? item.unit_cost ?? item.cost),
+    isProduct: item.isProduct === true || item.is_product === true,
+    salePrice: asNumber(item.salePrice ?? item.sale_price ?? item.price),
     supplierId: item.supplierId || item.supplier_id || "",
     lastOrderedAt: item.lastOrderedAt || item.last_ordered_at || "",
     active: item.active !== false
@@ -2049,6 +2122,7 @@ const els = {
   ruleForm: document.querySelector("[data-rule-form]"),
   supplierForm: document.querySelector("[data-supplier-form]"),
   inventoryForm: document.querySelector("[data-inventory-form]"),
+  productsList: document.querySelector("[data-products-list]"),
   orderForm: document.querySelector("[data-order-form]"),
   bookingForm: document.querySelector("[data-booking-form]"),
   reconcileForm: document.querySelector("[data-reconcile-form]"),
@@ -10522,6 +10596,7 @@ function render() {
   renderStaffSelects();
   renderInventorySelects();
   populateConsumeSelects();
+  renderProducts();
   renderKpis(entries, totals, diffs);
   renderDashboardSummary(entries, totals, diffs, weekEntries, weekTotals);
   renderDashboardCommandCenter(entries);
@@ -12508,6 +12583,47 @@ if (els.serviceForm) {
   });
 }
 
+// ── Product quick-sell modal ───────────────────────────────────────────────
+(function initProductSale() {
+  const modal = document.querySelector("[data-product-sale-modal]");
+  if (!modal) return;
+  const form = modal.querySelector("[data-product-sale-form]");
+  const nameEl = modal.querySelector("[data-product-sale-name]");
+  const totalEl = modal.querySelector("[data-product-sale-total]");
+  const close = () => { modal.hidden = true; };
+  const updateTotal = () => {
+    const item = getInventoryItem(form.elements.productId.value);
+    const qty = Math.max(1, Number(form.elements.qty.value) || 1);
+    if (totalEl) totalEl.textContent = money(asNumber(item?.salePrice) * qty);
+  };
+
+  function open(itemId) {
+    const item = getInventoryItem(itemId);
+    if (!item) return;
+    form.elements.productId.value = item.id;
+    form.elements.qty.value = "1";
+    form.elements.patient.value = "";
+    if (nameEl) nameEl.textContent = item.name;
+    updateTotal();
+    modal.hidden = false;
+  }
+
+  form.elements.qty.addEventListener("input", updateTotal);
+  form.addEventListener("submit", event => {
+    event.preventDefault();
+    const data = Object.fromEntries(new FormData(form).entries());
+    const ok = sellProduct(data.productId, Math.max(1, Number(data.qty) || 1), data.paymentMethod, data.patient);
+    if (ok) close();
+  });
+  modal.querySelectorAll("[data-product-sale-close]").forEach(button => button.addEventListener("click", close));
+  modal.addEventListener("click", event => { if (event.target === modal) close(); });
+  document.addEventListener("keydown", event => { if (event.key === "Escape" && !modal.hidden) close(); });
+  document.addEventListener("click", event => {
+    const trigger = event.target.closest("[data-sell-product]");
+    if (trigger) open(trigger.dataset.sellProduct);
+  });
+})();
+
 // ── Edit a treatment from the all-treatments browse table ──────────────────
 (function initEditService() {
   const modal = document.querySelector("[data-edit-service-modal]");
@@ -12880,10 +12996,14 @@ if (els.inventoryForm) {
       quantity: data.quantity,
       lowThreshold: data.lowThreshold,
       unitCost: data.unitCost,
+      isProduct: data.isProduct === "on",
+      salePrice: data.salePrice,
       supplierId: data.supplierId,
       active: true
     }));
     els.inventoryForm.reset();
+    const salePriceWrap = els.inventoryForm.querySelector("[data-inventory-saleprice-wrap]");
+    if (salePriceWrap) salePriceWrap.hidden = true;
     saveState();
     render();
   });

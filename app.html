@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260623c">
+  <link rel="stylesheet" href="app.css?v=20260623d">
 </head>
 <body>
 
@@ -112,6 +112,7 @@
         <div class="nav-group">
           <button class="nav-group-label" type="button" data-nav-group="admin"><span>الإدارة</span><svg class="nav-group-chevron" aria-hidden="true"><use href="#ic-chevron"/></svg></button>
           <button class="nav-item" data-view-button="service-admin" type="button" title="إضافة خدمة وتسعيرها"><svg class="nav-ic" aria-hidden="true"><use href="#ic-tag"/></svg><span class="nav-label">إضافة خدمة</span></button>
+          <button class="nav-item" data-view-button="products" type="button" title="المنتجات للبيع"><svg class="nav-ic" aria-hidden="true"><use href="#ic-tag"/></svg><span class="nav-label">المنتجات</span></button>
           <button class="nav-item" data-view-button="inventory" type="button" title="المخزون والموردون"><svg class="nav-ic" aria-hidden="true"><use href="#ic-box"/></svg><span class="nav-label">المخزون والموردون</span></button>
           <button class="nav-item" data-view-button="staff" type="button" title="الموظفون والنسب"><svg class="nav-ic" aria-hidden="true"><use href="#ic-users"/></svg><span class="nav-label">الموظفون والنسب</span></button>
         </div>
@@ -1476,6 +1477,19 @@
         </article>
       </section>
 
+      <section class="view" data-view="products">
+        <article class="panel full-report-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">نقطة البيع</p>
+              <h2>المنتجات للبيع</h2>
+            </div>
+          </div>
+          <p class="subtitle" style="margin:0 0 14px">منتجات تُباع للمرضى وتُخصم من المخزون مباشرة. لإضافة منتج، فعّل «منتج للبيع» على الصنف في صفحة المخزون.</p>
+          <div data-products-list></div>
+        </article>
+      </section>
+
       <section class="view" data-view="inventory">
         <!-- Inventory sub-nav -->
         <div class="sub-nav" role="tablist">
@@ -1587,6 +1601,14 @@
               <label>
                 المورد المفضل
                 <select name="supplierId" data-inventory-supplier-select></select>
+              </label>
+              <label class="inline-check">
+                <input type="checkbox" name="isProduct" data-inventory-isproduct>
+                منتج للبيع (يظهر في صفحة المنتجات)
+              </label>
+              <label data-inventory-saleprice-wrap hidden>
+                سعر البيع للوحدة
+                <input name="salePrice" type="number" min="0" step="0.01" placeholder="15">
               </label>
               <div class="formula-preview">اكتب 0 في حد الطلب إذا كان الصنف لا يحتاج تنبيهات، حتى لا تظهر إشعارات بلا سبب.</div>
               <button class="primary-button form-submit" type="submit">حفظ الصنف</button>
@@ -2991,6 +3013,24 @@
     </div>
   </div>
 
+  <div class="slot-booking-modal" data-product-sale-modal hidden>
+    <div class="slot-booking-card" role="dialog" aria-modal="true" aria-label="بيع منتج">
+      <button class="icon-button slot-booking-close" type="button" data-product-sale-close aria-label="إغلاق">×</button>
+      <h3>بيع منتج: <span data-product-sale-name></span></h3>
+      <form class="slot-booking-form" data-product-sale-form>
+        <input type="hidden" name="productId">
+        <label>الكمية<input name="qty" type="number" min="1" step="1" value="1" required></label>
+        <label>طريقة الدفع<select name="paymentMethod"><option value="cash">كاش</option><option value="card">فيزا</option><option value="transfer">تحويل</option></select></label>
+        <label>اسم المريض (اختياري)<input name="patient" type="text" placeholder="بيع منتج" list="operation-patient-options"></label>
+        <div class="product-sale-total">الإجمالي: <strong data-product-sale-total>0</strong></div>
+        <div class="slot-booking-actions">
+          <button class="primary-button" type="submit">تأكيد البيع</button>
+          <button class="text-button" type="button" data-product-sale-close>إلغاء</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div class="slot-booking-modal" data-edit-service-modal hidden>
     <div class="slot-booking-card" role="dialog" aria-modal="true" aria-label="تعديل الخدمة">
       <button class="icon-button slot-booking-close" type="button" data-edit-service-close aria-label="إغلاق">×</button>
@@ -3018,7 +3058,7 @@
       </form>
     </div>
   </div>
-  <script src="app.js?v=20260623c"></script>
+  <script src="app.js?v=20260623d"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>
