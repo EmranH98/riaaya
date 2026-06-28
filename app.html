@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260623r">
+  <link rel="stylesheet" href="app.css?v=20260623s">
 </head>
 <body>
 
@@ -2256,6 +2256,14 @@
               <select name="staffId" data-account-staff-select></select>
             </label>
             <label>
+              نمط العرض لهذا الحساب
+              <select name="viewMode">
+                <option value="normal">عادي — كل الأقسام المسموحة</option>
+                <option value="rows_nav">التقويم فقط (تظهر القائمة عند الحاجة)</option>
+                <option value="kiosk">التقويم فقط — مغلق (صفوف فقط، بدون قائمة)</option>
+              </select>
+            </label>
+            <label>
               الحالة
               <select name="active">
                 <option value="true">نشط</option>
@@ -3151,7 +3159,7 @@
       </form>
     </div>
   </div>
-  <script src="app.js?v=20260623r"></script>
+  <script src="app.js?v=20260623s"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>

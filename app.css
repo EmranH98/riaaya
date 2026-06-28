@@ -3995,6 +3995,12 @@ td {
 .bulk-row input { width: 100%; }
 .ct-table td { vertical-align: middle; }
 
+/* Kiosk-locked accounts: rows only, no way to reveal the nav or maximize toggle */
+body.kiosk-locked [data-nav-autohide-toggle],
+body.kiosk-locked [data-calendar-maximize],
+body.kiosk-locked [data-cmdk-open],
+body.kiosk-locked .global-search { display: none; }
+
 /* Owner impersonation banner */
 .impersonation-banner {
   position: sticky; top: 0; z-index: 300;

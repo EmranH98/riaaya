@@ -1498,6 +1498,7 @@ function normalizeAccount(account) {
     name: account.name || [arabicFirstName, arabicLastName].filter(Boolean).join(" ") || [firstName, lastName].filter(Boolean).join(" ") || userName || "حساب مستخدم",
     role,
     staffId: account.staffId || account.staff_id || "",
+    viewMode: ["normal", "kiosk", "rows_nav"].includes(account.viewMode || account.view_mode) ? (account.viewMode || account.view_mode) : "normal",
     allowedViews: derived.allowedViews.length ? derived.allowedViews : views.length ? views : defaultViewsForRole(role),
     permissionFeatures,
     canViewSensitive: role === "admin" || derived.canViewSensitive,
@@ -2787,6 +2788,7 @@ async function initializeApp() {
   applyRuntimeUI();
   renderImpersonationBanner();
   render();
+  applyAccountViewMode();
   enforce2faRequirement();
   if (runtime.mode === "live" && runtime.session?.user?.mustChangePassword) {
     window.RiaayaOpenRequiredPasswordChange?.();
@@ -10925,8 +10927,10 @@ if (els.accountSwitcher) {
   els.accountSwitcher.addEventListener("change", event => {
     if (runtime.mode === "live") return;
     state.currentAccountId = event.target.value;
+    setCalendarFocus(false);
     saveState();
     render();
+    applyAccountViewMode();
   });
 }
 
@@ -11105,6 +11109,7 @@ function fillAccountForm(accountId) {
   els.accountForm.elements.telNo.value = account.telNo || "";
   els.accountForm.elements.role.value = account.role;
   els.accountForm.elements.staffId.value = account.staffId || "";
+  if (els.accountForm.elements.viewMode) els.accountForm.elements.viewMode.value = account.viewMode || "normal";
   els.accountForm.elements.active.value = String(account.active !== false);
   els.accountForm.elements.ownEntriesOnly.checked = account.ownEntriesOnly === true;
   els.accountForm.elements.canViewSensitive.checked = account.canViewSensitive === true;
@@ -11159,6 +11164,7 @@ if (els.accountForm) {
       telNo: data.telNo.trim(),
       role: data.role,
       staffId: data.staffId,
+      viewMode: data.viewMode || "normal",
       permissionFeatures,
       ownEntriesOnly: data.ownEntriesOnly === "on",
       canViewSensitive: data.canViewSensitive === "on",
@@ -12507,9 +12513,20 @@ document.addEventListener("click", event => {
 document.addEventListener("mousemove", event => {
   const shell = document.querySelector(".app-shell");
   if (!shell || (!shell.classList.contains("calendar-focus") && !shell.classList.contains("nav-autohide"))) return;
+  if (document.body.classList.contains("kiosk-locked")) return; // locked staff can't reveal the nav
   if (event.clientX > window.innerWidth - 16) shell.classList.add("sidebar-peek");
   else if (event.clientX < window.innerWidth - 290) shell.classList.remove("sidebar-peek");
 });
+
+// Per-account view mode: normal / rows-only with nav / kiosk (rows only, locked).
+function applyAccountViewMode() {
+  const mode = currentAccount()?.viewMode || "normal";
+  document.body.classList.toggle("kiosk-locked", mode === "kiosk");
+  if (mode === "kiosk" || mode === "rows_nav") {
+    if (canView("bookings") && document.querySelector(".view.active")?.dataset.view !== "bookings") setView("bookings");
+    setCalendarFocus(true);
+  }
+}
 
 // Global auto-hide sidebar (any page): minimizes the sidebar off-screen; it
 // reveals when the mouse reaches the right edge. Persisted.
