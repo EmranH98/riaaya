@@ -1358,6 +1358,7 @@ function normalizePatient(patient) {
     category: patient.category || "",
     referralSource: patient.referralSource || patient.referral_source || "",
     notes: patient.notes || patient.note || "",
+    rating: Math.min(5, Math.max(0, Math.round(asNumber(patient.rating)))),
     marketingConsent: patient.marketingConsent === true || patient.marketing_consent === true,
     consentUpdatedAt: patient.consentUpdatedAt || patient.consent_updated_at || "",
     createdAt: patient.createdAt || patient.created_at || today,
@@ -5205,7 +5206,7 @@ function renderPatientDirectory() {
     return `
       <tr class="${selectedPatientId === patient.id ? "selected-row" : ""}">
         <td>${canUseFeature("patient_number") ? patient.patientNumber : "—"}</td>
-        <td><span class="cell-with-avatar">${genderAvatar(patient, 32)}<button class="table-link" type="button" data-open-patient="${patient.id}">${patient.name}</button></span></td>
+        <td><span class="cell-with-avatar">${genderAvatar(patient, 32)}<button class="table-link" type="button" data-open-patient="${patient.id}">${patient.name}</button>${patient.rating ? ` ${ratingStarsStatic(patient.rating)}` : ""}</span></td>
         <td><span class="pill">${profileTypeLabel(patient.profileType)}</span></td>
         <td>${canSeePhone ? (patient.phone || "-") : "مخفي"}</td>
         <td>${displayDate(patientLastActivity(patient)) || "-"}</td>
@@ -5314,6 +5315,7 @@ function renderPatientFile() {
         <span class="pill">${profileTypeLabel(patient.profileType)}</span>
         <h2>${patient.name}</h2>
         <p>${canUseFeature("patient_number") ? `ملف #${patient.patientNumber}` : "رقم الملف مخفي"} | آخر نشاط ${displayDate(lastActivity) || "-"}</p>
+        ${ratingStars(patient.id, patient.rating)}
       </div>
       <div class="form-actions">
         ${canView("entries") ? `<button class="primary-button" type="button" data-add-operation-patient="${patient.id}">＋ تسجيل عملية</button>` : ""}
@@ -10277,6 +10279,8 @@ function recordGrowthContact(patientId, segment) {
 }
 function growthSegments() {
   const today = state.settings.activeDate;
+  const dueDays = Math.max(1, Number(state.settings.growthDueDays) || GROWTH_DUE_DAYS);
+  const lapsedDays = Math.max(1, Number(state.settings.growthLapsedDays) || GROWTH_LAPSED_DAYS);
   const patientsById = new Map((state.patients || []).map(patient => [patient.id, patient]));
   const activePkgByPatient = new Map();
   (state.patientPackages || []).forEach(pkg => {
@@ -10297,14 +10301,14 @@ function growthSegments() {
     const pkg = activePkgByPatient.get(patient.id);
     const base = { id: patient.id, name: patient.name, phone: patient.phone, gender: patient.gender, consent: patient.marketingConsent };
 
-    if (pkg && pkg.totalRemaining >= 1 && !upcoming && sinceVisit >= GROWTH_DUE_DAYS && sinceVisit !== Infinity
+    if (pkg && pkg.totalRemaining >= 1 && !upcoming && sinceVisit >= dueDays && sinceVisit !== Infinity
         && !growthContactedRecently(patient.id, "dueForSession")) {
       due.push({ ...base, n: pkg.totalRemaining, days: sinceVisit, meta: `آخر زيارة قبل ${sinceVisit} يوم · متبقٍ ${pkg.totalRemaining} جلسة` });
     }
     if (pkg && pkg.minRemaining <= 1 && !growthContactedRecently(patient.id, "packageRenewal")) {
       renewal.push({ ...base, n: pkg.minRemaining, meta: `متبقٍ ${pkg.minRemaining} جلسة في الباقة` });
     }
-    if (!pkg && !upcoming && sinceVisit !== Infinity && sinceVisit > GROWTH_LAPSED_DAYS
+    if (!pkg && !upcoming && sinceVisit !== Infinity && sinceVisit > lapsedDays
         && !growthContactedRecently(patient.id, "lapsed")) {
       lapsed.push({ ...base, days: sinceVisit, meta: `لم يزر منذ ${sinceVisit} يوم` });
     }
@@ -10320,7 +10324,7 @@ function growthSegments() {
   return [
     { key: "dueForSession", title: "حان وقت الجلسة القادمة", icon: "ic-calendar", tone: "teal", desc: "مرضى لديهم جلسات متبقية ولم يزوروا مؤخراً — ادعهم للحجز.", patients: due },
     { key: "packageRenewal", title: "باقات شارفت على الانتهاء", icon: "ic-package", tone: "purple", desc: "جدّد الباقة قبل أن تنتهي وحافظ على الإيراد المتكرر.", patients: renewal },
-    { key: "lapsed", title: "مرضى منقطعون (٩٠+ يوم)", icon: "ic-user", tone: "amber", desc: "استعدهم برسالة ترحيبية وعرض خاص.", patients: lapsed },
+    { key: "lapsed", title: `مرضى منقطعون (${lapsedDays}+ يوم)`, icon: "ic-user", tone: "amber", desc: "استعدهم برسالة ترحيبية وعرض خاص.", patients: lapsed },
     { key: "outstanding", title: "مبالغ مستحقة للتحصيل", icon: "ic-cash", tone: "red", desc: "تذكير ودّي بالسداد في الزيارة القادمة.", patients: outstanding }
   ];
 }
@@ -10358,8 +10362,51 @@ function renderGrowthCenter() {
         <ul class="growth-list">${rows}</ul>
       </article>`;
   }).join("");
-  els.growthCenter.innerHTML = kpis + `<div class="growth-grid">${cards}</div>`;
+  const dueDays = Math.max(1, Number(state.settings.growthDueDays) || GROWTH_DUE_DAYS);
+  const lapsedDays = Math.max(1, Number(state.settings.growthLapsedDays) || GROWTH_LAPSED_DAYS);
+  const settingsBar = `<div class="growth-settings">
+      <span class="growth-settings-label">إعدادات الفرص</span>
+      <label>ذكّر بالجلسة القادمة بعد <input type="number" min="1" max="365" value="${dueDays}" data-growth-setting="growthDueDays"> يوم</label>
+      <label>اعتبر المريض منقطعاً بعد <input type="number" min="1" max="999" value="${lapsedDays}" data-growth-setting="growthLapsedDays"> يوم</label>
+    </div>`;
+  els.growthCenter.innerHTML = settingsBar + kpis + `<div class="growth-grid">${cards}</div>`;
 }
+
+document.addEventListener("change", event => {
+  const input = event.target.closest("[data-growth-setting]");
+  if (!input) return;
+  const value = Math.max(1, Math.round(Number(input.value) || 0));
+  state.settings[input.dataset.growthSetting] = value;
+  saveState();
+  renderGrowthCenter();
+});
+
+function ratingStars(patientId, rating) {
+  const value = Math.min(5, Math.max(0, Math.round(rating || 0)));
+  let stars = "";
+  for (let i = 1; i <= 5; i++) {
+    stars += `<button type="button" class="rating-star${i <= value ? " filled" : ""}" data-set-rating="${i}" data-rating-patient="${patientId}" aria-label="${i} من 5" title="${i} نجوم">★</button>`;
+  }
+  return `<div class="rating-stars" title="تقييم المريض — اضغط لتغييره">${stars}</div>`;
+}
+
+function ratingStarsStatic(rating) {
+  const value = Math.min(5, Math.max(0, Math.round(rating || 0)));
+  if (!value) return `<span class="rating-static empty">—</span>`;
+  return `<span class="rating-static">${"★".repeat(value)}${"☆".repeat(5 - value)}</span>`;
+}
+
+document.addEventListener("click", event => {
+  const star = event.target.closest("[data-set-rating]");
+  if (!star) return;
+  const patient = getPatient(star.dataset.ratingPatient);
+  if (!patient || !canUseFeature("edit_patient_information")) return;
+  const value = Number(star.dataset.setRating);
+  patient.rating = patient.rating === value ? 0 : value;
+  logEdit("تقييم مريض", `${patient.name} · ${patient.rating || 0}★`);
+  saveState();
+  render();
+});
 
 function render() {
   renderAccessControls();
