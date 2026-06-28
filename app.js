@@ -12542,12 +12542,19 @@ document.addEventListener("click", event => {
   if (!event.target.closest("[data-calendar-maximize]")) return;
   setCalendarFocus(!document.querySelector(".app-shell")?.classList.contains("calendar-focus"));
 });
+// Reveal the hidden sidebar only when the mouse hits the very right edge…
 document.addEventListener("mousemove", event => {
   const shell = document.querySelector(".app-shell");
   if (!shell || (!shell.classList.contains("calendar-focus") && !shell.classList.contains("nav-autohide"))) return;
   if (document.body.classList.contains("kiosk-locked")) return; // locked staff can't reveal the nav
-  if (event.clientX > window.innerWidth - 16) shell.classList.add("sidebar-peek");
-  else if (event.clientX < window.innerWidth - 290) shell.classList.remove("sidebar-peek");
+  if (event.clientX > window.innerWidth - 14) shell.classList.add("sidebar-peek");
+});
+// …and hide it the instant the pointer leaves the sidebar (no dead zone).
+document.querySelector(".sidebar")?.addEventListener("mouseleave", () => {
+  const shell = document.querySelector(".app-shell");
+  if (shell && (shell.classList.contains("calendar-focus") || shell.classList.contains("nav-autohide"))) {
+    shell.classList.remove("sidebar-peek");
+  }
 });
 
 // Per-account view mode: normal / rows-only with nav / kiosk (rows only, locked).
