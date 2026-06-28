@@ -5816,6 +5816,9 @@ function outstandingByPatient() {
     .sort((a, b) => b.total - a.total);
 }
 
+const AUDIT_RETENTION_DAYS = 60;   // keep well over the required one month
+const AUDIT_MAX_ENTRIES = 8000;    // runaway guard, far above a normal month
+
 function logEdit(action, detail, snapshot) {
   state.auditTrail = state.auditTrail || [];
   const account = currentAccount();
@@ -5823,6 +5826,7 @@ function logEdit(action, detail, snapshot) {
     id: nextId("audit"),
     at: new Date().toISOString(),
     who: account?.name || account?.email || "—",
+    role: account?.role || "",
     action,
     detail: detail || ""
   };
@@ -5831,7 +5835,10 @@ function logEdit(action, detail, snapshot) {
     entry.restore = { type: snapshot.type, record: JSON.parse(JSON.stringify(snapshot.record)), restored: false };
   }
   state.auditTrail.push(entry);
-  if (state.auditTrail.length > 500) state.auditTrail = state.auditTrail.slice(-500);
+  // Time-based retention: never drop anything younger than the window (≥ 1 month).
+  const cutoff = new Date(Date.now() - AUDIT_RETENTION_DAYS * 86400000).toISOString();
+  state.auditTrail = state.auditTrail.filter(item => !item.at || item.at >= cutoff);
+  if (state.auditTrail.length > AUDIT_MAX_ENTRIES) state.auditTrail = state.auditTrail.slice(-AUDIT_MAX_ENTRIES);
 }
 
 const AUDIT_RESTORE_TARGETS = {
@@ -5839,7 +5846,12 @@ const AUDIT_RESTORE_TARGETS = {
   patient: { list: "patients", label: "ملف مريض" },
   patientPackage: { list: "patientPackages", label: "باقة" },
   service: { list: "services", label: "خدمة" },
-  packageTemplate: { list: "packageTemplates", label: "قالب باقة" }
+  packageTemplate: { list: "packageTemplates", label: "قالب باقة" },
+  staff: { list: "staff", label: "موظف" },
+  supplier: { list: "suppliers", label: "مورد" },
+  inventory: { list: "inventory", label: "صنف مخزون" },
+  expense: { list: "expenses", label: "مصروف" },
+  booking: { list: "bookings", label: "حجز" }
 };
 
 function restoreAuditEntry(auditId) {
@@ -12525,6 +12537,7 @@ els.staffForm.addEventListener("submit", event => {
     rate: numberValue(data.rate),
     phone: data.phone?.trim() || ""
   }));
+  logEdit("إضافة موظف", `${data.name.trim()} · ${roleLabel(role)}`);
   // Save any inline per-service rules
   const appliesTo = role === "doctor" ? "doctor" : "specialist";
   for (const rule of _staffPendingRules) {
@@ -12692,6 +12705,7 @@ if (els.packageTemplateForm) {
       validityDays: data.validityDays,
       active: data.active !== "false"
     }));
+    logEdit("إضافة قالب باقة", `${data.name.trim()}${data.sessions ? " · " + numberValue(data.sessions) + " جلسة" : ""}`);
     els.packageTemplateForm.reset();
     saveState();
     render();
@@ -12978,6 +12992,7 @@ if (els.supplierForm) {
       notes: data.notes.trim(),
       active: true
     }));
+    logEdit("إضافة مورد", data.name.trim());
     els.supplierForm.reset();
     saveState();
     render();
@@ -13001,6 +13016,7 @@ if (els.inventoryForm) {
       supplierId: data.supplierId,
       active: true
     }));
+    logEdit("إضافة صنف مخزون", `${data.name.trim()} · ${numberValue(data.quantity)} ${data.unit.trim()}`);
     els.inventoryForm.reset();
     const salePriceWrap = els.inventoryForm.querySelector("[data-inventory-saleprice-wrap]");
     if (salePriceWrap) salePriceWrap.hidden = true;
@@ -13081,8 +13097,10 @@ if (els.expenseForm) {
     });
     if (existing) {
       state.expenses = state.expenses.map(item => item.id === expense.id ? expense : item);
+      logEdit("تعديل مصروف", `${group?.name || ""}${subgroup?.name ? " / " + subgroup.name : ""} · ${money(expense.amount)}`);
     } else {
       state.expenses = [...(state.expenses || []), expense];
+      logEdit("إضافة مصروف", `${group?.name || ""}${subgroup?.name ? " / " + subgroup.name : ""} · ${money(expense.amount)}`);
     }
     resetExpenseForm();
     saveState();
@@ -13545,6 +13563,8 @@ document.addEventListener("click", async event => {
   if (deleteExpenseId) {
     if (!canUseFeature("delete_expense")) return;
     if (!await showConfirm("هل تريد حذف هذا المصروف؟")) return;
+    const removedExpense = (state.expenses || []).find(expense => expense.id === deleteExpenseId);
+    if (removedExpense) logEdit("حذف مصروف", `${expenseGroupName(removedExpense) || ""} · ${money(removedExpense.amount)}`, { type: "expense", record: removedExpense });
     state.expenses = (state.expenses || []).filter(expense => expense.id !== deleteExpenseId);
     saveState();
     render();
@@ -13674,6 +13694,8 @@ document.addEventListener("click", async event => {
       entry.doctorId === deleteStaffId || entry.specialistId === deleteStaffId
     ));
     if (isUsed && !await showConfirm("هذا الموظف مرتبط بعمليات سابقة. هل تريد حذفه؟")) return;
+    const removedStaff = state.staff.find(member => member.id === deleteStaffId);
+    if (removedStaff) logEdit("حذف موظف", `${removedStaff.name} · ${roleLabel(removedStaff.role)}`, { type: "staff", record: removedStaff });
     state.staff = state.staff.filter(member => member.id !== deleteStaffId);
     saveState();
     render();
@@ -13702,6 +13724,8 @@ document.addEventListener("click", async event => {
     const isUsed = state.inventory.some(item => item.supplierId === deleteSupplierId)
       || state.purchaseOrders.some(order => order.supplierId === deleteSupplierId);
     if (isUsed && !await showConfirm("هذا المورد مرتبط بأصناف أو طلبات. هل تريد حذفه؟")) return;
+    const removedSupplier = state.suppliers.find(supplier => supplier.id === deleteSupplierId);
+    if (removedSupplier) logEdit("حذف مورد", removedSupplier.name, { type: "supplier", record: removedSupplier });
     state.suppliers = state.suppliers.filter(supplier => supplier.id !== deleteSupplierId);
     state.inventory = state.inventory.map(item => (
       item.supplierId === deleteSupplierId ? { ...item, supplierId: "" } : item
@@ -13713,6 +13737,8 @@ document.addEventListener("click", async event => {
   if (deleteInventoryId) {
     const isUsed = state.purchaseOrders.some(order => order.itemId === deleteInventoryId);
     if (isUsed && !await showConfirm("هذا الصنف مرتبط بسجل طلبات. هل تريد حذفه من قائمة المخزون؟")) return;
+    const removedItem = state.inventory.find(item => item.id === deleteInventoryId);
+    if (removedItem) logEdit("حذف صنف مخزون", `${removedItem.name} · ${numberValue(removedItem.quantity)} ${removedItem.unit}`, { type: "inventory", record: removedItem });
     state.inventory = state.inventory.filter(item => item.id !== deleteInventoryId);
     saveState();
     render();
@@ -13728,6 +13754,8 @@ document.addEventListener("click", async event => {
   if (deleteBookingId) {
     if (!canUseFeature("delete_appointment")) return;
     if (!await showConfirm("هل تريد حذف هذا الحجز؟")) return;
+    const removedBooking = state.bookings.find(booking => booking.id === deleteBookingId);
+    if (removedBooking) logEdit("حذف حجز", `${removedBooking.patient || ""} · ${displayDate(removedBooking.date)} ${removedBooking.time ? displayTime(removedBooking.time) : ""}`, { type: "booking", record: removedBooking });
     state.bookings = state.bookings.filter(booking => booking.id !== deleteBookingId);
     saveState();
     render();
@@ -13737,7 +13765,9 @@ document.addEventListener("click", async event => {
     if (!canUseFeature("change_appointment_status")) return;
     const booking = state.bookings.find(item => item.id === bookingStatusId);
     if (!booking) return;
-    booking.status = event.target.dataset.bookingStatus || booking.status;
+    const newStatus = event.target.dataset.bookingStatus || booking.status;
+    if (newStatus !== booking.status) logEdit("تغيير حالة حجز", `${booking.patient || ""} · ${bookingStatusLabel(booking.status)} ← ${bookingStatusLabel(newStatus)}`);
+    booking.status = newStatus;
     saveState();
     render();
   }
