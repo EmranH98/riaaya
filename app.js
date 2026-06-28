@@ -12594,6 +12594,7 @@ function setNavPinned(pinned) {
   const shell = document.querySelector(".app-shell");
   if (!shell) return;
   shell.classList.toggle("nav-autohide", !pinned);     // auto-hide unless pinned
+  if (!pinned) shell.classList.remove("nav-collapsed"); // auto-hide replaces the icons-collapse (they conflict)
   if (pinned) shell.classList.remove("sidebar-peek");
   document.querySelectorAll("[data-nav-autohide-toggle]").forEach(btn => btn.classList.toggle("active", pinned));
   try { localStorage.setItem("riaaya-nav-pinned", pinned ? "1" : "0"); } catch {}
