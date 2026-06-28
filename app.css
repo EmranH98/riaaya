@@ -3991,6 +3991,12 @@ td {
 .growth-nophone { font-size: 11px; color: var(--ink-muted); }
 .growth-empty { padding: 22px 16px; text-align: center; color: var(--ink-soft); font-size: 13px; }
 
+/* Calendar compact date picker (replaces the month grid) */
+.calendar-date-picker { display: inline-flex; align-items: center; gap: 6px; background: var(--white); border: 1px solid var(--border); border-radius: 12px; padding: 4px 6px; }
+.calendar-date-picker input[type="date"] { border: 0; background: transparent; font-weight: 800; font-size: 14px; color: var(--ink); min-width: 140px; padding: 4px; }
+.calendar-date-picker .icon-button { width: 32px; height: 32px; border: 0; background: var(--teal-pale); color: var(--teal-dark); border-radius: 8px; }
+.calendar-date-picker .icon-button:hover { background: var(--teal); color: #fff; }
+
 /* Products / point-of-sale */
 .inline-check { display: flex; flex-direction: row; align-items: center; gap: 8px; font-weight: 700; font-size: 13px; }
 .inline-check input { width: auto; margin: 0; }

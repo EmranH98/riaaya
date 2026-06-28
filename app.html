@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260623e">
+  <link rel="stylesheet" href="app.css?v=20260623f">
 </head>
 <body>
 
@@ -992,9 +992,12 @@
             </div>
             <div class="calendar-actions">
               <button class="primary-button" type="button" data-open-operation-modal>＋ تسجيل عملية</button>
-              <button class="icon-button" type="button" data-calendar-nav="prev" aria-label="الشهر السابق" title="الشهر السابق">‹</button>
-              <button class="text-button" type="button" data-calendar-nav="today">اليوم</button>
-              <button class="icon-button" type="button" data-calendar-nav="next" aria-label="الشهر التالي" title="الشهر التالي">›</button>
+              <div class="calendar-date-picker">
+                <button class="icon-button" type="button" data-booking-day-nav="prev" aria-label="اليوم السابق" title="اليوم السابق">‹</button>
+                <input type="date" data-booking-date-input aria-label="اختر التاريخ">
+                <button class="icon-button" type="button" data-booking-day-nav="next" aria-label="اليوم التالي" title="اليوم التالي">›</button>
+                <button class="text-button" type="button" data-calendar-nav="today">اليوم</button>
+              </div>
             </div>
           </div>
           <div class="booking-calendar-legend">
@@ -1028,8 +1031,6 @@
             </label>
             <div class="schedule-column-list" data-schedule-column-list></div>
           </div>
-          <div class="booking-calendar-weekdays" data-booking-calendar-weekdays></div>
-          <div class="booking-calendar-grid" data-booking-calendar></div>
         </article>
 
         <div class="split-layout">
@@ -3058,7 +3059,7 @@
       </form>
     </div>
   </div>
-  <script src="app.js?v=20260623e"></script>
+  <script src="app.js?v=20260623f"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>

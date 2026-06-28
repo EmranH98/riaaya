@@ -2185,6 +2185,7 @@ const els = {
   bookingDayCalendar: document.querySelector("[data-booking-day-calendar]"),
   bookingCalendar: document.querySelector("[data-booking-calendar]"),
   bookingCalendarWeekdays: document.querySelector("[data-booking-calendar-weekdays]"),
+  bookingDateInput: document.querySelector("[data-booking-date-input]"),
   bookingCalendarTitle: document.querySelector("[data-booking-calendar-title]"),
   bookingCalendarSummary: document.querySelector("[data-booking-calendar-summary]"),
   salaryTable: document.querySelector("[data-salary-table]"),
@@ -6791,10 +6792,10 @@ function renderImportHistory() {
 }
 
 function renderBookingCalendar() {
-  if (!els.bookingCalendar || !els.bookingCalendarWeekdays) return;
   const isEnglish = currentLanguage() === "en";
   const activeDate = state.settings.activeDate || today;
   const monthDate = dateFromInput(activeDate);
+  if (els.bookingDateInput && els.bookingDateInput.value !== activeDate) els.bookingDateInput.value = activeDate;
   const calendarBookings = filterBookingsForAccount(state.bookings || []);
   const bookingsByDate = groupedBookingsByDate(calendarBookings);
   const monthPrefix = activeDate.slice(0, 7);
@@ -6806,26 +6807,26 @@ function renderBookingCalendar() {
   const weekdays = isEnglish
     ? ["Sat", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri"]
     : ["السبت", "الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة"];
-  const monthTitle = new Intl.DateTimeFormat(isEnglish ? "en-US" : "ar-JO", {
+  const dayTitle = new Intl.DateTimeFormat(isEnglish ? "en-US" : "ar-JO", {
+    weekday: "long",
+    day: "numeric",
     month: "long",
     year: "numeric"
   }).format(monthDate);
 
   if (els.bookingCalendarTitle) {
-    els.bookingCalendarTitle.textContent = monthTitle;
+    els.bookingCalendarTitle.textContent = dayTitle;
   }
 
   if (els.bookingCalendarSummary) {
     els.bookingCalendarSummary.textContent = isEnglish
       ? `${selectedBookings.length} bookings on ${displayDate(activeDate)}. ${monthBookings.length} bookings this month${canViewSensitive() ? `, expected ${money(expected)}` : ""}.`
-      : `${selectedBookings.length} حجز في ${displayDate(activeDate)}. ${monthBookings.length} حجز هذا الشهر${canViewSensitive() ? `، المتوقع ${money(expected)}` : ""}.`;
+      : `${selectedBookings.length} حجز في هذا اليوم · ${monthBookings.length} حجز هذا الشهر${canViewSensitive() ? `، المتوقع ${money(expected)}` : ""}.`;
   }
 
-  els.bookingCalendarWeekdays.innerHTML = weekdays
-    .map(day => `<span>${day}</span>`)
-    .join("");
+  if (els.bookingCalendarWeekdays) els.bookingCalendarWeekdays.innerHTML = weekdays.map(day => `<span>${day}</span>`).join("");
 
-  els.bookingCalendar.innerHTML = calendarDaysForMonth(activeDate).map(day => {
+  if (els.bookingCalendar) els.bookingCalendar.innerHTML = calendarDaysForMonth(activeDate).map(day => {
     const isAllowed = calendarDateAllowed(currentAccount(), day.date);
     const dayBookings = (bookingsByDate[day.date] || [])
       .slice()
@@ -12145,6 +12146,20 @@ document.querySelectorAll("[data-report-tab]").forEach(btn => {
     );
     renderReports();
   });
+});
+
+// Calendar: compact date picker replaces the month grid — pick a day or step ±1.
+els.bookingDateInput?.addEventListener("change", event => {
+  const value = event.target.value;
+  if (!value || !calendarDateAllowed(currentAccount(), value)) { renderBookingCalendar(); return; }
+  setActiveDate(value);
+});
+document.addEventListener("click", event => {
+  const nav = event.target.closest("[data-booking-day-nav]");
+  if (!nav) return;
+  const next = dateOffset(nav.dataset.bookingDayNav === "next" ? 1 : -1, state.settings.activeDate || today);
+  if (!calendarDateAllowed(currentAccount(), next)) return;
+  setActiveDate(next);
 });
 
 // Operations breakdown: switch the aggregation dimension (delegated — the buttons
