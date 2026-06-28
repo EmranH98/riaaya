@@ -8901,9 +8901,8 @@ function renderReports() {
     pagination = paginateItems(packageEntries, reportPage, pageSize);
     content = renderPackagesReport(pagination.items);
   } else if (reportType === "specialist") {
-    const specRows = salaryRows(allEntries).filter(row => row.operations > 0);
-    pagination = paginateItems(specRows, reportPage, pageSize);
-    content = renderSpecialistReport(pagination.items);
+    pagination = paginateItems([], 1, pageSize);
+    content = renderSpecialistReport(allEntries);
   } else if (reportType === "audit") {
     const auditItems = (state.auditTrail || []).slice().reverse()
       .filter(item => {
@@ -8941,27 +8940,81 @@ function entryCategory(entry) {
   return getService(entry.serviceId)?.category || "";
 }
 
-function renderSpecialistReport(rows) {
-  if (!rows.length) return `<div class="empty-state">لا توجد عمليات منسوبة لموظفين في هذه الفترة.</div>`;
-  let totalOps = 0, totalDue = 0;
-  const body = rows.map(row => {
-    totalOps += row.operations; totalDue += row.amount;
+let specialistReportFilter = "";
+
+function renderSpecialistReport(entries) {
+  // For each staff member, gather their commission-bearing lines in the range.
+  const memberData = (state.staff || []).map(member => {
+    const lines = [];
+    entries.forEach(entry => {
+      const payout = entryPayouts(entry).find(row => row.member.id === member.id);
+      if (payout) lines.push({ entry, commission: payout.payout });
+    });
+    return { member, lines };
+  }).filter(item => item.lines.length > 0 || asNumber(item.member.baseSalary) > 0);
+
+  if (!memberData.length) return `<div class="empty-state">لا توجد عمليات أو رواتب لموظفين في هذه الفترة.</div>`;
+
+  const options = [`<option value="">كل الموظفين</option>`]
+    .concat(memberData.map(item => `<option value="${item.member.id}"${item.member.id === specialistReportFilter ? " selected" : ""}>${item.member.name}</option>`))
+    .join("");
+  const shown = specialistReportFilter ? memberData.filter(item => item.member.id === specialistReportFilter) : memberData;
+
+  const sections = shown.map(({ member, lines }) => {
+    const byService = new Map();
+    lines.forEach(({ entry, commission }) => {
+      const key = serviceLabel(entry);
+      const group = byService.get(key) || { service: key, count: 0, commission: 0 };
+      group.count += Math.max(numberValue(entry.quantity) || 1, 1);
+      group.commission += commission;
+      byService.set(key, group);
+    });
+    const serviceRows = [...byService.values()].sort((a, b) => b.commission - a.commission);
+    const totalCommission = lines.reduce((sum, line) => sum + line.commission, 0);
+    const baseSalary = asNumber(member.baseSalary);
+    const deduction = asNumber(member.deduction);
+    const netPay = totalCommission + baseSalary - deduction;
+
+    const breakdown = serviceRows.length ? serviceRows.map(group =>
+      `<tr><td>${group.service}</td><td>${group.count}</td><td>${money(group.commission)}</td></tr>`).join("")
+      : `<tr><td colspan="3" class="report-empty">لا توجد عمليات — راتب فقط.</td></tr>`;
+
+    const detail = lines.slice()
+      .sort((a, b) => `${a.entry.date}${a.entry.time || ""}`.localeCompare(`${b.entry.date}${b.entry.time || ""}`))
+      .map(({ entry, commission }) =>
+        `<tr><td>${displayDate(entry.date)}</td><td>${entry.time ? displayTime(entry.time) : "—"}</td><td>${entry.patient || "—"}</td><td>${serviceLabel(entry)}</td><td>${money(commission)}</td></tr>`).join("");
+
     return `
-      <tr>
-        <td>${row.member.name}</td>
-        <td>${roleLabel(row.member.role)}</td>
-        <td>${row.operations}</td>
-        <td>${row.formulas.join("، ") || "—"}</td>
-        <td>${money(row.amount)}</td>
-      </tr>`;
+      <div class="specialist-card">
+        <div class="specialist-head">
+          <div><strong>${member.name}</strong> <span class="specialist-role">${roleLabel(member.role)}</span></div>
+          <div class="specialist-netpay"><span>صافي المستحق هذه الفترة</span><strong>${money(netPay)}</strong></div>
+        </div>
+        <div class="specialist-stats">
+          <div><span>عدد العمليات</span><strong>${lines.length}</strong></div>
+          <div><span>إجمالي العمولة</span><strong>${money(totalCommission)}</strong></div>
+          <div><span>الراتب الأساسي</span><strong>${money(baseSalary)}</strong></div>
+          ${deduction ? `<div><span>خصومات</span><strong>−${money(deduction)}</strong></div>` : ""}
+        </div>
+        <table class="practical-table specialist-services">
+          <thead><tr><th>العملية</th><th>العدد</th><th>العمولة</th></tr></thead>
+          <tbody>${breakdown}</tbody>
+          <tfoot><tr><td>الإجمالي</td><td>${lines.length}</td><td>${money(totalCommission)}</td></tr></tfoot>
+        </table>
+        ${lines.length ? `<details class="specialist-detail">
+          <summary>تفاصيل كل عملية (${lines.length})</summary>
+          <table class="practical-table">
+            <thead><tr><th>التاريخ</th><th>الوقت</th><th>المريض</th><th>العملية</th><th>العمولة</th></tr></thead>
+            <tbody>${detail}</tbody>
+          </table>
+        </details>` : ""}
+      </div>`;
   }).join("");
+
   return `
-    <div class="table-wrap">
-      <table class="practical-table">
-        <thead><tr><th>الموظف</th><th>الدور</th><th>عدد العمليات</th><th>القاعدة</th><th>المستحقات</th></tr></thead>
-        <tbody>${body}</tbody>
-        <tfoot><tr><td colspan="2"><strong>الإجمالي</strong></td><td><strong>${totalOps}</strong></td><td></td><td><strong>${money(totalDue)}</strong></td></tr></tfoot>
-      </table>
+    <div class="specialist-report">
+      <div class="specialist-filter-bar"><label>الموظف <select data-specialist-filter>${options}</select></label></div>
+      ${sections}
     </div>`;
 }
 
@@ -11865,6 +11918,14 @@ document.addEventListener("click", event => {
   const dimBtn = event.target.closest("[data-breakdown-dim]");
   if (!dimBtn) return;
   operationsBreakdownDim = dimBtn.dataset.breakdownDim;
+  renderReports();
+});
+
+// Per-specialist report: filter to one employee (or all).
+document.addEventListener("change", event => {
+  const sel = event.target.closest("[data-specialist-filter]");
+  if (!sel) return;
+  specialistReportFilter = sel.value;
   renderReports();
 });
 
