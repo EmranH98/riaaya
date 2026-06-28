@@ -185,6 +185,10 @@ function renderClinics() {
               <label>لون العيادة<input data-clinic-branding="accentColor" type="color" value="${clinic.branding?.accentColor || "#0a7c5c"}"></label>
               <label>اسم المساحة<input data-clinic-branding="workspaceLabel" type="text" value="${clinic.branding?.workspaceLabel || ""}" placeholder="مثلاً: مساحة VIP"></label>
               <label class="wide-field">ملاحظات داخلية<textarea data-clinic-owner-notes rows="4" placeholder="تسعير خاص، احتياج تدريب، ملاحظات المبيعات...">${clinic.ownerNotes || ""}</textarea></label>
+              <div class="wide-field">
+                <button type="button" data-save-clinic="${clinic.id}" class="branding-save">💾 حفظ اللون والهوية</button>
+                <small>اللون يظهر داخل تطبيق العيادة نفسه (الشريط الجانبي والأزرار والمؤشرات) عند تحديث صفحة العيادة — لا يتغيّر شكل لوحة المالك.</small>
+              </div>
             </div>
           </section>
         </div>

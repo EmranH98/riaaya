@@ -12587,21 +12587,23 @@ function applyAccountViewMode() {
   }
 }
 
-// Global auto-hide sidebar (any page): minimizes the sidebar off-screen; it
-// reveals when the mouse reaches the right edge. Persisted.
-function setNavAutohide(on) {
+// The sidebar auto-hides by default on every page (reveals when the mouse hits
+// the right edge, hides when the pointer leaves it). The topbar toggle PINS it
+// open so it stays visible; clicking again returns to auto-hide. Persisted.
+function setNavPinned(pinned) {
   const shell = document.querySelector(".app-shell");
   if (!shell) return;
-  shell.classList.toggle("nav-autohide", on);
-  if (!on) shell.classList.remove("sidebar-peek");
-  document.querySelectorAll("[data-nav-autohide-toggle]").forEach(btn => btn.classList.toggle("active", on));
-  try { localStorage.setItem("riaaya-nav-autohide", on ? "1" : "0"); } catch {}
+  shell.classList.toggle("nav-autohide", !pinned);     // auto-hide unless pinned
+  if (pinned) shell.classList.remove("sidebar-peek");
+  document.querySelectorAll("[data-nav-autohide-toggle]").forEach(btn => btn.classList.toggle("active", pinned));
+  try { localStorage.setItem("riaaya-nav-pinned", pinned ? "1" : "0"); } catch {}
 }
 document.addEventListener("click", event => {
   if (!event.target.closest("[data-nav-autohide-toggle]")) return;
-  setNavAutohide(!document.querySelector(".app-shell")?.classList.contains("nav-autohide"));
+  const pinnedNow = !document.querySelector(".app-shell")?.classList.contains("nav-autohide");
+  setNavPinned(!pinnedNow);
 });
-try { if (localStorage.getItem("riaaya-nav-autohide") === "1") setNavAutohide(true); } catch {}
+try { setNavPinned(localStorage.getItem("riaaya-nav-pinned") === "1"); } catch { setNavPinned(false); }
 
 // Calendar: show/hide the management area (KPIs, legend, column controls). Hidden
 // by default; the toggle is data-sensitive so restricted staff only ever see the rows.
