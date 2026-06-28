@@ -1023,9 +1023,109 @@ function normalizeService(service) {
     category: service.category || service.group || "",
     defaultPrice: asNumber(service.defaultPrice ?? service.default_price),
     defaultCost: asNumber(service.defaultCost ?? service.default_cost ?? service.doctor_cost),
+    consumes: Array.isArray(service.consumes)
+      ? service.consumes
+          .map(part => ({ itemId: part.itemId || part.item_id || "", qty: asNumber(part.qty ?? part.quantity) }))
+          .filter(part => part.itemId && part.qty > 0)
+      : [],
     active: service.active !== false
   };
 }
+
+// ── Inventory consumption: an operation deducts its service's mapped items ──
+function deductInventoryForEntry(entry) {
+  const service = getService(entry.serviceId);
+  if (!service || !Array.isArray(service.consumes) || !service.consumes.length) return;
+  const multiplier = Math.max(numberValue(entry.quantity) || 1, 1);
+  state.inventoryMovements = state.inventoryMovements || [];
+  service.consumes.forEach(part => {
+    const item = getInventoryItem(part.itemId);
+    if (!item) return;
+    const change = -part.qty * multiplier;
+    item.quantity = Math.max(0, asNumber(item.quantity) + change);
+    state.inventoryMovements.push({
+      id: nextId("invmove"),
+      itemId: part.itemId,
+      qty: change,
+      reason: "consumption",
+      entryId: entry.id,
+      serviceId: entry.serviceId,
+      date: entry.date || state.settings.activeDate,
+      at: new Date().toISOString()
+    });
+  });
+}
+
+// Reverse a deleted operation's consumption (adds the stock back).
+function restoreInventoryForEntry(entry) {
+  const moves = (state.inventoryMovements || []).filter(move => move.entryId === entry.id && move.reason === "consumption");
+  moves.forEach(move => {
+    const item = getInventoryItem(move.itemId);
+    if (item) item.quantity = asNumber(item.quantity) - move.qty;
+  });
+  state.inventoryMovements = (state.inventoryMovements || []).filter(move => move.entryId !== entry.id);
+}
+
+// ── Service → inventory consumption builder (add + edit service forms) ──────
+let _servicePendingConsumes = [];
+let _editServicePendingConsumes = [];
+
+function consumeItemLabel(itemId) {
+  const item = getInventoryItem(itemId);
+  return item ? `${item.name} (${item.unit})` : "صنف محذوف";
+}
+
+function renderConsumeList(listEl, consumes, removeAttr) {
+  if (!listEl) return;
+  listEl.innerHTML = consumes.length
+    ? consumes.map((part, index) => `<span class="consume-chip">${consumeItemLabel(part.itemId)} × ${part.qty}<button type="button" data-${removeAttr}="${index}" aria-label="حذف">×</button></span>`).join("")
+    : `<p class="consume-empty">لا يُخصم أي صنف من المخزون عند تنفيذ هذه الخدمة.</p>`;
+}
+
+function populateConsumeSelects() {
+  const items = (state.inventory || []).filter(item => item.active !== false);
+  const opts = `<option value="">— اختر صنفاً من المخزون —</option>`
+    + items.map(item => `<option value="${item.id}">${item.name} — متوفر ${numberValue(item.quantity)} ${item.unit}</option>`).join("");
+  document.querySelectorAll("[data-consume-item-select], [data-edit-consume-item-select]").forEach(select => {
+    const current = select.value;
+    select.innerHTML = opts;
+    select.value = current;
+  });
+}
+
+document.addEventListener("click", event => {
+  if (event.target.closest("[data-add-consume]")) {
+    const select = document.querySelector("[data-consume-item-select]");
+    const qtyEl = document.querySelector("[data-consume-qty]");
+    const itemId = select?.value, qty = Number(qtyEl?.value);
+    if (!itemId || !(qty > 0)) return;
+    _servicePendingConsumes.push({ itemId, qty });
+    select.value = ""; qtyEl.value = "";
+    renderConsumeList(document.querySelector("[data-consume-list]"), _servicePendingConsumes, "remove-consume");
+    return;
+  }
+  const rem = event.target.closest("[data-remove-consume]");
+  if (rem) {
+    _servicePendingConsumes.splice(Number(rem.dataset.removeConsume), 1);
+    renderConsumeList(document.querySelector("[data-consume-list]"), _servicePendingConsumes, "remove-consume");
+    return;
+  }
+  if (event.target.closest("[data-edit-add-consume]")) {
+    const select = document.querySelector("[data-edit-consume-item-select]");
+    const qtyEl = document.querySelector("[data-edit-consume-qty]");
+    const itemId = select?.value, qty = Number(qtyEl?.value);
+    if (!itemId || !(qty > 0)) return;
+    _editServicePendingConsumes.push({ itemId, qty });
+    select.value = ""; qtyEl.value = "";
+    renderConsumeList(document.querySelector("[data-edit-consume-list]"), _editServicePendingConsumes, "edit-remove-consume");
+    return;
+  }
+  const erem = event.target.closest("[data-edit-remove-consume]");
+  if (erem) {
+    _editServicePendingConsumes.splice(Number(erem.dataset.editRemoveConsume), 1);
+    renderConsumeList(document.querySelector("[data-edit-consume-list]"), _editServicePendingConsumes, "edit-remove-consume");
+  }
+});
 
 // Single source of truth for categories — gathered from services, packages, and
 // calendar columns so a category defined anywhere shows up in every picker.
@@ -10421,6 +10521,7 @@ function render() {
   renderClinicForm();
   renderStaffSelects();
   renderInventorySelects();
+  populateConsumeSelects();
   renderKpis(entries, totals, diffs);
   renderDashboardSummary(entries, totals, diffs, weekEntries, weekTotals);
   renderDashboardCommandCenter(entries);
@@ -12239,6 +12340,7 @@ els.entryForm.addEventListener("submit", event => {
     notes: data.notes.trim()
   }, state.services); });
   state.entries.push(...newEntries);
+  newEntries.forEach(deductInventoryForEntry);
   logEdit("تسجيل عملية", `#${visitNumber} · ${data.patient.trim()} · ${newEntries.map(line => line.service).join("، ")}`);
   const receipt = data.createReceipt === "on" && canUseFeature("issue_receipts")
     ? createReceiptForVisit(newEntries, patient, {
@@ -12391,9 +12493,12 @@ if (els.serviceForm) {
       category: newCategory,
       defaultPrice: data.defaultPrice,
       defaultCost: data.defaultCost,
+      consumes: _servicePendingConsumes,
       active: data.active === "true"
     }));
     logEdit("إضافة خدمة", `${data.name.trim()}${newCategory ? " · " + newCategory : ""}`);
+    _servicePendingConsumes = [];
+    renderConsumeList(els.serviceForm.querySelector("[data-consume-list]"), _servicePendingConsumes, "remove-consume");
     els.serviceForm.reset();
     const newWrap = els.serviceForm.querySelector("[data-service-new-category-wrap]");
     if (newWrap) newWrap.hidden = true;
@@ -12419,6 +12524,9 @@ if (els.serviceForm) {
     form.elements.defaultPrice.value = numberValue(service.defaultPrice);
     if (form.elements.defaultCost) form.elements.defaultCost.value = numberValue(service.defaultCost);
     form.elements.active.value = service.active === false ? "false" : "true";
+    _editServicePendingConsumes = (service.consumes || []).map(part => ({ itemId: part.itemId, qty: part.qty }));
+    populateConsumeSelects();
+    renderConsumeList(modal.querySelector("[data-edit-consume-list]"), _editServicePendingConsumes, "edit-remove-consume");
     modal.hidden = false;
     setTimeout(() => form.elements.name.focus(), 30);
   }
@@ -12434,6 +12542,7 @@ if (els.serviceForm) {
     service.defaultPrice = numberValue(data.defaultPrice);
     if (data.defaultCost !== undefined) service.defaultCost = numberValue(data.defaultCost);
     service.active = data.active !== "false";
+    service.consumes = _editServicePendingConsumes.map(part => ({ itemId: part.itemId, qty: part.qty }));
     logEdit("تعديل خدمة", `${service.name}${service.category ? " · " + service.category : ""}`);
     close();
     saveState();
@@ -13430,7 +13539,10 @@ document.addEventListener("click", async event => {
   if (deleteEntryId) {
     if (!canUseFeature("delete_treatments_medical")) return;
     const removed = state.entries.find(entry => entry.id === deleteEntryId);
-    if (removed) logEdit("حذف عملية", `${removed.visitNumber ? "#" + removed.visitNumber + " " : ""}${removed.patient || ""} · ${removed.service || ""} · ${money(netAmount(removed))}`, { type: "entry", record: removed });
+    if (removed) {
+      logEdit("حذف عملية", `${removed.visitNumber ? "#" + removed.visitNumber + " " : ""}${removed.patient || ""} · ${removed.service || ""} · ${money(netAmount(removed))}`, { type: "entry", record: removed });
+      restoreInventoryForEntry(removed);
+    }
     state.entries = state.entries.filter(entry => entry.id !== deleteEntryId);
     saveState();
     render();

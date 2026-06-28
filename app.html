@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260623b">
+  <link rel="stylesheet" href="app.css?v=20260623c">
 </head>
 <body>
 
@@ -1309,6 +1309,15 @@
                 <option value="false">متوقفة</option>
               </select>
             </label>
+            <details class="service-consume-expander">
+              <summary>المخزون المستهلك لكل عملية <span class="eyebrow">(اختياري)</span></summary>
+              <div class="service-consume-builder">
+                <select data-consume-item-select><option value="">— اختر صنفاً من المخزون —</option></select>
+                <input type="number" min="0" step="0.01" placeholder="الكمية المستهلكة" data-consume-qty>
+                <button type="button" class="ghost-button" data-add-consume>إضافة</button>
+              </div>
+              <div class="service-consume-list" data-consume-list></div>
+            </details>
             <button class="primary-button form-submit" type="submit">حفظ الخدمة</button>
           </form>
         </article>
@@ -2993,6 +3002,15 @@
         <label>السعر الافتراضي<input name="defaultPrice" type="number" min="0" step="0.01"></label>
         <label data-sensitive>التكلفة المباشرة<input name="defaultCost" type="number" min="0" step="0.01"></label>
         <label>الحالة<select name="active"><option value="true">فعالة</option><option value="false">متوقفة</option></select></label>
+        <details class="service-consume-expander" open>
+          <summary>المخزون المستهلك لكل عملية <span class="eyebrow">(اختياري)</span></summary>
+          <div class="service-consume-builder">
+            <select data-edit-consume-item-select><option value="">— اختر صنفاً من المخزون —</option></select>
+            <input type="number" min="0" step="0.01" placeholder="الكمية المستهلكة" data-edit-consume-qty>
+            <button type="button" class="ghost-button" data-edit-add-consume>إضافة</button>
+          </div>
+          <div class="service-consume-list" data-edit-consume-list></div>
+        </details>
         <div class="slot-booking-actions">
           <button class="primary-button" type="submit">حفظ التعديل</button>
           <button class="text-button" type="button" data-edit-service-close>إلغاء</button>
@@ -3000,7 +3018,7 @@
       </form>
     </div>
   </div>
-  <script src="app.js?v=20260623b"></script>
+  <script src="app.js?v=20260623c"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>
