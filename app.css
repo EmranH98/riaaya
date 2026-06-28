@@ -3991,6 +3991,30 @@ td {
 .growth-nophone { font-size: 11px; color: var(--ink-muted); }
 .growth-empty { padding: 22px 16px; text-align: center; color: var(--ink-soft); font-size: 13px; }
 
+/* Commission matrix — full-screen table, a value per service */
+.commission-table-modal { position: fixed; inset: 0; background: rgba(14,65,80,.45); z-index: 200; display: flex; align-items: stretch; justify-content: center; padding: 24px; }
+.commission-table-modal[hidden] { display: none; }
+.commission-table-panel { background: var(--white); border-radius: 16px; width: 100%; max-width: 1040px; display: flex; flex-direction: column; overflow: hidden; }
+.ct-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+.ct-header h2 { margin: 0; font-size: 18px; }
+.ct-controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 14px 20px 6px; }
+.ct-controls label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 800; color: var(--ink-soft); }
+.ct-people-wrap { padding: 6px 20px 12px; }
+.ct-label { font-size: 12px; font-weight: 800; color: var(--ink-soft); }
+.ct-people { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.ct-body { flex: 1; overflow-y: auto; padding: 0 20px; min-height: 200px; }
+.ct-table { width: 100%; border-collapse: collapse; }
+.ct-table th { text-align: start; font-size: 12px; color: var(--ink-soft); padding: 9px 8px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--white); z-index: 1; }
+.ct-table td { padding: 6px 8px; border-bottom: 1px solid var(--border); }
+.ct-table input { width: 130px; }
+.ct-cat-row { background: var(--teal-pale); }
+.ct-cat-name { font-weight: 900; color: var(--teal-dark); }
+.ct-sub-name { font-weight: 800; color: var(--ink); padding-inline-start: 14px; }
+.ct-svc-name { padding-inline-start: 28px; color: var(--ink); }
+.ct-fill { background: #fff8e6; }
+.ct-footer { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-top: 1px solid var(--border); }
+.ct-summary { font-weight: 800; color: var(--ink-soft); }
+
 /* Rule services tree (handles many services neatly) */
 [data-rule-service-select] { max-height: 360px; overflow-y: auto; border: 1px solid var(--border); border-radius: 12px; padding: 8px; background: var(--surface); }
 .rule-tree-cat { border-bottom: 1px solid var(--border); }

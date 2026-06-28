@@ -13003,6 +13003,109 @@ if (els.serviceForm) {
   });
 })();
 
+// ── Commission matrix: one full-screen table, a value per service, applied to
+// chosen employees — creates many rules at once. ───────────────────────────
+(function initCommissionTable() {
+  const modal = document.querySelector("[data-commission-table-modal]");
+  if (!modal) return;
+  const peopleEl = modal.querySelector("[data-ct-people]");
+  const bodyEl = modal.querySelector("[data-ct-body]");
+  const appliesSel = modal.querySelector("[data-ct-applies]");
+  const modelSel = modal.querySelector("[data-ct-model]");
+  const nameEl = modal.querySelector("[data-ct-name]");
+  const summaryEl = modal.querySelector("[data-ct-summary]");
+  const close = () => { modal.hidden = true; };
+
+  function renderPeople() {
+    const role = appliesSel.value;
+    const people = (state.staff || []).filter(member => member.role === role);
+    peopleEl.innerHTML = people.length
+      ? people.map(member => `<label class="rule-person-check"><input type="checkbox" data-ct-person value="${member.id}"><span>${member.name}</span></label>`).join("")
+      : `<div class="empty-state">لا يوجد ${role === "doctor" ? "أطباء" : "أخصائيون"} بعد.</div>`;
+  }
+
+  function updateSummary() {
+    const filled = [...bodyEl.querySelectorAll("[data-ct-value]")].filter(input => Number(input.value) > 0).length;
+    summaryEl.textContent = filled ? `${filled} خدمة بعمولة` : "لم تُدخل أي عمولة بعد";
+  }
+
+  function renderBody() {
+    const services = (state.services || []).filter(service => service.active !== false);
+    if (!services.length) { bodyEl.innerHTML = `<div class="empty-state">أضف خدمات أولاً.</div>`; return; }
+    const byCat = new Map();
+    services.forEach(svc => {
+      const cat = svc.category || "بدون فئة";
+      const sub = svc.subcategory || "";
+      if (!byCat.has(cat)) byCat.set(cat, new Map());
+      const subMap = byCat.get(cat);
+      if (!subMap.has(sub)) subMap.set(sub, []);
+      subMap.get(sub).push(svc);
+    });
+    const svcRow = svc => `<tr><td class="ct-svc-name">${svc.name}</td><td><input type="number" min="0" step="0.01" data-ct-value="${svc.id}" data-svc-cat="${svc.category || "بدون فئة"}" data-svc-sub="${(svc.category || "بدون فئة")}__${svc.subcategory || ""}" placeholder="—"></td></tr>`;
+    bodyEl.innerHTML = `<table class="ct-table"><thead><tr><th>الخدمة / الفئة</th><th>العمولة</th></tr></thead><tbody>`
+      + [...byCat.entries()].map(([cat, subMap]) => {
+        const noSub = subMap.get("") || [];
+        const subs = [...subMap.entries()].filter(([sub]) => sub).sort((a, b) => a[0].localeCompare(b[0], "ar"));
+        return `<tr class="ct-cat-row"><td class="ct-cat-name">${cat}</td><td><input type="number" min="0" step="0.01" data-ct-fill="${cat}" placeholder="تعبئة كل الفئة" class="ct-fill"></td></tr>`
+          + noSub.map(svcRow).join("")
+          + subs.map(([sub, list]) => `<tr class="ct-sub-row"><td class="ct-sub-name">↳ ${sub}</td><td><input type="number" min="0" step="0.01" data-ct-fill-sub="${cat}__${sub}" placeholder="تعبئة كل القسم" class="ct-fill"></td></tr>` + list.map(svcRow).join("")).join("");
+      }).join("")
+      + `</tbody></table>`;
+    updateSummary();
+  }
+
+  function open() {
+    if (!canViewSensitive()) return;
+    nameEl.value = "";
+    appliesSel.value = "specialist";
+    renderPeople();
+    renderBody();
+    modal.hidden = false;
+  }
+
+  appliesSel.addEventListener("change", renderPeople);
+  bodyEl.addEventListener("input", event => {
+    const fill = event.target.closest("[data-ct-fill]");
+    const fillSub = event.target.closest("[data-ct-fill-sub]");
+    if (fill) bodyEl.querySelectorAll("[data-ct-value]").forEach(input => { if (input.dataset.svcCat === fill.dataset.ctFill) input.value = fill.value; });
+    else if (fillSub) bodyEl.querySelectorAll("[data-ct-value]").forEach(input => { if (input.dataset.svcSub === fillSub.dataset.ctFillSub) input.value = fillSub.value; });
+    updateSummary();
+  });
+
+  modal.querySelector("[data-ct-save]").addEventListener("click", () => {
+    if (!canViewSensitive()) return;
+    const model = modelSel.value;
+    const appliesTo = appliesSel.value;
+    const personIds = [...peopleEl.querySelectorAll("[data-ct-person]:checked")].map(cb => cb.value);
+    const name = nameEl.value.trim() || "جدول عمولات";
+    const entries = [...bodyEl.querySelectorAll("[data-ct-value]")]
+      .map(input => ({ serviceId: input.dataset.ctValue, value: Number(input.value) }))
+      .filter(entry => entry.value > 0);
+    if (!entries.length) { showToast("أدخل عمولة لخدمة واحدة على الأقل", "warn"); return; }
+    const byValue = new Map();
+    entries.forEach(entry => { const key = String(entry.value); if (!byValue.has(key)) byValue.set(key, []); byValue.get(key).push(entry.serviceId); });
+    let ruleCount = 0;
+    byValue.forEach((serviceIds, valueStr) => {
+      state.rules.push(normalizeRule({
+        id: nextId("rule"),
+        name: `${name} (${valueStr}${model === "fixed" ? " د.أ" : "%"})`,
+        appliesTo, personIds, serviceIds, model, value: Number(valueStr), active: true
+      }));
+      ruleCount++;
+    });
+    logEdit("جدول عمولات", `${name} — ${entries.length} خدمة · ${ruleCount} قاعدة · ${personIds.length || "كل"} موظف`);
+    close();
+    saveState();
+    render();
+    showToast(`تم إنشاء ${ruleCount} قاعدة تغطي ${entries.length} خدمة`, "success");
+  });
+
+  modal.querySelector("[data-commission-table-close]").addEventListener("click", close);
+  modal.addEventListener("click", event => { if (event.target === modal) close(); });
+  document.addEventListener("keydown", event => { if (event.key === "Escape" && !modal.hidden) close(); });
+  document.addEventListener("click", event => { if (event.target.closest("[data-open-commission-table]")) open(); });
+})();
+
 // ── Edit a treatment from the all-treatments browse table ──────────────────
 (function initEditService() {
   const modal = document.querySelector("[data-edit-service-modal]");

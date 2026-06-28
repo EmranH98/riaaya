@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260623m">
+  <link rel="stylesheet" href="app.css?v=20260623n">
 </head>
 <body>
 
@@ -1217,6 +1217,7 @@
                 <p class="eyebrow">قواعد المستحقات</p>
                 <h2>قاعدة جديدة</h2>
               </div>
+              <button class="dark-button" type="button" data-open-commission-table title="جدول كامل: عمولة لكل خدمة مرة واحدة">⊞ جدول العمولات</button>
             </div>
             <form class="entry-form" data-rule-form>
               <input type="hidden" name="editingRuleId" data-rule-editing-id value="">
@@ -3052,6 +3053,40 @@
     </div>
   </div>
 
+  <div class="commission-table-modal" data-commission-table-modal hidden>
+    <div class="commission-table-panel" role="dialog" aria-modal="true" aria-label="جدول العمولات">
+      <header class="ct-header">
+        <h2>جدول العمولات — عمولة لكل خدمة دفعة واحدة</h2>
+        <button class="icon-button" type="button" data-commission-table-close aria-label="إغلاق">×</button>
+      </header>
+      <div class="ct-controls">
+        <label>اسم القاعدة<input type="text" data-ct-name placeholder="عمولات الليزر"></label>
+        <label>طريقة الحساب
+          <select data-ct-model>
+            <option value="fixed">مبلغ ثابت لكل عملية</option>
+            <option value="pct_net">نسبة من الربح بعد التكلفة</option>
+            <option value="pct_gross">نسبة من المقبوض</option>
+          </select>
+        </label>
+        <label>تطبق على
+          <select data-ct-applies>
+            <option value="specialist">أخصائي</option>
+            <option value="doctor">طبيب</option>
+          </select>
+        </label>
+      </div>
+      <div class="ct-people-wrap">
+        <span class="ct-label">الموظفون (اختر من تُطبَّق عليهم — بدون اختيار = الكل):</span>
+        <div class="ct-people" data-ct-people></div>
+      </div>
+      <div class="ct-body" data-ct-body></div>
+      <footer class="ct-footer">
+        <span class="ct-summary" data-ct-summary>—</span>
+        <button class="primary-button" type="button" data-ct-save>حفظ كل العمولات</button>
+      </footer>
+    </div>
+  </div>
+
   <div class="slot-booking-modal" data-product-sale-modal hidden>
     <div class="slot-booking-card" role="dialog" aria-modal="true" aria-label="بيع منتج">
       <button class="icon-button slot-booking-close" type="button" data-product-sale-close aria-label="إغلاق">×</button>
@@ -3098,7 +3133,7 @@
       </form>
     </div>
   </div>
-  <script src="app.js?v=20260623m"></script>
+  <script src="app.js?v=20260623n"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>
