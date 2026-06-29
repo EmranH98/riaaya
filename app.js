@@ -1161,7 +1161,11 @@ function normalizeImportHistory(record) {
     imported: asNumber(record.imported),
     duplicates: asNumber(record.duplicates),
     invalid: asNumber(record.invalid),
-    createdAt: record.createdAt || record.created_at || new Date().toISOString()
+    createdAt: record.createdAt || record.created_at || new Date().toISOString(),
+    entryIds: Array.isArray(record.entryIds) ? record.entryIds : [],
+    bookingIds: Array.isArray(record.bookingIds) ? record.bookingIds : [],
+    patientIds: Array.isArray(record.patientIds) ? record.patientIds : [],
+    expenseIds: Array.isArray(record.expenseIds) ? record.expenseIds : []
   };
 }
 
@@ -7163,10 +7167,17 @@ function commitImportRecords() {
   _importCreatedStaff = [];
   const rows = buildImportRows();
   const validRows = rows.filter(row => !row.errors.length && !row.duplicate);
+  // Track every record this import creates so the whole batch can be undone later.
+  const created = { entries: [], bookings: [], patients: [], expenses: [] };
+  const existingPatientIds = new Set((state.patients || []).map(patient => patient.id));
+  const trackPatient = patient => {
+    if (patient && !existingPatientIds.has(patient.id)) { existingPatientIds.add(patient.id); created.patients.push(patient.id); }
+  };
   validRows.forEach(({ record }) => {
     if (importSession.entity === "patients") {
+      const patientId = nextId("patient");
       state.patients.push(normalizePatient({
-        id: nextId("patient"),
+        id: patientId,
         patientNumber: record.patientNumber || nextPatientNumber(),
         profileType: record.profileType || "patient",
         name: String(record.name).trim(),
@@ -7180,11 +7191,14 @@ function commitImportRecords() {
         marketingConsent: record.marketingConsent,
         createdAt: today
       }));
+      created.patients.push(patientId);
     } else if (importSession.entity === "bookings") {
       const patient = ensurePatientFile(String(record.patient).trim(), String(record.phone || "").trim());
+      trackPatient(patient);
       const service = ensureImportedService(record.service, record.expectedAmount);
+      const bookingId = nextId("booking");
       state.bookings.push(normalizeBooking({
-        id: nextId("booking"),
+        id: bookingId,
         patientId: patient.id,
         patient: patient.name,
         phone: record.phone,
@@ -7198,11 +7212,14 @@ function commitImportRecords() {
         expectedAmount: record.expectedAmount,
         notes: record.notes
       }, state.services));
+      created.bookings.push(bookingId);
     } else if (importSession.entity === "operations") {
       const patient = ensurePatientFile(String(record.patient).trim(), String(record.phone || "").trim());
+      trackPatient(patient);
       const service = ensureImportedService(record.service, record.amount);
+      const entryId = nextId("entry");
       state.entries.push(normalizeEntry({
-        id: nextId("entry"),
+        id: entryId,
         visitId: nextId("visit"),
         patientId: patient.id,
         patient: patient.name,
@@ -7219,10 +7236,12 @@ function commitImportRecords() {
         status: record.status || "completed",
         notes: record.notes
       }, state.services));
+      created.entries.push(entryId);
     } else {
       const category = ensureImportedExpenseCategory(record.group, record.subgroup);
+      const expenseId = nextId("expense");
       state.expenses.push(normalizeExpense({
-        id: nextId("expense"),
+        id: expenseId,
         groupId: category.group.id,
         subgroupId: category.subgroup.id,
         amount: record.amount,
@@ -7233,6 +7252,7 @@ function commitImportRecords() {
         notes: record.notes,
         branch: record.branch || state.settings.branch
       }));
+      created.expenses.push(expenseId);
     }
   });
   state.importHistory = state.importHistory || [];
@@ -7245,7 +7265,11 @@ function commitImportRecords() {
     imported: validRows.length,
     duplicates: rows.filter(row => row.duplicate).length,
     invalid: rows.filter(row => row.errors.length).length,
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    entryIds: created.entries,
+    bookingIds: created.bookings,
+    patientIds: created.patients,
+    expenseIds: created.expenses
   }));
   saveState();
   resetImportWorkspace();
@@ -7278,10 +7302,44 @@ function renderImportHistory() {
         <span class="status-pill good">${record.imported} مستورد</span>
         ${record.duplicates ? `<span class="status-pill warn">${record.duplicates} مكرر</span>` : ""}
         ${record.invalid ? `<span class="status-pill bad">${record.invalid} خطأ</span>` : ""}
+        ${canUseFeature("import_data") ? `<button class="text-button danger" type="button" data-delete-import="${record.id}" title="حذف هذا الاستيراد وكل ما أنشأه">حذف الاستيراد</button>` : ""}
       </div>
     </div>
   `).join("") : `<div class="empty-state">لم تنفذ أي عملية استيراد بعد.</div>`;
 }
+
+// Undo an entire import: remove exactly the records it created (and any patients
+// it created that have no other activity), then drop the history entry.
+async function deleteImportBatch(importId) {
+  if (!canUseFeature("import_data")) return;
+  const record = (state.importHistory || []).find(item => item.id === importId);
+  if (!record) return;
+  const entrySet = new Set(record.entryIds || []);
+  const bookingSet = new Set(record.bookingIds || []);
+  const expenseSet = new Set(record.expenseIds || []);
+  const patientSet = new Set(record.patientIds || []);
+  const total = entrySet.size + bookingSet.size + expenseSet.size + patientSet.size;
+  const label = IMPORT_SCHEMAS[record.entity]?.label || record.entity;
+  if (!await showConfirm(`سيتم حذف ${total} سجلاً أُنشئ من هذا الاستيراد (${label} · ${record.fileName}).\nلا يمكن التراجع. هل تريد المتابعة؟`)) return;
+  state.entries = (state.entries || []).filter(item => !entrySet.has(item.id));
+  state.bookings = (state.bookings || []).filter(item => !bookingSet.has(item.id));
+  state.expenses = (state.expenses || []).filter(item => !expenseSet.has(item.id));
+  if (patientSet.size) {
+    const stillUsed = new Set();
+    (state.entries || []).forEach(entry => entry.patientId && stillUsed.add(entry.patientId));
+    (state.bookings || []).forEach(booking => booking.patientId && stillUsed.add(booking.patientId));
+    state.patients = (state.patients || []).filter(patient => !(patientSet.has(patient.id) && !stillUsed.has(patient.id)));
+  }
+  state.importHistory = (state.importHistory || []).filter(item => item.id !== importId);
+  logEdit("حذف استيراد", `${label} · ${record.fileName} · ${total} سجل`);
+  saveState();
+  render();
+  showToast(`تم حذف الاستيراد وما أنشأه (${total} سجل)`, "success");
+}
+document.addEventListener("click", event => {
+  const btn = event.target.closest("[data-delete-import]");
+  if (btn) deleteImportBatch(btn.dataset.deleteImport);
+});
 
 function renderBookingCalendar() {
   const isEnglish = currentLanguage() === "en";
