@@ -28,12 +28,32 @@ function statusMessage(element, message, success = false) {
   element.classList.toggle("success", success);
 }
 
-async function authRequest(path, payload) {
-  const response = await fetch(path, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  });
+async function retryAuth(path, payload, attempt) {
+  // Render's free tier spins the service down when idle; the first request after
+  // a nap can be refused/time-out while it wakes. Show a clear note and retry.
+  document.querySelectorAll("[data-login-status],[data-register-status],[data-forgot-status]")
+    .forEach(el => { if (el) statusMessage(el, "الخادم يستيقظ من وضع الخمول… جارٍ المحاولة تلقائياً."); });
+  await new Promise(resolve => setTimeout(resolve, 2000 * (attempt + 1)));
+  return authRequest(path, payload, attempt + 1);
+}
+
+async function authRequest(path, payload, attempt = 0) {
+  let response;
+  try {
+    response = await fetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+  } catch {
+    // Network failure — almost always the server cold-starting. Retry up to 4 times.
+    if (attempt < 4) return retryAuth(path, payload, attempt);
+    throw new Error("server_waking");
+  }
+  // Gateway codes mean the app is still starting behind the proxy — retry too.
+  if ([502, 503, 504].includes(response.status) && attempt < 4) {
+    return retryAuth(path, payload, attempt);
+  }
   const text = await response.text();
   let result = {};
   try {
@@ -60,7 +80,8 @@ function errorLabel(error) {
     invalid_challenge: "جلسة التحقق غير صالحة. سجّل الدخول من جديد.",
     invalid_2fa_setup: "إعداد المصادقة الثنائية يحتاج إعادة ضبط. استخدم رمز احتياط أو تواصل مع مدير النظام.",
     email_required: "أدخل بريدك الإلكتروني.",
-    server_error: "حدث خطأ في الخادم. حاول مرة أخرى بعد لحظات."
+    server_error: "حدث خطأ في الخادم. حاول مرة أخرى بعد لحظات.",
+    server_waking: "تعذّر الوصول إلى الخادم — قد يكون في وضع الخمول بعد فترة سكون. انتظر 30 ثانية ثم حاول مرة أخرى."
   };
   return labels[error.message] || "تعذر إكمال الطلب الآن.";
 }
