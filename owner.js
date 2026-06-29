@@ -138,7 +138,7 @@ function renderClinics() {
         </select>
         <button type="button" data-save-clinic="${clinic.id}">حفظ التغييرات</button>
         <button class="secondary-control" type="button" data-enter-clinic="${clinic.id}" title="الدخول إلى حساب العيادة كمالك (يُسجَّل)">↪ دخول العيادة</button>
-        <button class="secondary-control" type="button" data-reset-clinic-password="${clinic.id}">كلمة مرور مؤقتة للمدير</button>
+        <button class="secondary-control" type="button" data-reset-clinic-password="${clinic.id}">تعيين كلمة مرور المدير</button>
         <button class="secondary-control" type="button" data-reset-user-password="${clinic.id}">إعادة كلمة مرور موظف</button>
         <button class="secondary-control" type="button" data-disable-user-twofa="${clinic.id}">إيقاف 2FA لمستخدم</button>
         <button class="secondary-control" type="button" data-send-notify="${clinic.id}">إرسال إشعار</button>
@@ -586,6 +586,9 @@ if (resetUserForm) {
     event.preventDefault();
     if (!ownerSession?.csrfToken) return;
     const data = Object.fromEntries(new FormData(resetUserForm));
+    const chosen = window.prompt("اكتب كلمة مرور جديدة للموظف (8 أحرف على الأقل) — يدخل بها فوراً.\n\nاتركها فارغة لتوليد كلمة مرور مؤقتة:", "");
+    if (chosen === null) return; // cancelled
+    if (chosen && chosen.length < 8) { resetUserStatus.textContent = "كلمة المرور قصيرة جداً — 8 أحرف على الأقل."; return; }
     const button = resetUserForm.querySelector("button[type='submit']");
     button.disabled = true;
     resetUserStatus.textContent = "جاري إعادة التعيين...";
@@ -593,11 +596,15 @@ if (resetUserForm) {
       const response = await fetch(`/api/owner/clinics/${data.clinicId}/reset-user-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-CSRF-Token": ownerSession.csrfToken },
-        body: JSON.stringify({ userId: data.userId })
+        body: JSON.stringify({ userId: data.userId, ...(chosen ? { password: chosen } : {}) })
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "reset_failed");
-      window.prompt(`كلمة المرور المؤقتة لـ ${result.name} (${result.email}). تظهر مرة واحدة فقط:`, result.temporaryPassword);
+      if (result.forced) {
+        window.prompt(`كلمة مرور مؤقتة لـ ${result.name} (${result.email}) — تظهر مرة واحدة، يجب تغييرها عند أول دخول:`, result.temporaryPassword);
+      } else {
+        alert(`✓ تم تعيين كلمة مرور ${result.name}. يمكنه تسجيل الدخول بها مباشرةً.`);
+      }
       resetUserDialog.close();
     } catch {
       resetUserStatus.textContent = "تعذر إعادة تعيين كلمة المرور.";
@@ -764,16 +771,23 @@ document.addEventListener("click", async event => {
 
   const resetAdminId = target.dataset.resetClinicPassword;
   if (resetAdminId) {
-    if (!confirm("سيتم إلغاء جلسات مدير العيادة الحالية وإصدار كلمة مرور مؤقتة. هل تريد المتابعة؟")) return;
+    const chosen = window.prompt("اكتب كلمة مرور جديدة لمدير العيادة (8 أحرف على الأقل) — يدخل بها فوراً دون الحاجة للقديمة.\n\nاترك الحقل فارغاً لتوليد كلمة مرور مؤقتة يجب تغييرها عند أول دخول:", "");
+    if (chosen === null) return; // cancelled
+    if (chosen && chosen.length < 8) { alert("كلمة المرور قصيرة جداً — استخدم 8 أحرف على الأقل."); return; }
     target.disabled = true;
     try {
       const response = await fetch(`/api/owner/clinics/${resetAdminId}/reset-admin-password`, {
         method: "POST",
-        headers: { "X-CSRF-Token": ownerSession.csrfToken }
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": ownerSession.csrfToken },
+        body: JSON.stringify(chosen ? { password: chosen } : {})
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "reset_failed");
-      window.prompt(`كلمة المرور المؤقتة لـ ${result.email}. تظهر مرة واحدة فقط:`, result.temporaryPassword);
+      if (result.forced) {
+        window.prompt(`كلمة مرور مؤقتة لـ ${result.email} — تظهر مرة واحدة، يجب تغييرها عند أول دخول:`, result.temporaryPassword);
+      } else {
+        alert(`✓ تم تعيين كلمة مرور المدير ${result.email}. يمكنه تسجيل الدخول بها مباشرةً.`);
+      }
       await loadOwner();
     } finally {
       target.disabled = false;

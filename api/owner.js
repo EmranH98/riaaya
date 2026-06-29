@@ -595,9 +595,14 @@ function resetClinicAdminPassword(req, res, clinicId) {
     sendJson(res, 404, { error: "clinic_admin_not_found" });
     return;
   }
-  const password = temporaryPassword();
-  db.prepare("update users set password_hash = ?, must_change_password = 1, updated_at = ? where id = ?")
-    .run(hashPassword(password), nowIso(), admin.id);
+  // The owner may set a specific password directly (used immediately, no forced
+  // change, no old password needed) — or omit it for a random temp that must be changed.
+  const provided = String(req.body?.password || "");
+  if (provided && provided.length < 8) { sendJson(res, 400, { error: "weak_password" }); return; }
+  const useProvided = provided.length >= 8;
+  const password = useProvided ? provided : temporaryPassword();
+  db.prepare("update users set password_hash = ?, must_change_password = ?, updated_at = ? where id = ?")
+    .run(hashPassword(password), useProvided ? 0 : 1, nowIso(), admin.id);
   db.prepare("delete from sessions where user_id = ?").run(admin.id);
   audit({
     userId: auth.user.id,
@@ -608,7 +613,7 @@ function resetClinicAdminPassword(req, res, clinicId) {
     metadata: { email: admin.email },
     ipAddress: clientIp(req)
   });
-  sendJson(res, 200, { ok: true, email: admin.email, temporaryPassword: password });
+  sendJson(res, 200, { ok: true, email: admin.email, temporaryPassword: password, forced: !useProvided });
 }
 
 function resetUserPassword(req, res, clinicId) {
@@ -620,9 +625,13 @@ function resetUserPassword(req, res, clinicId) {
     sendJson(res, 404, { error: "user_not_found" });
     return;
   }
-  const password = temporaryPassword();
-  db.prepare("update users set password_hash = ?, must_change_password = 1, updated_at = ? where id = ?")
-    .run(hashPassword(password), nowIso(), user.id);
+  // Owner may set a specific password directly (no forced change), or omit it for a temp.
+  const provided = String(req.body?.password || "");
+  if (provided && provided.length < 8) { sendJson(res, 400, { error: "weak_password" }); return; }
+  const useProvided = provided.length >= 8;
+  const password = useProvided ? provided : temporaryPassword();
+  db.prepare("update users set password_hash = ?, must_change_password = ?, updated_at = ? where id = ?")
+    .run(hashPassword(password), useProvided ? 0 : 1, nowIso(), user.id);
   db.prepare("delete from sessions where user_id = ?").run(user.id);
   audit({
     userId: auth.user.id,
@@ -630,10 +639,10 @@ function resetUserPassword(req, res, clinicId) {
     action: "reset_password",
     entity: "user",
     entityId: user.id,
-    metadata: { email: user.email, role: user.role },
+    metadata: { email: user.email, role: user.role, ownerSet: useProvided },
     ipAddress: clientIp(req)
   });
-  sendJson(res, 200, { ok: true, email: user.email, name: user.name, temporaryPassword: password });
+  sendJson(res, 200, { ok: true, email: user.email, name: user.name, temporaryPassword: password, forced: !useProvided });
 }
 
 function disableUserTwoFactor(req, res, clinicId) {
