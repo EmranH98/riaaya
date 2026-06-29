@@ -9297,10 +9297,14 @@ function renderReports() {
     pagination = paginateItems([], 1, pageSize);
     content = renderSpecialistReport(allEntries);
   } else if (reportType === "audit") {
+    // The audit log is a running history, not a daily report. When the date range
+    // is the default single work-day, widen it to the full retained window so every
+    // logged add/edit/delete shows — otherwise actions from other days are hidden.
+    const auditFrom = from === to ? dateOffset(-AUDIT_RETENTION_DAYS, to) : from;
     const auditItems = (state.auditTrail || []).slice().reverse()
       .filter(item => {
         const day = (item.at || "").slice(0, 10);
-        return (!day || (day >= from && day <= to))
+        return (!day || (day >= auditFrom && day <= to))
           && (!filters.query || matchesSmartQuery([item.who, item.action, item.detail], filters.query));
       });
     pagination = paginateItems(auditItems, reportPage, pageSize);
