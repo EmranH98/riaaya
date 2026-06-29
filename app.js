@@ -6073,9 +6073,22 @@ function restoreAuditEntry(auditId) {
   render();
 }
 
+let auditWhoFilter = "";
+let auditActionFilter = "";
+
 function renderAuditReport(items) {
-  if (!items.length) return `<div class="empty-state">لا توجد تعديلات مسجّلة بعد.</div>`;
-  const rows = items.map(item => {
+  const trail = state.auditTrail || [];
+  const whoOptions = [...new Set(trail.map(entry => entry.who).filter(Boolean))].sort((a, b) => a.localeCompare(b, "ar"));
+  const actionOptions = [...new Set(trail.map(entry => entry.action).filter(Boolean))].sort((a, b) => a.localeCompare(b, "ar"));
+  const opt = (value, selected) => `<option value="${value}"${value === selected ? " selected" : ""}>${value}</option>`;
+  const filterBar = `
+    <div class="audit-filter-bar">
+      <label>المستخدم <select data-audit-who><option value="">كل المستخدمين</option>${whoOptions.map(value => opt(value, auditWhoFilter)).join("")}</select></label>
+      <label>نوع الإجراء <select data-audit-action><option value="">كل الإجراءات</option>${actionOptions.map(value => opt(value, auditActionFilter)).join("")}</select></label>
+      ${(auditWhoFilter || auditActionFilter) ? `<button type="button" class="ghost-chip" data-audit-clear>مسح الفلاتر ✕</button>` : ""}
+      <span class="audit-filter-count">${items.length} سجل</span>
+    </div>`;
+  const body = items.length ? items.map(item => {
     const canRestore = item.restore && item.restore.record && !item.restore.restored;
     const restoreCell = canRestore
       ? `<button class="text-button" type="button" data-restore-audit="${item.id}">استرجاع</button>`
@@ -6083,17 +6096,18 @@ function renderAuditReport(items) {
     return `
     <tr>
       <td>${displayDate(String(item.at).slice(0, 10))} · ${displayClockMinute ? displayClockMinute(item.at) : ""}</td>
-      <td>${item.who}</td>
+      <td>${item.who}${item.role ? ` <span class="audit-role">${roleLabel(item.role) || item.role}</span>` : ""}</td>
       <td>${item.action}</td>
       <td>${item.detail || "—"}</td>
       <td>${restoreCell}</td>
     </tr>`;
-  }).join("");
+  }).join("") : `<tr><td colspan="5" class="report-empty">لا توجد تعديلات مطابقة للفلاتر.</td></tr>`;
   return `
+    ${filterBar}
     <div class="table-wrap">
       <table class="practical-table">
         <thead><tr><th>التاريخ والوقت</th><th>المستخدم</th><th>الإجراء</th><th>التفاصيل</th><th></th></tr></thead>
-        <tbody>${rows}</tbody>
+        <tbody>${body}</tbody>
       </table>
     </div>`;
 }
@@ -9309,6 +9323,8 @@ function renderReports() {
       .filter(item => {
         const day = (item.at || "").slice(0, 10);
         return (!day || (day >= auditFrom && day <= to))
+          && (!auditWhoFilter || item.who === auditWhoFilter)
+          && (!auditActionFilter || item.action === auditActionFilter)
           && (!filters.query || matchesSmartQuery([item.who, item.action, item.detail], filters.query));
       });
     pagination = paginateItems(auditItems, reportPage, pageSize);
@@ -12666,6 +12682,20 @@ document.addEventListener("change", event => {
   const sel = event.target.closest("[data-specialist-filter]");
   if (!sel) return;
   specialistReportFilter = sel.value;
+  renderReports();
+});
+
+// Audit log filters: by user (who) and by action type.
+document.addEventListener("change", event => {
+  const who = event.target.closest("[data-audit-who]");
+  const action = event.target.closest("[data-audit-action]");
+  if (who) { auditWhoFilter = who.value; renderReports(); }
+  else if (action) { auditActionFilter = action.value; renderReports(); }
+});
+document.addEventListener("click", event => {
+  if (!event.target.closest("[data-audit-clear]")) return;
+  auditWhoFilter = "";
+  auditActionFilter = "";
   renderReports();
 });
 

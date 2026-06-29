@@ -4176,6 +4176,13 @@ body.kiosk-locked .global-search { display: none; }
 .specialist-detail { margin-top: 12px; }
 .specialist-detail summary { cursor: pointer; font-weight: 800; font-size: 13px; color: var(--teal-dark); padding: 8px 4px; }
 
+/* Audit log filters (who / action type) */
+.audit-filter-bar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 0 24px 14px; }
+.audit-filter-bar label { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 800; color: var(--ink-soft); }
+.audit-filter-bar select { min-width: 180px; }
+.audit-filter-count { margin-inline-start: auto; font-size: 12px; font-weight: 800; color: var(--teal-dark); background: var(--teal-pale); padding: 5px 12px; border-radius: 999px; }
+.audit-role { font-size: 11px; font-weight: 800; color: var(--teal-dark); background: var(--teal-pale); padding: 2px 8px; border-radius: 999px; margin-inline-start: 4px; }
+
 .profit-equation {
   display: grid;
   gap: 4px;
