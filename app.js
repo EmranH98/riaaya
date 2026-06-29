@@ -2770,18 +2770,24 @@ async function flushLiveState() {
     const result = await response.json().catch(() => ({}));
     if (response.ok) {
       runtime.stateVersion = Number(result.stateVersion ?? runtime.stateVersion);
+      runtime.conflictRetries = 0;
       setSaveIndicator("saved");
-    }
-    if (response.status === 401) { location.href = "/login?expired=1"; return; }
-    if (response.status === 409) {
-      alert("تم تحديث بيانات العيادة من مستخدم آخر. سنعيد تحميل أحدث نسخة لمنع فقدان البيانات.");
+    } else if (response.status === 401) {
+      location.href = "/login?expired=1";
+      return;
+    } else if (response.status === 409 && Number.isInteger(result.stateVersion) && (runtime.conflictRetries || 0) < 4) {
+      // Version drift (another tab/owner, or an earlier failed save): adopt the
+      // server's version and retry so the edit is NOT silently discarded.
+      runtime.conflictRetries = (runtime.conflictRetries || 0) + 1;
+      runtime.stateVersion = Number(result.stateVersion);
+      runtime.savePending = true;
+      setSaveIndicator("saving");
+    } else if (response.status === 409) {
+      alert("تعذّرت مزامنة بيانات العيادة بعد عدة محاولات. سنعيد تحميل أحدث نسخة.");
       location.reload();
-    }
-    if (!response.ok) {
+    } else {
       setSaveIndicator("error");
-      if (response.status !== 401 && response.status !== 409) {
-        showToast(`تعذّر حفظ التغييرات على الخادم (خطأ ${response.status}). تأكد من الصلاحيات أو أعد المحاولة.`, "error");
-      }
+      showToast(`تعذّر حفظ التغييرات: ${result.error || "خطأ " + response.status}. أعد المحاولة.`, "error");
     }
   } catch {
     setSaveIndicator("error");
