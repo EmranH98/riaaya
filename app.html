@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260624o">
+  <link rel="stylesheet" href="app.css?v=20260624p">
 </head>
 <body>
 
@@ -2096,6 +2096,7 @@
             <div class="report-toolbar-actions">
               <button class="focus-icon-button" type="button" data-open-table-focus="report" aria-label="عرض التقرير بملء الشاشة">⛶</button>
               <button class="ghost-chip" type="button" data-export-report-xls data-sensitive>تصدير XLS</button>
+              <button class="ghost-chip" type="button" data-export-treatments-log data-sensitive title="تصدير سجل العلاجات بصيغة Clinica (يُستورد في عيادة أخرى)">سجل العلاجات</button>
               <button class="print-report-btn" type="button" data-print-selected-report data-sensitive>🖨 طباعة</button>
             </div>
           </div>
@@ -2468,8 +2469,8 @@
             </label>
             <label class="import-file-field">
               ملف CSV أو JSON
-              <input name="file" type="file" accept=".csv,.json,text/csv,application/json" data-import-file required>
-              <small>صدّر Excel من النظام القديم بصيغة CSV. الملف لا يرسل إلى خدمة تحويل خارجية.</small>
+              <input name="file" type="file" accept=".csv,.json,.xls,.html,.htm,text/csv,application/json,text/html" data-import-file required>
+              <small>يقبل CSV و JSON وملفات Excel/XLS المُصدَّرة من Clinica وغيرها مباشرةً. الملف لا يُرسل إلى أي خدمة خارجية.</small>
             </label>
           </form>
           <div class="import-workspace" data-import-workspace hidden>
@@ -3170,7 +3171,7 @@
       </form>
     </div>
   </div>
-  <script src="app.js?v=20260624o"></script>
+  <script src="app.js?v=20260624p"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>

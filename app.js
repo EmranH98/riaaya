@@ -6882,7 +6882,7 @@ const IMPORT_ALIASES = {
   time: ["time", "booking time", "الوقت", "وقت"],
   service: ["service", "procedure", "treatment", "الخدمة", "العملية", "العلاج"],
   doctor: ["doctor", "physician", "الطبيب", "دكتور"],
-  specialist: ["specialist", "staff", "therapist", "الاخصائي", "الأخصائي", "الموظف"],
+  specialist: ["specialist", "assistant", "staff", "therapist", "الاخصائي", "الأخصائي", "الموظف"],
   status: ["status", "الحالة"],
   expectedAmount: ["expected amount", "amount", "price", "المبلغ المتوقع", "المبلغ", "السعر"],
   amount: ["amount", "total", "price", "value", "المبلغ", "القيمة", "الاجمالي", "الإجمالي"],
@@ -6948,6 +6948,19 @@ async function parseImportFile(file) {
     return {
       headers,
       rawRows: candidate.map(record => Object.fromEntries(headers.map(header => [header, record?.[header] ?? ""])))
+    };
+  }
+  // Clinica & many EHRs "export to Excel" as an HTML <table> with a .xls name.
+  // Parse it natively — the browser reads the Arabic in correct (logical) order.
+  if (/<table[\s>]/i.test(text)) {
+    const doc = new DOMParser().parseFromString(text, "text/html");
+    const table = [...doc.querySelectorAll("table")].sort((a, b) => b.rows.length - a.rows.length)[0];
+    if (!table || table.rows.length < 2) throw new Error("empty_import");
+    const grid = [...table.rows].map(tr => [...tr.cells].map(td => td.textContent.replace(/\s+/g, " ").trim()));
+    const htmlHeaders = grid[0].map((header, index) => header || `column_${index + 1}`);
+    return {
+      headers: htmlHeaders,
+      rawRows: grid.slice(1).map(values => Object.fromEntries(htmlHeaders.map((header, index) => [header, values[index] ?? ""])))
     };
   }
   const rows = parseCsv(text);
@@ -15098,6 +15111,40 @@ function downloadBlob(blob, filename) {
   link.click();
   URL.revokeObjectURL(link.href);
 }
+
+// Export the treatments log in the Clinica column format (round-trips through the
+// importer), honouring the current report date range + filters.
+function exportTreatmentsLog() {
+  if (!canViewSensitive()) return;
+  const { from, to } = reportDateRange();
+  const filters = reportFilterValues();
+  const entries = entriesForDateRange(from, to)
+    .filter(entry => isBillableEntry(entry) && entryMatchesReportFilters(entry, filters))
+    .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+  const header = ["Date", "Complete Date", "Treatment", "Price", "Patient", "Mobile No", "Doctor", "Assistant", "Status"];
+  const rows = entries.map(entry => {
+    const patient = getPatient(entry.patientId);
+    return [
+      entry.date || "", entry.date || "",
+      serviceLabel(entry) || entry.service || "",
+      Number(netAmount(entry) || 0).toFixed(2),
+      entry.patient || patient?.name || "",
+      patient?.phone || "",
+      getStaffMember(entry.doctorId)?.name || "",
+      getStaffMember(entry.specialistId)?.name || "",
+      "Completed"
+    ];
+  });
+  const csv = [header, ...rows].map(cols => cols.map(cell => {
+    const value = String(cell == null ? "" : cell);
+    return /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+  }).join(",")).join("\r\n");
+  downloadBlob(new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" }), `treatments-log-${from}_${to}.csv`);
+  showToast(`تم تصدير ${rows.length} علاجاً (صيغة سجل العلاجات)`, "success");
+}
+document.addEventListener("click", event => {
+  if (event.target.closest("[data-export-treatments-log]")) exportTreatmentsLog();
+});
 
 function downloadJSON(value, filename) {
   downloadBlob(new Blob([JSON.stringify(value, null, 2)], { type: "application/json;charset=utf-8" }), filename);
