@@ -2851,7 +2851,7 @@ function currentLanguage() {
 
 function money(value) {
   const isEnglish = currentLanguage() === "en";
-  return `${Number(value || 0).toLocaleString(isEnglish ? "en-US" : "ar-JO", {
+  return `${Number(value || 0).toLocaleString(isEnglish ? "en-US" : "ar-JO-u-nu-latn", {
     maximumFractionDigits: 2
   })}${isEnglish ? " JOD" : " د.أ"}`;
 }
@@ -2891,7 +2891,7 @@ function paymentLabel(method) {
 
 function displayDate(date) {
   if (!date) return "";
-  return new Date(`${date}T12:00:00`).toLocaleDateString(currentLanguage() === "en" ? "en-US" : "ar-JO");
+  return new Date(`${date}T12:00:00`).toLocaleDateString(currentLanguage() === "en" ? "en-US" : "ar-JO-u-nu-latn");
 }
 
 function translateLiteral(text, language) {
@@ -3740,7 +3740,7 @@ function displayDateTimeMinute(value) {
   if (!value) return "-";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
-  return date.toLocaleString(currentLanguage() === "en" ? "en-US" : "ar-JO", {
+  return date.toLocaleString(currentLanguage() === "en" ? "en-US" : "ar-JO-u-nu-latn", {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -3753,7 +3753,7 @@ function displayClockMinute(value) {
   if (!value) return "-";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
-  return date.toLocaleTimeString(currentLanguage() === "en" ? "en-US" : "ar-JO", {
+  return date.toLocaleTimeString(currentLanguage() === "en" ? "en-US" : "ar-JO-u-nu-latn", {
     hour: "2-digit",
     minute: "2-digit"
   });
@@ -5129,7 +5129,7 @@ function renderDailyCommandCenter(entries, totals, diffs) {
 function renderWeekChart(series) {
   const showSensitive = canViewSensitive();
   const maxValue = Math.max(...series.map(day => showSensitive ? day.totals.paid : day.totals.count), 1);
-  const formatter = new Intl.DateTimeFormat("ar-JO", { weekday: "short" });
+  const formatter = new Intl.DateTimeFormat("ar-JO-u-nu-latn", { weekday: "short" });
   const activeDate = state.settings.activeDate;
   const totalCount = series.reduce((sum, day) => sum + day.totals.count, 0);
 
@@ -5173,7 +5173,7 @@ function renderRevenueTrend(series = weeklySeries(14)) {
   const revArea = `${padding.left},${padding.top + usableHeight} ${revLine} ${padding.left + usableWidth},${padding.top + usableHeight}`;
   const expPts = expVals.length ? toPoints(expVals) : [];
   const expLine = expPts.map(point => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(" ");
-  const formatter = new Intl.DateTimeFormat(currentLanguage() === "en" ? "en-US" : "ar-JO", { day: "numeric", month: "numeric" });
+  const formatter = new Intl.DateTimeFormat(currentLanguage() === "en" ? "en-US" : "ar-JO-u-nu-latn", { day: "numeric", month: "numeric" });
   const gridLines = [0, 0.25, 0.5, 0.75, 1].map(portion => {
     const y = padding.top + usableHeight * portion;
     return `<line class="trend-grid" x1="${padding.left}" y1="${y}" x2="${padding.left + usableWidth}" y2="${y}"></line>`;
@@ -5342,7 +5342,7 @@ function renderInsights(entries, weekEntries, totals) {
       body: entries.length ? "يساعدك هذا الرقم على فهم جودة الحجوزات اليومية." : "أضف عمليات اليوم لاحتساب المتوسط."
     },
     {
-      title: `نسبة الخصم ${discountRate.toLocaleString("ar-JO", { maximumFractionDigits: 1 })}%`,
+      title: `نسبة الخصم ${discountRate.toLocaleString("ar-JO-u-nu-latn", { maximumFractionDigits: 1 })}%`,
       body: totals.discount ? `تم تسجيل خصومات بقيمة ${money(totals.discount)} اليوم.` : "لا توجد خصومات مسجلة لهذا التاريخ."
     }
   ];
@@ -5434,7 +5434,7 @@ function renderEntryTable(entries) {
       ? payouts.map(row => `${row.member.name}: ${money(row.payout)}`).join("<br>")
       : "لا يوجد";
     const time = entry.createdAt
-      ? new Date(entry.createdAt).toLocaleTimeString(currentLanguage() === "en" ? "en-US" : "ar-JO", { hour: "2-digit", minute: "2-digit" })
+      ? new Date(entry.createdAt).toLocaleTimeString(currentLanguage() === "en" ? "en-US" : "ar-JO-u-nu-latn", { hour: "2-digit", minute: "2-digit" })
       : "-";
     const canDelete = canUseFeature("delete_treatments_medical") && showSensitive;
     const receipt = receiptForEntry(entry.id);
@@ -6238,7 +6238,7 @@ function renderInventoryList() {
   els.inventoryList.innerHTML = state.inventory.map(item => {
     const supplier = getSupplier(item.supplierId);
     const status = stockStatus(item);
-    const lastOrder = item.lastOrderedAt ? new Date(`${item.lastOrderedAt}T12:00:00`).toLocaleDateString("ar-JO") : "لا يوجد";
+    const lastOrder = item.lastOrderedAt ? new Date(`${item.lastOrderedAt}T12:00:00`).toLocaleDateString("ar-JO-u-nu-latn") : "لا يوجد";
     return `
       <div class="staff-card inventory-card">
         <div>
@@ -6270,7 +6270,7 @@ function renderPurchaseOrders() {
     const canReceive = order.status !== "received" && order.status !== "cancelled";
     return `
       <tr>
-        <td>${new Date(`${order.date}T12:00:00`).toLocaleDateString("ar-JO")}</td>
+        <td>${new Date(`${order.date}T12:00:00`).toLocaleDateString("ar-JO-u-nu-latn")}</td>
         <td>${item?.name || "صنف محذوف"}</td>
         <td>${supplier?.name || "مورد محذوف"}</td>
         <td>${order.branch || state.settings.branch || "الفرع الرئيسي"}</td>
@@ -6984,7 +6984,7 @@ function renderImportHistory() {
     <div class="staff-card">
       <div>
         <strong>${IMPORT_SCHEMAS[record.entity]?.label || record.entity} | ${record.fileName}</strong>
-        <p>${record.sourceSystem || "نظام سابق غير محدد"} | ${new Date(record.createdAt).toLocaleString(currentLanguage() === "en" ? "en-US" : "ar-JO")}</p>
+        <p>${record.sourceSystem || "نظام سابق غير محدد"} | ${new Date(record.createdAt).toLocaleString(currentLanguage() === "en" ? "en-US" : "ar-JO-u-nu-latn")}</p>
       </div>
       <div class="row-actions">
         <span class="status-pill good">${record.imported} مستورد</span>
@@ -7011,7 +7011,7 @@ function renderBookingCalendar() {
   const weekdays = isEnglish
     ? ["Sat", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri"]
     : ["السبت", "الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة"];
-  const dayTitle = new Intl.DateTimeFormat(isEnglish ? "en-US" : "ar-JO", {
+  const dayTitle = new Intl.DateTimeFormat(isEnglish ? "en-US" : "ar-JO-u-nu-latn", {
     weekday: "long",
     day: "numeric",
     month: "long",
@@ -7088,7 +7088,7 @@ function displayTime(timeString) {
   const [hours = 0, minutes = 0] = String(timeString || "00:00").split(":").map(Number);
   const date = new Date();
   date.setHours(hours, minutes, 0, 0);
-  return date.toLocaleTimeString(currentLanguage() === "en" ? "en-US" : "ar-JO", {
+  return date.toLocaleTimeString(currentLanguage() === "en" ? "en-US" : "ar-JO-u-nu-latn", {
     hour: "2-digit",
     minute: "2-digit"
   });
@@ -8591,7 +8591,7 @@ function reportTrendChart(entries) {
   }));
   const line = points.map(point => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(" ");
   const area = `${pad.left},${pad.top + usableHeight} ${line} ${pad.left + usableWidth},${pad.top + usableHeight}`;
-  const formatter = new Intl.DateTimeFormat(currentLanguage() === "en" ? "en-US" : "ar-JO", { day: "numeric", month: "numeric" });
+  const formatter = new Intl.DateTimeFormat(currentLanguage() === "en" ? "en-US" : "ar-JO-u-nu-latn", { day: "numeric", month: "numeric" });
   const grid = [0, 0.25, 0.5, 0.75, 1].map(portion => {
     const y = pad.top + usableHeight * portion;
     return `<line class="trend-grid" x1="${pad.left}" y1="${y}" x2="${pad.left + usableWidth}" y2="${y}"></line>`;
@@ -9961,7 +9961,7 @@ function renderLeads() {
         <p>الخطة: ${lead.plan || "غير محدد"} | الحجم: ${lead.size || lead.clinic_size || "غير محدد"}</p>
         ${lead.notes ? `<p>${lead.notes}</p>` : ""}
       </div>
-      <span class="pill">${lead.createdAt ? new Date(lead.createdAt).toLocaleDateString("ar-JO") : "محلي"}</span>
+      <span class="pill">${lead.createdAt ? new Date(lead.createdAt).toLocaleDateString("ar-JO-u-nu-latn") : "محلي"}</span>
     </div>
   `).join("");
 }
@@ -10107,7 +10107,7 @@ function renderStorageSafety() {
     : "لم يتم فحص التخزين بعد.");
   const meta = localTrial
     ? "الوضع: Trial محلي | النسخ الاحتياطي: تنزيل يدوي"
-    : `النشر: ${storage.deploymentMode || "غير محدد"} | التخزين: ${storage.mode || "غير معروف"} | المزود: ${storage.provider || "غير محدد"} | آخر فحص: ${storage.checkedAt ? new Date(storage.checkedAt).toLocaleString("ar-JO") : "بانتظار"}`;
+    : `النشر: ${storage.deploymentMode || "غير محدد"} | التخزين: ${storage.mode || "غير معروف"} | المزود: ${storage.provider || "غير محدد"} | آخر فحص: ${storage.checkedAt ? new Date(storage.checkedAt).toLocaleString("ar-JO-u-nu-latn") : "بانتظار"}`;
 
   els.storageStatusBadge.className = `status-pill ${badgeClass}`;
   els.storageStatusBadge.textContent = safe ? "آمن للبيانات" : localTrial ? "تجربة فقط" : "غير آمن للبيانات";
@@ -10331,7 +10331,7 @@ function renderCampaignList() {
     <div class="campaign-row">
       <div>
         <strong>${campaign.message.slice(0, 70)}${campaign.message.length > 70 ? "..." : ""}</strong>
-        <span>${campaign.recipientCount} مستلم | ${campaign.segments} مقطع | ${campaign.scheduledAt ? new Date(campaign.scheduledAt).toLocaleString("ar-JO") : "الإرسال عند تفعيل المزود"}</span>
+        <span>${campaign.recipientCount} مستلم | ${campaign.segments} مقطع | ${campaign.scheduledAt ? new Date(campaign.scheduledAt).toLocaleString("ar-JO-u-nu-latn") : "الإرسال عند تفعيل المزود"}</span>
       </div>
       <span class="status-pill ${campaign.status === "sent" ? "good" : campaign.status === "failed" ? "bad" : "warn"}">${campaignStatusLabel(campaign.status)}</span>
     </div>
@@ -13394,7 +13394,7 @@ if (els.serviceForm) {
   modal.addEventListener("click", event => { if (event.target === modal) close(); });
   document.addEventListener("keydown", event => { if (event.key === "Escape" && !modal.hidden) close(); });
   document.addEventListener("click", event => {
-    if (event.target.closest("button")) return;
+    if (event.target.closest("[data-delete-service]")) return; // delete has its own handler
     const row = event.target.closest("[data-edit-service]");
     if (row) open(row.dataset.editService);
   });
