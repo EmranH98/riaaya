@@ -5750,8 +5750,10 @@ function renderPatientDirectory() {
   patientPage = pagination.page;
   renderPagination(els.patientPagination, pagination, "patients");
 
+  document.body.classList.toggle("can-bulk-delete", canUseFeature("delete_patient"));
   if (!pagination.items.length) {
-    els.patientTable.innerHTML = `<tr><td colspan="7">لا توجد ملفات مطابقة للبحث.</td></tr>`;
+    els.patientTable.innerHTML = `<tr><td colspan="8">لا توجد ملفات مطابقة للبحث.</td></tr>`;
+    syncPatientBulkBar();
     return;
   }
 
@@ -5760,6 +5762,7 @@ function renderPatientDirectory() {
     const operations = patientEntries(patient);
     return `
       <tr class="${selectedPatientId === patient.id ? "selected-row" : ""}">
+        <td class="patient-bulk-col"><input type="checkbox" class="patient-check" value="${patient.id}" aria-label="تحديد ${patient.name}"></td>
         <td>${canUseFeature("patient_number") ? patient.patientNumber : "—"}</td>
         <td><span class="cell-with-avatar">${genderAvatar(patient, 32)}<button class="table-link" type="button" data-open-patient="${patient.id}">${patient.name}</button>${patient.rating ? ` ${ratingStarsStatic(patient.rating)}` : ""}</span></td>
         <td><span class="pill">${profileTypeLabel(patient.profileType)}</span></td>
@@ -5770,7 +5773,46 @@ function renderPatientDirectory() {
       </tr>
     `;
   }).join("");
+  syncPatientBulkBar();
 }
+
+// Bulk patient delete: select rows (or the whole page) and remove the files at once.
+function syncPatientBulkBar() {
+  const checks = [...document.querySelectorAll(".patient-check")];
+  const selected = checks.filter(cb => cb.checked).length;
+  const bar = document.querySelector("[data-patient-bulk-bar]");
+  if (bar) bar.hidden = selected === 0;
+  const count = document.querySelector("[data-patient-selected-count]");
+  if (count) count.textContent = `${selected} محدد`;
+  const all = document.querySelector("[data-patient-select-all]");
+  if (all) all.checked = checks.length > 0 && selected === checks.length;
+}
+document.addEventListener("change", event => {
+  if (event.target.closest("[data-patient-select-all]")) {
+    const on = event.target.checked;
+    document.querySelectorAll(".patient-check").forEach(cb => { cb.checked = on; });
+    syncPatientBulkBar();
+  } else if (event.target.classList && event.target.classList.contains("patient-check")) {
+    syncPatientBulkBar();
+  }
+});
+document.addEventListener("click", async event => {
+  if (!event.target.closest("[data-delete-selected-patients]")) return;
+  if (!canUseFeature("delete_patient")) return;
+  const ids = [...document.querySelectorAll(".patient-check:checked")].map(cb => cb.value);
+  if (!ids.length) return;
+  if (!await showConfirm(`سيتم حذف ${ids.length} ملفاً. تبقى العمليات والحجوزات محفوظة بدون رابط الملف. هل تريد المتابعة؟`)) return;
+  const idSet = new Set(ids);
+  const removed = (state.patients || []).filter(patient => idSet.has(patient.id));
+  state.patients = (state.patients || []).filter(patient => !idSet.has(patient.id));
+  state.entries = (state.entries || []).map(entry => idSet.has(entry.patientId) ? { ...entry, patientId: "" } : entry);
+  state.bookings = (state.bookings || []).map(booking => idSet.has(booking.patientId) ? { ...booking, patientId: "" } : booking);
+  if (idSet.has(selectedPatientId)) selectedPatientId = state.patients[0]?.id || "";
+  logEdit("حذف ملفات مرضى بالجملة", `${removed.length} ملف: ${removed.slice(0, 6).map(patient => patient.name).join("، ")}${removed.length > 6 ? "…" : ""}`);
+  saveState();
+  render();
+  showToast(`تم حذف ${ids.length} ملفاً`, "success");
+});
 
 function renderPatientFile() {
   if (!els.patientFile) return;
@@ -7176,9 +7218,12 @@ function commitImportRecords() {
   validRows.forEach(({ record }) => {
     if (importSession.entity === "patients") {
       const patientId = nextId("patient");
+      // Only honour an imported file number when it's actually numeric; otherwise
+      // continue the clinic's own sequence so files stay numbered (not named).
+      const importedNo = String(record.patientNumber || "").trim();
       state.patients.push(normalizePatient({
         id: patientId,
-        patientNumber: record.patientNumber || nextPatientNumber(),
+        patientNumber: /^\d+$/.test(importedNo) ? importedNo : nextPatientNumber(),
         profileType: record.profileType || "patient",
         name: String(record.name).trim(),
         phone: String(record.phone || "").trim(),

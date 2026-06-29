@@ -2227,6 +2227,13 @@ td {
   min-width: 820px;
 }
 
+/* Bulk patient delete */
+.patient-bulk-bar { display: flex; align-items: center; gap: 14px; padding: 9px 14px; margin: 0 0 10px; background: var(--danger-pale); border: 1px solid var(--danger); border-radius: 10px; }
+.patient-bulk-bar span { font-weight: 800; color: var(--danger); }
+.patient-bulk-col { width: 34px; text-align: center; }
+.patient-bulk-col input { width: auto; margin: 0; cursor: pointer; }
+body:not(.can-bulk-delete) .patient-bulk-col { display: none; }
+
 .selected-row td {
   background: var(--teal-pale) !important;
 }

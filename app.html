@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260624n">
+  <link rel="stylesheet" href="app.css?v=20260624o">
 </head>
 <body>
 
@@ -946,10 +946,15 @@
                 </select>
               </label>
             </form>
+            <div class="patient-bulk-bar" data-patient-bulk-bar hidden>
+              <span data-patient-selected-count>0 محدد</span>
+              <button class="text-button danger" type="button" data-delete-selected-patients>حذف المحدد</button>
+            </div>
             <div class="table-wrap practical-table-wrap">
               <table class="practical-table patient-directory-table">
                 <thead>
                   <tr>
+                    <th class="patient-bulk-col"><input type="checkbox" data-patient-select-all aria-label="تحديد كل الصفحة"></th>
                     <th>رقم الملف</th>
                     <th>الاسم</th>
                     <th>النوع</th>
@@ -3165,7 +3170,7 @@
       </form>
     </div>
   </div>
-  <script src="app.js?v=20260624n"></script>
+  <script src="app.js?v=20260624o"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>
