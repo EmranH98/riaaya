@@ -3270,7 +3270,18 @@ function nextVisitNumber() {
 }
 
 function ensurePatientFile(name, phone = "") {
-  const existing = findPatientByName(name);
+  const cleanPhone = phoneDigits(phone);
+  const nameKey = patientNameKey(name);
+  let existing;
+  if (cleanPhone) {
+    // Same name + same phone = the same person (all their ops land in one file).
+    // A same name with a DIFFERENT phone becomes its own file; a same-name file
+    // that has no phone yet absorbs this record and fills in the phone.
+    existing = (state.patients || []).find(p => patientNameKey(p.name) === nameKey && phoneDigits(p.phone) === cleanPhone)
+      || (state.patients || []).find(p => patientNameKey(p.name) === nameKey && !phoneDigits(p.phone));
+  } else {
+    existing = findPatientByName(name);
+  }
   if (existing) {
     if (!existing.phone && phone) existing.phone = phone;
     return existing;
@@ -6779,6 +6790,7 @@ const IMPORT_SCHEMAS = {
     label: "العمليات",
     fields: [
       ["patient", "المريض", true],
+      ["phone", "الهاتف", false],
       ["date", "التاريخ", true],
       ["service", "الخدمة", true],
       ["amount", "المبلغ", false],
@@ -7087,6 +7099,7 @@ function nameSimilarity(a, b) {
 }
 
 let _importFuzzyMatches = [];
+let _importCreatedStaff = [];
 function importedStaffId(name, role) {
   if (!name || !String(name).trim()) return "";
   const key = normalizeSearchText(name);
@@ -7104,7 +7117,13 @@ function importedStaffId(name, role) {
     _importFuzzyMatches.push({ imported: String(name).trim(), matched: best.name, role, score: Math.round(bestScore * 100) });
     return best.id;
   }
-  return "";
+  // No match — auto-create the staff member so the imported operations stay linked
+  // to them (role/commission can be set later). Same idea as auto-created services.
+  const member = normalizeStaffMember({ id: nextId("staff"), name: String(name).trim(), role });
+  state.staff.push(member);
+  _importCreatedStaff = _importCreatedStaff || [];
+  _importCreatedStaff.push({ name: member.name, role });
+  return member.id;
 }
 
 function ensureImportedService(name, amount = 0) {
@@ -7141,6 +7160,7 @@ function ensureImportedExpenseCategory(groupName, subgroupName) {
 function commitImportRecords() {
   if (!importSession || !canUseFeature("import_data")) return;
   _importFuzzyMatches = [];
+  _importCreatedStaff = [];
   const rows = buildImportRows();
   const validRows = rows.filter(row => !row.errors.length && !row.duplicate);
   validRows.forEach(({ record }) => {
@@ -7179,7 +7199,7 @@ function commitImportRecords() {
         notes: record.notes
       }, state.services));
     } else if (importSession.entity === "operations") {
-      const patient = ensurePatientFile(String(record.patient).trim());
+      const patient = ensurePatientFile(String(record.patient).trim(), String(record.phone || "").trim());
       const service = ensureImportedService(record.service, record.amount);
       state.entries.push(normalizeEntry({
         id: nextId("entry"),
@@ -7232,13 +7252,16 @@ function commitImportRecords() {
   render();
   // Surface near-matches so the owner can verify them — never silently guess on
   // payroll-affecting links.
+  if (_importCreatedStaff.length) {
+    logEdit("إضافة موظفين بالاستيراد", `${_importCreatedStaff.length} موظف: ${_importCreatedStaff.map(member => member.name).slice(0, 8).join("، ")}`);
+  }
   if (_importFuzzyMatches.length) {
     logEdit("مطابقة تقريبية بالاستيراد", `${_importFuzzyMatches.length} اسم: ${_importFuzzyMatches.slice(0, 6).map(match => `${match.imported}→${match.matched} (${match.score}%)`).join("، ")}`);
     showToast(`تم ربط ${_importFuzzyMatches.length} اسماً بأقرب موظف (مطابقة تقريبية) — راجِعها`, "warn");
     const lines = _importFuzzyMatches.map(match => `• «${match.imported}» ← ${roleLabel(match.role)} ${match.matched} (${match.score}%)`).join("\n");
     alert(`أسماء طُوبقت تقريبياً بأقرب موظف — تحقّق منها (مسجّلة في سجل التعديلات):\n\n${lines}`);
   } else {
-    showToast("تم الاستيراد بنجاح ✓", "success");
+    showToast(`تم الاستيراد بنجاح ✓${_importCreatedStaff.length ? ` — أُضيف ${_importCreatedStaff.length} موظف جديد` : ""}`, "success");
   }
 }
 
