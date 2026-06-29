@@ -8634,11 +8634,12 @@ function reportBreakdown(entries) {
   const groups = new Map();
   rows.forEach(entry => {
     const key = dim.keyFn(entry);
-    const group = groups.get(key) || { key, count: 0, paid: 0, cost: 0, profit: 0 };
+    const group = groups.get(key) || { key, count: 0, paid: 0, cost: 0, profit: 0, serviceId: "" };
     group.count += 1;
     group.paid += paidAmount(entry);
     group.cost += entryCost(entry);
     group.profit += profitAmount(entry);
+    if (dim.key === "service" && entry.serviceId) group.serviceId = entry.serviceId;
     groups.set(key, group);
   });
   const list = [...groups.values()].sort((a, b) => b.paid - a.paid);
@@ -8650,19 +8651,22 @@ function reportBreakdown(entries) {
   const tabs = BREAKDOWN_DIMS.map(item =>
     `<button type="button" class="breakdown-tab${item.key === dim.key ? " active" : ""}" data-breakdown-dim="${item.key}">${item.label}</button>`
   ).join("");
-  const bodyRows = list.length ? list.map(group => `
-    <tr>
+  const canEditService = dim.key === "service" && canViewSensitive();
+  const bodyRows = list.length ? list.map(group => {
+    const editable = canEditService && group.serviceId;
+    return `
+    <tr${editable ? ` class="report-edit-row" data-edit-service="${group.serviceId}" title="اضغط لتعديل الخدمة"` : ""}>
       <td><div class="breakdown-bar" style="--bar:${Math.round(group.paid / maxPaid * 100)}%"><span>${group.key}</span></div></td>
       <td>${group.count}</td>
       <td>${money(group.paid)}</td>
       <td>${money(group.cost)}</td>
       <td>${money(group.profit)}</td>
       <td>${grand.paid ? Math.round(group.paid / grand.paid * 100) : 0}%</td>
-    </tr>`).join("") : `<tr><td colspan="6" class="report-empty">لا توجد بيانات للتوزيع.</td></tr>`;
+    </tr>`; }).join("") : `<tr><td colspan="6" class="report-empty">لا توجد بيانات للتوزيع.</td></tr>`;
   return `
     <div class="report-breakdown">
       <div class="breakdown-head">
-        <span class="breakdown-title">التوزيع حسب</span>
+        <span class="breakdown-title">التوزيع حسب${canEditService ? " · اضغط على خدمة لتعديلها" : ""}</span>
         <div class="breakdown-tabs">${tabs}</div>
       </div>
       <div class="table-wrap">
