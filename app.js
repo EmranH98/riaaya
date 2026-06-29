@@ -9706,7 +9706,10 @@ function renderSpecialistReport(entries) {
     return { member, lines };
   }).filter(item => item.lines.length > 0 || asNumber(item.member.baseSalary) > 0);
 
-  if (!memberData.length) return `<div class="empty-state">لا توجد عمليات أو رواتب لموظفين في هذه الفترة.</div>`;
+  if (!memberData.length) {
+    const hasAny = (state.entries || []).some(entry => entry.doctorId || entry.specialistId);
+    return `<div class="empty-state">لا توجد عمليات منسوبة لموظفين في هذه الفترة.${hasAny ? "<br><small>تظهر العمليات المستوردة على تواريخها الأصلية — وسّع نطاق التاريخ (من/إلى أو «السنة») ليشملها.</small>" : ""}</div>`;
+  }
 
   const options = [`<option value="">كل الموظفين</option>`]
     .concat(memberData.map(item => `<option value="${item.member.id}"${item.member.id === specialistReportFilter ? " selected" : ""}>${item.member.name}</option>`))
