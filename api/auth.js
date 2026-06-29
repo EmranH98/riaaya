@@ -149,7 +149,10 @@ export function requireSession(req, res, { owner = false, csrf = false } = {}) {
     sendJson(res, 403, { error: "owner_access_required" });
     return null;
   }
-  if (auth.clinic?.status === "suspended" && auth.user.role !== "platform_owner") {
+  // The platform owner — including while impersonating a clinic — has full access
+  // regardless of the clinic's billing state, so they can manage/edit any clinic.
+  const privileged = auth.user.role === "platform_owner" || Boolean(auth.session?.impersonatedBy);
+  if (auth.clinic?.status === "suspended" && !privileged) {
     sendJson(res, 403, { error: "clinic_suspended" });
     return null;
   }
@@ -157,7 +160,7 @@ export function requireSession(req, res, { owner = false, csrf = false } = {}) {
     auth.clinic?.status === "trial"
     && auth.clinic.trialEndsAt
     && auth.clinic.trialEndsAt <= nowIso()
-    && auth.user.role !== "platform_owner"
+    && !privileged
   ) {
     sendJson(res, 402, { error: "trial_expired" });
     return null;
@@ -165,7 +168,7 @@ export function requireSession(req, res, { owner = false, csrf = false } = {}) {
   if (
     auth.clinic?.accountDeadline
     && auth.clinic.accountDeadline <= nowIso().slice(0, 10)
-    && auth.user.role !== "platform_owner"
+    && !privileged
   ) {
     sendJson(res, 402, { error: "account_deadline_reached" });
     return null;

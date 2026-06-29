@@ -2777,7 +2777,12 @@ async function flushLiveState() {
       alert("تم تحديث بيانات العيادة من مستخدم آخر. سنعيد تحميل أحدث نسخة لمنع فقدان البيانات.");
       location.reload();
     }
-    if (!response.ok) setSaveIndicator("error");
+    if (!response.ok) {
+      setSaveIndicator("error");
+      if (response.status !== 401 && response.status !== 409) {
+        showToast(`تعذّر حفظ التغييرات على الخادم (خطأ ${response.status}). تأكد من الصلاحيات أو أعد المحاولة.`, "error");
+      }
+    }
   } catch {
     setSaveIndicator("error");
     // A later user action retries the save without blocking the current screen.
