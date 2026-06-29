@@ -9419,11 +9419,15 @@ function renderReports() {
     // The audit log is a running history, not a daily report. When the date range
     // is the default single work-day, widen it to the full retained window so every
     // logged add/edit/delete shows — otherwise actions from other days are hidden.
-    const auditFrom = from === to ? dateOffset(-AUDIT_RETENTION_DAYS, to) : from;
+    // Audit entries carry the REAL timestamp, so the window must always reach the
+    // real "today" — even when the clinic's work date (which drives `to`) is a past
+    // day, otherwise today's edits fall after `to` and never show.
+    const auditTo = to >= today ? to : today;
+    const auditFrom = from === to ? dateOffset(-AUDIT_RETENTION_DAYS, auditTo) : from;
     const auditItems = (state.auditTrail || []).slice().reverse()
       .filter(item => {
         const day = (item.at || "").slice(0, 10);
-        return (!day || (day >= auditFrom && day <= to))
+        return (!day || (day >= auditFrom && day <= auditTo))
           && (!auditWhoFilter || item.who === auditWhoFilter)
           && (!auditActionFilter || item.action === auditActionFilter)
           && (!filters.query || matchesSmartQuery([item.who, item.action, item.detail], filters.query));
