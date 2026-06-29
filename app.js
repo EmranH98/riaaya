@@ -7067,9 +7067,44 @@ function resetImportWorkspace() {
   if (els.importPreviewBody) els.importPreviewBody.innerHTML = "";
 }
 
+// Token-based name similarity (0–1): handles extra/missing words, spacing, and
+// minor spelling differences after normalization. (Cross-script Latin↔Arabic is
+// out of scope — those score low and stay unmatched for manual review.)
+function nameSimilarity(a, b) {
+  const na = normalizeSearchText(a), nb = normalizeSearchText(b);
+  if (!na || !nb) return 0;
+  if (na === nb) return 1;
+  const ca = na.replace(/ /g, ""), cb = nb.replace(/ /g, "");
+  if (ca === cb) return 0.95;                          // عبدالله ↔ عبد الله
+  if (ca.includes(cb) || cb.includes(ca)) return 0.8;  // one name within the other, ignoring spaces
+  const sa = new Set(na.split(" ").filter(Boolean));
+  const sb = new Set(nb.split(" ").filter(Boolean));
+  const inter = [...sa].filter(token => sb.has(token)).length;
+  const union = new Set([...sa, ...sb]).size;
+  const jaccard = union ? inter / union : 0;
+  const sub = (na.includes(nb) || nb.includes(na)) ? 0.35 : 0;
+  return Math.min(1, jaccard + sub);
+}
+
+let _importFuzzyMatches = [];
 function importedStaffId(name, role) {
+  if (!name || !String(name).trim()) return "";
   const key = normalizeSearchText(name);
-  return state.staff.find(member => member.role === role && normalizeSearchText(member.name) === key)?.id || "";
+  const candidates = (state.staff || []).filter(member => member.role === role);
+  const exact = candidates.find(member => normalizeSearchText(member.name) === key);
+  if (exact) return exact.id;
+  // Fuzzy fallback: pick the closest existing staff above a confidence threshold,
+  // and record it so the import summary can flag near-matches for review.
+  let best = null, bestScore = 0;
+  candidates.forEach(member => {
+    const score = nameSimilarity(name, member.name);
+    if (score > bestScore) { bestScore = score; best = member; }
+  });
+  if (best && bestScore >= 0.6) {
+    _importFuzzyMatches.push({ imported: String(name).trim(), matched: best.name, role, score: Math.round(bestScore * 100) });
+    return best.id;
+  }
+  return "";
 }
 
 function ensureImportedService(name, amount = 0) {
@@ -7105,6 +7140,7 @@ function ensureImportedExpenseCategory(groupName, subgroupName) {
 
 function commitImportRecords() {
   if (!importSession || !canUseFeature("import_data")) return;
+  _importFuzzyMatches = [];
   const rows = buildImportRows();
   const validRows = rows.filter(row => !row.errors.length && !row.duplicate);
   validRows.forEach(({ record }) => {
@@ -7194,6 +7230,16 @@ function commitImportRecords() {
   saveState();
   resetImportWorkspace();
   render();
+  // Surface near-matches so the owner can verify them — never silently guess on
+  // payroll-affecting links.
+  if (_importFuzzyMatches.length) {
+    logEdit("مطابقة تقريبية بالاستيراد", `${_importFuzzyMatches.length} اسم: ${_importFuzzyMatches.slice(0, 6).map(match => `${match.imported}→${match.matched} (${match.score}%)`).join("، ")}`);
+    showToast(`تم ربط ${_importFuzzyMatches.length} اسماً بأقرب موظف (مطابقة تقريبية) — راجِعها`, "warn");
+    const lines = _importFuzzyMatches.map(match => `• «${match.imported}» ← ${roleLabel(match.role)} ${match.matched} (${match.score}%)`).join("\n");
+    alert(`أسماء طُوبقت تقريبياً بأقرب موظف — تحقّق منها (مسجّلة في سجل التعديلات):\n\n${lines}`);
+  } else {
+    showToast("تم الاستيراد بنجاح ✓", "success");
+  }
 }
 
 function renderImportHistory() {
