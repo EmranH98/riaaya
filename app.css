@@ -4190,6 +4190,14 @@ body.kiosk-locked .global-search { display: none; }
 .audit-filter-count { margin-inline-start: auto; font-size: 12px; font-weight: 800; color: var(--teal-dark); background: var(--teal-pale); padding: 5px 12px; border-radius: 999px; }
 .audit-role { font-size: 11px; font-weight: 800; color: var(--teal-dark); background: var(--teal-pale); padding: 2px 8px; border-radius: 999px; margin-inline-start: 4px; }
 
+/* Patient operations: filterable table + full-screen */
+.patient-ops-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.patient-ops-head h3 { margin: 0; }
+.patient-ops-count { display: inline-flex; min-width: 22px; height: 22px; align-items: center; justify-content: center; padding: 0 7px; border-radius: 999px; background: var(--teal-pale); color: var(--teal-dark); font-size: 12px; font-weight: 900; margin-inline-start: 6px; }
+.patient-ops-tools { display: flex; align-items: center; gap: 8px; }
+.patient-ops-search { min-width: 200px; height: 36px; }
+.patient-ops-fs .patient-ops-search { width: 100%; max-width: 480px; margin-bottom: 12px; height: 40px; }
+
 /* Bulk patient delete */
 .patient-bulk-bar { display: flex; align-items: center; gap: 12px; padding: 8px 14px; margin: 0 0 8px; background: var(--danger-pale); border: 1px solid var(--danger); border-radius: 10px; }
 .patient-bulk-bar [data-patient-selected-count] { font-weight: 800; color: var(--ink); }

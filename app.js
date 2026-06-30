@@ -5836,7 +5836,7 @@ function renderPatientFile() {
   const canDelete = canUseFeature("delete_patient");
   const showSensitivePf = canViewSensitive();
   const operationRows = canUseFeature("patient_history") && operations.length
-    ? operations.slice(0, 30).map(entry => {
+    ? operations.map(entry => {
       const net = netAmount(entry);
       const paid = paidAmount(entry);
       const due = Math.max(net - paid, 0);
@@ -5940,10 +5940,16 @@ function renderPatientFile() {
       <div><span>موافقة الرسائل</span><strong>${patient.marketingConsent ? "فعالة" : "غير متوفرة"}</strong></div>
     </div>
     ${patient.notes ? `<div class="patient-note"><strong>ملاحظات سريرية</strong><p style="white-space:pre-line">${patient.notes}</p></div>` : ""}
-    <div class="patient-history-section">
-      <h3>سجل العمليات</h3>
-      <div class="table-wrap">
-        <table>
+    <div class="patient-history-section" id="patient-ops-section">
+      <div class="patient-ops-head">
+        <h3>سجل العمليات <span class="patient-ops-count">${operations.length}</span></h3>
+        <div class="patient-ops-tools">
+          <input type="search" class="patient-ops-search" data-patient-op-search placeholder="بحث في العمليات (خدمة، تاريخ، حالة)…" aria-label="بحث في عمليات المريض">
+          <button class="focus-icon-button" type="button" data-open-patient-ops-fullscreen aria-label="عرض العمليات بملء الشاشة" title="ملء الشاشة">⛶</button>
+        </div>
+      </div>
+      <div class="table-wrap" data-patient-ops-table>
+        <table class="practical-table">
           <thead><tr><th>التاريخ</th><th>رقم</th><th>الخدمة</th><th>الحالة</th><th>المدفوع</th><th>المتبقي</th></tr></thead>
           <tbody>${operationRows}</tbody>
         </table>
@@ -12261,6 +12267,56 @@ function renderInventoryFocusTable() {
   `;
 }
 
+function renderPatientOpsFullTable(patient) {
+  if (!patient) return `<div class="empty-state">لا يوجد ملف.</div>`;
+  const ops = patientEntries(patient);
+  const showSensitive = canViewSensitive();
+  const rows = ops.length ? ops.map(entry => {
+    const net = netAmount(entry), paid = paidAmount(entry), due = Math.max(net - paid, 0);
+    const staff = [getStaffMember(entry.doctorId)?.name, getStaffMember(entry.specialistId)?.name].filter(Boolean).join(" / ") || "—";
+    return `<tr class="patient-op-frow">
+      <td>${displayDate(entry.date)}</td>
+      <td>${entry.visitNumber ? "#" + entry.visitNumber : "—"}</td>
+      <td>${serviceLabel(entry)}</td>
+      <td>${staff}</td>
+      <td><span class="status-pill ${statusClass(entry.status)}">${entryStatusLabel(entry.status)}</span></td>
+      <td>${entryPaymentLabel(entry)}</td>
+      <td>${showSensitive ? money(net) : "—"}</td>
+      <td>${showSensitive ? money(paid) : "—"}</td>
+      <td>${showSensitive ? (due > 0.009 ? money(due) : "—") : "—"}</td>
+    </tr>`;
+  }).join("") : `<tr><td colspan="9" class="report-empty">لا توجد عمليات في هذا الملف.</td></tr>`;
+  return `
+    <div class="patient-ops-fs">
+      <input type="search" class="patient-ops-search" data-patient-op-search placeholder="بحث (خدمة، تاريخ، منفّذ، حالة)…" aria-label="بحث في العمليات">
+      <div class="table-wrap">
+        <table class="practical-table">
+          <thead><tr><th>التاريخ</th><th>رقم</th><th>الخدمة</th><th>المنفّذ</th><th>الحالة</th><th>الدفع</th><th>الإجمالي</th><th>المدفوع</th><th>المتبقي</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+document.addEventListener("click", event => {
+  if (event.target.closest("[data-open-patient-ops-fullscreen]")) openTableFocus("patient-ops");
+});
+// Live-filter the patient operations table (inline or full-screen) without re-render.
+document.addEventListener("input", event => {
+  const input = event.target.closest("[data-patient-op-search]");
+  if (!input) return;
+  const q = input.value.trim().toLowerCase();
+  const scope = input.closest("#patient-ops-section, .patient-ops-fs") || document;
+  scope.querySelectorAll("tbody > tr").forEach(row => {
+    if (row.classList.contains("op-detail-row")) return;
+    const match = !q || row.textContent.toLowerCase().includes(q);
+    row.style.display = match ? "" : "none";
+    if (!match && row.classList.contains("op-summary-row")) {
+      const detail = scope.querySelector(`[data-operation-detail="${row.dataset.toggleOperation}"]`);
+      if (detail) detail.style.display = "none";
+    }
+  });
+});
+
 function openTableFocus(type) {
   if (!els.tableFocus || !els.tableFocusContent) return;
   let title = "الجدول";
@@ -12286,6 +12342,11 @@ function openTableFocus(type) {
     title = currentLanguage() === "en" ? "Services available for operations" : "الخدمات المتاحة للعمليات";
     subtitle = `${(state.services || []).length} ${currentLanguage() === "en" ? "services" : "خدمة"}`;
     content = serviceBrowseTableHtml(serviceBrowseRows(category, query));
+  } else if (type === "patient-ops") {
+    const patient = getPatient(selectedPatientId);
+    title = patient ? `سجل عمليات: ${patient.name}` : "سجل العمليات";
+    subtitle = `${patientEntries(patient).length} عملية`;
+    content = renderPatientOpsFullTable(patient);
   }
 
   els.tableFocusTitle.textContent = title;
