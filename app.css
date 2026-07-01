@@ -2219,6 +2219,11 @@ td {
   align-items: start;
 }
 
+/* Default patients view = a full-width files table. The file panel is not shown
+   side-by-side; it opens as a dedicated full-page view when a file is clicked. */
+.view[data-view="patients"]:not(.expanded-view) .patient-workspace { grid-template-columns: 1fr; }
+.view[data-view="patients"]:not(.expanded-view) .patient-file-panel { display: none; }
+
 .patient-filter-form {
   grid-template-columns: minmax(220px, 1.8fr) repeat(4, minmax(120px, 0.7fr));
 }
