@@ -4669,10 +4669,6 @@ body.focus-mode .view[data-view="patients"].expanded-view {
   grid-template-rows: minmax(0, 1fr);
 }
 
-body.focus-mode .view[data-view="patients"].expanded-view .patient-create-panel {
-  display: none;
-}
-
 body.focus-mode .view[data-view="patients"].expanded-view .patient-workspace {
   height: calc(100vh - 56px);
   grid-template-columns: minmax(0, 1fr);

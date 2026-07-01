@@ -5865,6 +5865,7 @@ function renderPatientFile() {
             </div>
             <div class="op-detail-actions">
               ${showSensitivePf && due > 0.009 ? `<button class="primary-button" type="button" data-followup-entry="${entry.id}">تكملة الدفع (${money(due)})</button>` : (showSensitivePf ? `<span class="op-paid-full">مدفوعة بالكامل ✓</span>` : "")}
+              ${showSensitivePf ? `<button class="text-button" type="button" data-edit-entry="${entry.id}">تعديل العملية</button>` : ""}
               ${receipt && canUseFeature("view_receipts") ? `<button class="text-button" type="button" data-open-receipt="${receipt.id}">عرض الإيصال</button>` : ""}
               ${showSensitivePf ? `<button class="text-button danger" type="button" data-delete-entry="${entry.id}">حذف العملية</button>` : ""}
             </div>
@@ -5916,10 +5917,8 @@ function renderPatientFile() {
       </div>
       <div class="form-actions">
         ${canView("entries") ? `<button class="primary-button" type="button" data-add-operation-patient="${patient.id}">＋ تسجيل عملية</button>` : ""}
+        ${canView("packages") ? `<button class="text-button" type="button" data-add-package-patient="${patient.id}">＋ باقة</button>` : ""}
         <button class="text-button patient-focus-back" type="button" data-patient-focus-list>رجوع للملفات</button>
-        <button class="focus-icon-button" type="button" data-expand-view="patients" data-patient-focus="file" aria-label="تكبير ملف المريض" title="تكبير ملف المريض">
-          <span aria-hidden="true">⛶</span>
-        </button>
         ${canEdit ? `<button class="text-button" type="button" data-edit-patient="${patient.id}">تعديل</button>` : ""}
         ${canDelete ? `<button class="text-button danger" type="button" data-delete-patient="${patient.id}">حذف</button>` : ""}
       </div>
@@ -8148,7 +8147,9 @@ function monthlyProviderRows(entries) {
       g.net += netAmount(entry);
       g.paid += paidAmount(entry);
       g.cash += numberValue(entryPaymentBreakdown(entry).cash);
-      if (isNutritionEntry(entry)) g.nutritionPaid += paidAmount(entry);
+      // The 50% nutrition share belongs to the SPECIALIST only — never credit it to
+      // the doctor, otherwise a nutrition op with both roles double-counts the share.
+      if (role === "specialist" && isNutritionEntry(entry)) g.nutritionPaid += paidAmount(entry);
       map.set(id, g);
     });
     return [...map.values()]
@@ -12013,6 +12014,10 @@ function resetPatientForm() {
   els.patientForm.reset();
   els.patientForm.elements.patientId.value = "";
   if (els.patientSubmit) els.patientSubmit.textContent = "حفظ الملف";
+  const titleEl = document.querySelector("[data-patient-create-title]");
+  const eyebrowEl = document.querySelector("[data-patient-create-eyebrow]");
+  if (titleEl) titleEl.textContent = "إضافة مريض أو زائر";
+  if (eyebrowEl) eyebrowEl.textContent = "ملف جديد";
 }
 
 function fillPatientForm(patientId) {
@@ -12032,6 +12037,10 @@ function fillPatientForm(patientId) {
   els.patientForm.elements.notes.value = patient.notes || "";
   els.patientForm.elements.marketingConsent.checked = patient.marketingConsent === true;
   if (els.patientSubmit) els.patientSubmit.textContent = "تحديث الملف";
+  const titleEl = document.querySelector("[data-patient-create-title]");
+  const eyebrowEl = document.querySelector("[data-patient-create-eyebrow]");
+  if (titleEl) titleEl.textContent = "تعديل الملف";
+  if (eyebrowEl) eyebrowEl.textContent = "تحديث بيانات المريض";
   openPatientCreateModal();
 }
 
@@ -14873,6 +14882,26 @@ document.addEventListener("click", async event => {
     return;
   }
 
+  // ＋ باقة from a patient file → open the packages view with this patient
+  // preselected in the sale form (the sale is logged, so it stays traceable).
+  const addPkgFromPatient = event.target.closest("[data-add-package-patient]");
+  if (addPkgFromPatient) {
+    if (!canView("packages")) return;
+    const patient = (state.patients || []).find(item => item.id === addPkgFromPatient.dataset.addPackagePatient);
+    exitFocusMode();
+    setView("packages");
+    render();
+    setTimeout(() => {
+      const form = document.querySelector("[data-package-sell-form]");
+      if (!form) return;
+      const sel = form.elements.patientId;
+      if (sel && patient) sel.value = patient.id;
+      form.scrollIntoView({ behavior: "smooth", block: "center" });
+      form.elements.templateId?.focus();
+    }, 60);
+    return;
+  }
+
   // Click a booked appointment on the day calendar → open the operation entry
   // window pre-filled with that booking's patient, category, and service.
   const bookingCard = event.target.closest("[data-drag-booking]");
@@ -15749,17 +15778,16 @@ function buildMonthlyWorkbookXml(entries, meta) {
     [2, 3, 4]
   );
 
-  // Sheet 3 — By Provider
+  // Sheet 3 — By Provider (nutrition-share column only when there are nutrition ops)
   const providers = monthlyProviderRows(entries);
-  const provRows = [...providers.doctors, ...providers.specialists].map(p => [
-    p.name, roleLabel(p.role), { n: p.count }, { n: p.net }, { n: p.paid }, { n: p.cash }, { n: p.share }
-  ]);
-  const sheetProvider = wbTableSheet(
-    "حسب مقدم الخدمة",
-    ["مقدّم الخدمة", "الدور", "عدد الإجراءات", "قيمة الإجراءات", "المحصّل", "الكاش المحصّل", "حصة التغذية 50%"],
-    provRows,
-    [3, 4, 5, 6, 7]
-  );
+  const provHeaders = ["مقدّم الخدمة", "الدور", "عدد الإجراءات", "قيمة الإجراءات", "المحصّل", "الكاش المحصّل"];
+  if (nutri) provHeaders.push("حصة التغذية 50%");
+  const provRows = [...providers.doctors, ...providers.specialists].map(p => {
+    const row = [p.name, roleLabel(p.role), { n: p.count }, { n: p.net }, { n: p.paid }, { n: p.cash }];
+    if (nutri) row.push({ n: p.share });
+    return row;
+  });
+  const sheetProvider = wbTableSheet("حسب مقدم الخدمة", provHeaders, provRows, nutri ? [3, 4, 5, 6, 7] : [3, 4, 5, 6]);
 
   // Sheet 4 — Per Procedure (+ recovery-by-method block)
   const procSorted = entries.slice().sort((a, b) => `${a.date || ""}${a.time || ""}`.localeCompare(`${b.date || ""}${b.time || ""}`));
@@ -15780,11 +15808,12 @@ function buildMonthlyWorkbookXml(entries, meta) {
     return wbStr("", "tot");
   })) : "";
   const methods = monthlyMethodTotals(entries);
+  const methodPct = m => (s.paid > 0.009 ? Math.round(methods[m].amount / s.paid * 1000) / 10 : 0);
   const methodBlock = [
     wbRow([wbStr("", "")]),
-    wbRow([wbStr("الاسترداد حسب الطريقة", "hdr"), wbStr("المبلغ", "hdr"), wbStr("عدد الدفعات", "hdr")]),
-    ...PAYMENT_METHODS.map(m => wbRow([wbStr(paymentLabel(m)), wbNum(methods[m].amount, "money"), wbNum(methods[m].count)])),
-    wbRow([wbStr("الإجمالي", "tot"), wbNum(s.paid, "totmoney"), wbNum(s.count, "tot")])
+    wbRow([wbStr("الاسترداد حسب الطريقة", "hdr"), wbStr("المبلغ", "hdr"), wbStr("عدد الدفعات", "hdr"), wbStr("الحصة %", "hdr")]),
+    ...PAYMENT_METHODS.map(m => wbRow([wbStr(paymentLabel(m)), wbNum(methods[m].amount, "money"), wbNum(methods[m].count), wbNum(methodPct(m))])),
+    wbRow([wbStr("الإجمالي", "tot"), wbNum(s.paid, "totmoney"), wbNum(s.count, "tot"), wbNum(100, "tot")])
   ];
   const sheetProc = wbSheet("كل عملية", [procHead, procBody, procTotal, ...methodBlock].filter(Boolean));
 
