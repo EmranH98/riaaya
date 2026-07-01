@@ -445,7 +445,8 @@ function exportClinic(req, res) {
     entity: "clinic_data",
     entityId: auth.user.clinicId,
     metadata: { bytes: JSON.stringify(payload).length },
-    ipAddress: clientIp(req)
+    ipAddress: clientIp(req),
+    impersonatedBy: auth.session?.impersonatedBy || null
   });
   const slug = String(clinicRow.slug || "clinic").replace(/[^a-z0-9-]+/gi, "-").toLowerCase();
   const stamp = nowIso().slice(0, 10).replaceAll("-", "");
@@ -484,7 +485,8 @@ function saveState(req, res) {
     entity: "clinic_state",
     entityId: auth.user.clinicId,
     metadata: { bytes: serialized.length },
-    ipAddress: clientIp(req)
+    ipAddress: clientIp(req),
+    impersonatedBy: auth.session?.impersonatedBy || null
   });
   sendJson(res, 200, { ok: true, savedAt: nowIso(), stateVersion: nextVersion });
 }
@@ -666,7 +668,8 @@ function saveUser(req, res, userId = "") {
     entity: "user",
     entityId: userId,
     metadata: { role: input.role, calendarScope: input.calendarScope },
-    ipAddress: clientIp(req)
+    ipAddress: clientIp(req),
+    impersonatedBy: auth.session?.impersonatedBy || null
   });
   const saved = db.prepare("select * from users where id = ?").get(userId);
   sendJson(res, existing ? 200 : 201, { ok: true, user: userPayload(saved) });
@@ -691,7 +694,8 @@ function deleteUser(req, res, userId) {
     action: "delete",
     entity: "user",
     entityId: userId,
-    ipAddress: clientIp(req)
+    ipAddress: clientIp(req),
+    impersonatedBy: auth.session?.impersonatedBy || null
   });
   sendJson(res, 200, { ok: true });
 }
@@ -770,7 +774,8 @@ function saveIntegration(req, res) {
     entity: "integration",
     entityId: provider,
     metadata: { configured: Boolean(secretCipher) },
-    ipAddress: clientIp(req)
+    ipAddress: clientIp(req),
+    impersonatedBy: auth.session?.impersonatedBy || null
   });
   const saved = db.prepare("select * from clinic_integrations where clinic_id = ? and provider = ?")
     .get(auth.user.clinicId, provider);
