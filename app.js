@@ -14683,7 +14683,16 @@ if (els.inventoryForm) {
     const isProduct = data.isProduct === "on";
     // Only staff allowed to manage products may set price/commission/image.
     const canManageProducts = canUseFeature("manage_products");
+    const canEditCost = canViewSensitive();
     const existing = data.itemId ? getInventoryItem(data.itemId) : null;
+    // Guard the edit→delete race: if we were editing an item that no longer exists,
+    // don't silently create a duplicate under a new id.
+    if (data.itemId && !existing) {
+      showToast("تعذّر الحفظ: هذا الصنف لم يعد موجوداً.", "error");
+      resetInventoryForm();
+      render();
+      return;
+    }
     const built = normalizeInventoryItem({
       // Editing an existing item preserves its id, stock movements history, and last-order date.
       id: existing ? existing.id : nextId("inventory"),
@@ -14692,12 +14701,13 @@ if (els.inventoryForm) {
       unit: data.unit.trim(),
       quantity: data.quantity,
       lowThreshold: data.lowThreshold,
-      unitCost: data.unitCost,
+      // Cost is gated by financial (sensitive) access; sale price + commission +
+      // image by manage_products. When a non-privileged user edits an existing
+      // item (e.g. to adjust stock), preserve those fields instead of overwriting
+      // them with a stale/blank form value.
+      unitCost: canEditCost ? data.unitCost : (existing ? existing.unitCost : data.unitCost),
       isProduct,
-      salePrice: data.salePrice,
-      // Only manage_products may SET commission/image. But when a non-manager edits
-      // an existing product (e.g. to adjust stock), preserve its current values
-      // instead of wiping them.
+      salePrice: canManageProducts ? data.salePrice : (existing ? existing.salePrice : data.salePrice),
       commissionType: canManageProducts ? (data.commissionType === "fixed" ? "fixed" : "percent") : (existing ? existing.commissionType : "percent"),
       commissionValue: canManageProducts ? (isProduct ? data.commissionValue : 0) : (existing ? existing.commissionValue : 0),
       image: canManageProducts ? (isProduct ? (data.image || "") : "") : (existing ? existing.image : ""),
