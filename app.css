@@ -278,7 +278,7 @@ h1,
 h2 {
   font-family: "Cairo", sans-serif;
   margin: 0;
-  line-height: 1.25;
+  line-height: 1.35;
 }
 
 h1 {
@@ -287,6 +287,21 @@ h1 {
 
 h2 {
   font-size: 22px;
+}
+
+/* Arabic (Cairo) glyphs are taller than Latin, so a tight Latin line-height clips
+   the tops of letters on headings. Give RTL headings enough room, and drop the
+   Latin-style letter-spacing/uppercase on the eyebrow which breaks Arabic
+   cursive joining. Applies app-wide (the styles are shared). */
+html[dir="rtl"] h1,
+html[dir="rtl"] h2,
+html[dir="rtl"] h3,
+html[dir="rtl"] h4 {
+  line-height: 1.55;
+}
+html[dir="rtl"] .eyebrow {
+  letter-spacing: normal;
+  text-transform: none;
 }
 
 .top-actions,
