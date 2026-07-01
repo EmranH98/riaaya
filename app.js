@@ -8059,6 +8059,279 @@ function patientReconciliationRows(entries) {
   }).sort((a, b) => Math.abs(b.balance) - Math.abs(a.balance));
 }
 
+/* ── Monthly Workbook ─────────────────────────────────────────────────────────
+   The full "monthly workbook" report, unified in one view and one export:
+   PAID vs PROCEDURE (service) value, pullable clinic-wide OR for a single doctor
+   or specialist. Everything is driven by the operations table — the payment is
+   already on each record, so a single payment covering several of a patient's
+   operations, or an installment (تكملة) paid later, rolls up to the patient
+   balance automatically. */
+
+let monthlyProviderFilter = ""; // "" = whole clinic, else a staff id (doctor OR specialist on the op)
+
+function isNutritionEntry(entry) {
+  const cat = (entryCategory(entry) || "").toString().toLowerCase();
+  return cat.includes("تغذية") || cat.includes("nutrition");
+}
+
+// Group operations to the same patient FILE (same file id, else same name) so a
+// single payment or a later تكملة lands on one balance line.
+function monthlyPatientKey(entry) {
+  return entry.patientId ? `id:${entry.patientId}` : `name:${(entry.patient || "").trim()}`;
+}
+
+// Apply the report's provider filter on top of the already date/category-filtered set.
+function monthlyEntries(entries) {
+  const rows = billableEntries(entries);
+  if (!monthlyProviderFilter) return rows;
+  return rows.filter(entry => entry.doctorId === monthlyProviderFilter || entry.specialistId === monthlyProviderFilter);
+}
+
+function monthlySummary(entries) {
+  const s = { count: 0, patients: 0, gross: 0, net: 0, paid: 0, cost: 0,
+    cash: 0, card: 0, transfer: 0, nutritionPaid: 0 };
+  const files = new Set();
+  entries.forEach(entry => {
+    s.count += 1;
+    s.gross += numberValue(entry.amount);
+    s.net += netAmount(entry);
+    s.paid += paidAmount(entry);
+    s.cost += entryCost(entry);
+    const b = entryPaymentBreakdown(entry);
+    s.cash += numberValue(b.cash);
+    s.card += numberValue(b.card);
+    s.transfer += numberValue(b.transfer);
+    if (isNutritionEntry(entry)) s.nutritionPaid += paidAmount(entry);
+    files.add(monthlyPatientKey(entry));
+  });
+  s.patients = files.size;
+  s.difference = s.paid - s.net;                       // paid − procedures
+  s.collection = s.net > 0.009 ? s.paid / s.net : 0;   // paid ÷ procedures
+  s.profit = s.paid - s.cost;                          // collected − direct cost
+  s.nutritionShare = s.nutritionPaid * 0.5;            // 50% specialist share
+  return s;
+}
+
+function monthlyPatientRows(entries, isEn) {
+  const map = new Map();
+  entries.forEach(entry => {
+    const key = monthlyPatientKey(entry);
+    const cur = map.get(key) || { key, patient: entry.patient || "—", paid: 0, procedures: 0, count: 0, lastDate: "" };
+    cur.paid += paidAmount(entry);
+    cur.procedures += netAmount(entry);
+    cur.count += 1;
+    if (entry.patient) cur.patient = entry.patient;
+    if (!cur.lastDate || (entry.date && entry.date > cur.lastDate)) cur.lastDate = entry.date;
+    map.set(key, cur);
+  });
+  return [...map.values()].map(row => {
+    const balance = row.paid - row.procedures;
+    let status, cls;
+    if (row.paid < 0.01 && row.procedures > 0.01) { status = isEn ? "Unpaid" : "غير مدفوع"; cls = "no-pay"; }
+    else if (Math.abs(balance) < 0.01) { status = isEn ? "Match" : "مطابق"; cls = "match"; }
+    else if (balance > 0) { status = isEn ? "Overpaid" : "زيادة دفع"; cls = "overpaid"; }
+    else { status = isEn ? "Underpaid" : "ناقص دفع"; cls = "underpaid"; }
+    return { ...row, balance, status, cls };
+  }).sort((a, b) => Math.abs(b.balance) - Math.abs(a.balance));
+}
+
+// One row per doctor and per specialist stored on the operations. Because payment
+// is linked to the operation, per-provider CASH COLLECTED is real, not estimated.
+function monthlyProviderRows(entries) {
+  const build = (roleField, role) => {
+    const map = new Map();
+    entries.forEach(entry => {
+      const id = entry[roleField];
+      if (!id) return;
+      const g = map.get(id) || { id, role, count: 0, net: 0, paid: 0, cash: 0, nutritionPaid: 0 };
+      g.count += 1;
+      g.net += netAmount(entry);
+      g.paid += paidAmount(entry);
+      g.cash += numberValue(entryPaymentBreakdown(entry).cash);
+      if (isNutritionEntry(entry)) g.nutritionPaid += paidAmount(entry);
+      map.set(id, g);
+    });
+    return [...map.values()]
+      .map(g => ({ ...g, name: getStaffMember(g.id)?.name || (isEnglishActive() ? "Unassigned" : "غير معيّن"), share: g.nutritionPaid * 0.5 }))
+      .sort((a, b) => b.paid - a.paid);
+  };
+  return { doctors: build("doctorId", "doctor"), specialists: build("specialistId", "specialist") };
+}
+
+function monthlyMethodTotals(entries) {
+  const totals = { cash: { amount: 0, count: 0 }, card: { amount: 0, count: 0 }, transfer: { amount: 0, count: 0 } };
+  entries.forEach(entry => {
+    const b = entryPaymentBreakdown(entry);
+    PAYMENT_METHODS.forEach(method => {
+      const amount = numberValue(b[method]);
+      if (amount > 0.009) { totals[method].amount += amount; totals[method].count += 1; }
+    });
+  });
+  return totals;
+}
+
+function monthlyOpStatus(entry, isEn) {
+  const net = netAmount(entry);
+  const paid = paidAmount(entry);
+  if (net < 0.01 && paid < 0.01) return { t: "—", c: "match" };
+  if (paid < 0.01) return { t: isEn ? "Unpaid" : "غير مدفوع", c: "no-pay" };
+  if (paid > net + 0.01) return { t: isEn ? "Overpaid" : "زيادة دفع", c: "overpaid" };
+  if (Math.abs(paid - net) < 0.01) return { t: isEn ? "Paid" : "مدفوعة", c: "match" };
+  return { t: isEn ? "Partial" : "جزئي", c: "partial" };
+}
+
+function isEnglishActive() { return currentLanguage() === "en"; }
+
+function monthlyPct(value) {
+  return `${(value * 100).toLocaleString(isEnglishActive() ? "en-US" : "ar-JO-u-nu-latn", { maximumFractionDigits: 1 })}%`;
+}
+
+function monthlyStatusPill(cls, text) {
+  const map = { match: "good", overpaid: "overpaid-pill", underpaid: "bad", "no-pay": "bad", partial: "partial" };
+  return `<span class="status-pill ${map[cls] || "warn"}">${text}</span>`;
+}
+
+function monthlyProviderBar(sourceEntries) {
+  const isEn = isEnglishActive();
+  const doctors = (state.staff || []).filter(m => m.role === "doctor");
+  const specialists = (state.staff || []).filter(m => m.role === "specialist");
+  const sel = id => (id === monthlyProviderFilter ? " selected" : "");
+  const grp = (label, list) => list.length
+    ? `<optgroup label="${label}">${list.map(m => `<option value="${m.id}"${sel(m.id)}>${m.name}</option>`).join("")}</optgroup>`
+    : "";
+  return `
+    <div class="monthly-toolbar no-print">
+      <label class="monthly-provider">${isEn ? "Provider" : "مقدّم الخدمة"}
+        <select data-monthly-provider>
+          <option value=""${monthlyProviderFilter ? "" : " selected"}>${isEn ? "Whole clinic" : "كل العيادة"}</option>
+          ${grp(isEn ? "Doctors" : "الأطباء", doctors)}
+          ${grp(isEn ? "Specialists" : "الأخصائيون", specialists)}
+        </select>
+      </label>
+      <button class="primary-button monthly-export-btn" type="button" data-export-monthly-xlsx data-sensitive>${isEn ? "⬇ Export Excel (4 sheets)" : "⬇ تصدير Excel (٤ أوراق)"}</button>
+    </div>`;
+}
+
+function renderMonthlyReport(sourceEntries) {
+  const isEn = isEnglishActive();
+  const entries = monthlyEntries(sourceEntries);
+  const s = monthlySummary(entries);
+  const L = isEn ? {
+    title: "Monthly Workbook — Paid vs Procedures", subtitle: "Reconciliation of collected payments against the value of procedures performed, driven entirely by the operations table.",
+    procedures: "Procedures value", paid: "Total paid", difference: "Difference (paid − procedures)", collection: "Collection rate", files: "Patients / Operations",
+    under: "collected below procedures", over: "collected above procedures", balanced: "fully collected", filesNote: "distinct files",
+    gross: "Gross income (before discount)", net: "Net procedures (after discount)", collected: "Collected", cost: "Direct cost", profit: "Profit (collected − cost)", nutriShare: "Nutrition 50% share",
+    byPatient: "By patient", byProvider: "By provider", perProc: "Per procedure", recovery: "Recovery by method",
+    patient: "Patient", balance: "Balance", status: "Status", provider: "Provider", role: "Role", count: "Procedures", cash: "Cash collected", price: "Price", method: "Method", amount: "Amount", payments: "Payments", share: "Share", total: "Total", date: "Date", service: "Service", doctor: "Doctor", specialist: "Specialist", empty: "No operations for this range."
+  } : {
+    title: "التقرير الشهري — المدفوع مقابل الإجراءات", subtitle: "مطابقة المبالغ المحصّلة مقابل قيمة الإجراءات المنفّذة، مبنية بالكامل على جدول العمليات.",
+    procedures: "قيمة الإجراءات", paid: "إجمالي المدفوع", difference: "الفرق (المدفوع − الإجراءات)", collection: "نسبة التحصيل", files: "المرضى / العمليات",
+    under: "تحصيل أقل من قيمة الإجراءات", over: "تحصيل أعلى من قيمة الإجراءات", balanced: "تحصيل كامل", filesNote: "ملف مختلف",
+    gross: "الدخل الإجمالي (قبل الخصم)", net: "صافي الإجراءات (بعد الخصم)", collected: "المحصّل", cost: "التكلفة المباشرة", profit: "الربح (المحصّل − التكلفة)", nutriShare: "حصة التغذية 50%",
+    byPatient: "حسب المريض", byProvider: "حسب مقدّم الخدمة", perProc: "كل عملية", recovery: "الاسترداد حسب الطريقة",
+    patient: "المريض", balance: "الرصيد", status: "الحالة", provider: "مقدّم الخدمة", role: "الدور", count: "عدد الإجراءات", cash: "الكاش المحصّل", price: "السعر", method: "الطريقة", amount: "المبلغ", payments: "عدد الدفعات", share: "الحصة", total: "الإجمالي", date: "التاريخ", service: "الخدمة", doctor: "الطبيب", specialist: "الأخصائي", empty: "لا توجد عمليات لهذه الفترة."
+  };
+
+  const kpis = reportKpis([
+    { label: L.procedures, value: money(s.net) },
+    { label: L.paid, value: money(s.paid) },
+    { label: L.difference, value: `${s.difference > 0.01 ? "+" : ""}${money(s.difference)}`, note: s.difference < -0.01 ? L.under : s.difference > 0.01 ? L.over : L.balanced },
+    { label: L.collection, value: monthlyPct(s.collection) },
+    { label: L.files, value: `${s.patients} / ${s.count}`, note: L.filesNote }
+  ]);
+
+  const nutriCol = s.nutritionPaid > 0.01;
+  const incomeStrip = `
+    <table class="practical-table monthly-income">
+      <thead><tr><th>${L.gross}</th><th>${L.net}</th><th>${L.collected}</th><th>${L.cost}</th><th>${L.profit}</th>${nutriCol ? `<th>${L.nutriShare}</th>` : ""}</tr></thead>
+      <tbody><tr><td>${money(s.gross)}</td><td>${money(s.net)}</td><td>${money(s.paid)}</td><td>${money(s.cost)}</td><td>${money(s.profit)}</td>${nutriCol ? `<td><strong>${money(s.nutritionShare)}</strong></td>` : ""}</tr></tbody>
+    </table>`;
+
+  // §2 Per patient
+  const patientRows = monthlyPatientRows(entries, isEn);
+  const patientBody = patientRows.length ? patientRows.map(r => `
+    <tr class="balance-row balance-row--${r.cls}">
+      <td class="patient-cell"><strong>${r.patient}</strong><small>${displayDate(r.lastDate)} · ${r.count}</small></td>
+      <td>${money(r.paid)}</td>
+      <td>${money(r.procedures)}</td>
+      <td class="${r.balance < -0.01 ? "balance-negative" : r.balance > 0.01 ? "balance-positive" : ""}"><strong>${r.balance > 0.01 ? "+" : ""}${money(r.balance)}</strong></td>
+      <td>${monthlyStatusPill(r.cls, r.status)}</td>
+    </tr>`).join("") : `<tr><td colspan="5" class="report-empty">${L.empty}</td></tr>`;
+  const patientTable = `
+    <h3 class="monthly-section-title">${L.byPatient}</h3>
+    <div class="table-wrap report-table"><table class="patient-balance-table">
+      <thead><tr><th>${L.patient}</th><th>${L.paid}</th><th>${L.procedures}</th><th>${L.balance}</th><th>${L.status}</th></tr></thead>
+      <tbody>${patientBody}</tbody>
+      <tfoot><tr><td><strong>${L.total} (${patientRows.length})</strong></td><td><strong>${money(s.paid)}</strong></td><td><strong>${money(s.net)}</strong></td><td><strong>${s.difference > 0.01 ? "+" : ""}${money(s.difference)}</strong></td><td></td></tr></tfoot>
+    </table></div>`;
+
+  // §3 Per provider
+  const providers = monthlyProviderRows(entries);
+  const provList = [...providers.doctors, ...providers.specialists];
+  const nutriAny = provList.some(p => p.nutritionPaid > 0.01);
+  const provBody = provList.length ? provList.map(p => `
+    <tr>
+      <td><strong>${p.name}</strong></td>
+      <td>${roleLabel(p.role)}</td>
+      <td>${p.count}</td>
+      <td>${money(p.net)}</td>
+      <td>${money(p.paid)}</td>
+      <td>${money(p.cash)}</td>
+      ${nutriAny ? `<td>${p.nutritionPaid > 0.01 ? money(p.share) : "—"}</td>` : ""}
+    </tr>`).join("") : `<tr><td colspan="${nutriAny ? 7 : 6}" class="report-empty">${L.empty}</td></tr>`;
+  const providerTable = `
+    <h3 class="monthly-section-title">${L.byProvider}</h3>
+    <div class="table-wrap report-table"><table class="practical-table">
+      <thead><tr><th>${L.provider}</th><th>${L.role}</th><th>${L.count}</th><th>${L.procedures}</th><th>${L.collected}</th><th>${L.cash}</th>${nutriAny ? `<th>${L.nutriShare}</th>` : ""}</tr></thead>
+      <tbody>${provBody}</tbody>
+    </table></div>`;
+
+  // §4 Per procedure + recovery-by-method
+  const methods = monthlyMethodTotals(entries);
+  const methodBody = PAYMENT_METHODS.map(m => `
+    <tr><td>${paymentLabel(m)}</td><td>${money(methods[m].amount)}</td><td>${methods[m].count}</td><td>${monthlyPct(s.paid > 0.009 ? methods[m].amount / s.paid : 0)}</td></tr>`).join("");
+  const methodTable = `
+    <h4 class="monthly-section-title">${L.recovery}</h4>
+    <div class="table-wrap"><table class="practical-table monthly-methods">
+      <thead><tr><th>${L.method}</th><th>${L.amount}</th><th>${L.payments}</th><th>${L.share}</th></tr></thead>
+      <tbody>${methodBody}</tbody>
+      <tfoot><tr><td><strong>${L.total}</strong></td><td><strong>${money(s.paid)}</strong></td><td><strong>${s.count}</strong></td><td><strong>100%</strong></td></tr></tfoot>
+    </table></div>`;
+  const procSorted = entries.slice().sort((a, b) => `${a.date || ""}${a.time || ""}`.localeCompare(`${b.date || ""}${b.time || ""}`));
+  const procBody = procSorted.length ? procSorted.map((entry, i) => {
+    const st = monthlyOpStatus(entry, isEn);
+    return `
+    <tr class="report-edit-row" data-edit-entry="${entry.id}" title="اضغط للتعديل">
+      <td>${i + 1}</td>
+      <td>${displayDate(entry.date)}</td>
+      <td>${entry.patient || "—"}</td>
+      <td>${serviceLabel(entry)}</td>
+      <td>${getStaffMember(entry.doctorId)?.name || "—"}</td>
+      <td>${getStaffMember(entry.specialistId)?.name || "—"}</td>
+      <td>${money(netAmount(entry))}</td>
+      <td>${money(paidAmount(entry))}</td>
+      <td>${monthlyStatusPill(st.c, st.t)}</td>
+    </tr>`;
+  }).join("") : `<tr><td colspan="9" class="report-empty">${L.empty}</td></tr>`;
+  const procTable = `
+    <h3 class="monthly-section-title">${L.perProc}</h3>
+    ${methodTable}
+    <div class="table-wrap report-table"><table class="practical-table">
+      <thead><tr><th>#</th><th>${L.date}</th><th>${L.patient}</th><th>${L.service}</th><th>${L.doctor}</th><th>${L.specialist}</th><th>${L.price}</th><th>${L.paid}</th><th>${L.status}</th></tr></thead>
+      <tbody>${procBody}</tbody>
+      <tfoot><tr><td colspan="6"><strong>${L.total} (${procSorted.length})</strong></td><td><strong>${money(s.net)}</strong></td><td><strong>${money(s.paid)}</strong></td><td></td></tr></tfoot>
+    </table></div>`;
+
+  return `
+    ${monthlyProviderBar(sourceEntries)}
+    ${reportHeader(L.title, L.subtitle)}
+    ${kpis}
+    ${incomeStrip}
+    ${patientTable}
+    ${providerTable}
+    ${procTable}`;
+}
+
 function reportHeader(title, subtitle) {
   const { from, to } = reportDateRange();
   const dateLabel = from === to ? displayDate(from) : `${displayDate(from)} - ${displayDate(to)}`;
@@ -9536,6 +9809,7 @@ function renderRetentionReport(entries, patients) {
 
 // Catalog of every report, shown as the table-first "report center" landing.
 const REPORTS_CATALOG = [
+  { type: "monthly", name: "التقرير الشهري — المدفوع مقابل الإجراءات", desc: "دفتر العمل الشهري: الملخص، وحسب المريض، وحسب مقدّم الخدمة، وكل عملية — لكل العيادة أو لطبيب/أخصائي واحد، مع تصدير Excel بأربع أوراق.", cat: "fin", period: "الفترة", columns: "المدفوع، الإجراءات، الفرق، نسبة التحصيل، حصة التغذية" },
   { type: "universal", name: "بحث شامل في العيادة", desc: "نتائج موحّدة من العمليات والحجوزات والمرضى والمصروفات والخدمات.", cat: "op", period: "من / إلى", columns: "المصدر، الحالة، الدفع، الطبيب" },
   { type: "perProcedure", name: "تقرير كل عملية", desc: "قائمة عمليات تفصيلية مع الخدمة والفريق والدفع والمستحقات.", cat: "op", period: "الفترة", columns: "الوقت، المريض، الخدمة، الفريق، الحالة" },
   { type: "packages", name: "تقرير الباقات والجلسات", desc: "بيع الباقات والجلسات المستخدمة والمتبقية وأداء كل موظف.", cat: "op", period: "الفترة", columns: "الموظف، الباقة، الجلسات، المدفوع" },
@@ -9555,7 +9829,7 @@ const REPORTS_CATALOG = [
 ];
 const CATALOG_CATS = [{ key: "all", label: "كل التقارير" }, { key: "op", label: "تشغيلي" }, { key: "fin", label: "مالي" }, { key: "ana", label: "تحليلات" }];
 const CATALOG_TAGS = { op: "تشغيلي", fin: "مالي", ana: "تحليلات" };
-const CATALOG_FIN_GATED = ["profit", "reconciliation", "patientBalance", "byPatient", "perProcedure", "costs", "expenses", "retention", "packages", "cash", "audit", "specialist"];
+const CATALOG_FIN_GATED = ["monthly", "profit", "reconciliation", "patientBalance", "byPatient", "perProcedure", "costs", "expenses", "retention", "packages", "cash", "audit", "specialist"];
 
 function catalogPeriodLabel() {
   const { from, to } = reportDateRange();
@@ -9657,7 +9931,7 @@ function renderReports() {
       + serviceCategories().map(category => `<option value="${category}">${category}</option>`).join("");
     reportCatFilter.value = [...reportCatFilter.options].some(option => option.value === currentCat) ? currentCat : "";
   }
-  const financialReports = ["profit", "reconciliation", "patientBalance", "byPatient", "perProcedure", "costs", "expenses", "retention", "packages", "cash", "audit", "specialist"];
+  const financialReports = ["monthly", "profit", "reconciliation", "patientBalance", "byPatient", "perProcedure", "costs", "expenses", "retention", "packages", "cash", "audit", "specialist"];
   if (!canViewSensitive() && financialReports.includes(reportType)) {
     els.reportVisuals.innerHTML = "";
     els.reportPagination.innerHTML = "";
@@ -9675,6 +9949,9 @@ function renderReports() {
   if (reportType === "patientBalance") {
     pagination = paginateItems(allEntries, 1, Math.max(allEntries.length, 1));
     content = renderPatientBalanceReport(pagination.items);
+  } else if (reportType === "monthly") {
+    pagination = paginateItems(allEntries, 1, Math.max(allEntries.length, 1));
+    content = renderMonthlyReport(allEntries);
   } else if (reportType === "retention") {
     pagination = paginateItems(allEntries, 1, Math.max(allEntries.length, 1));
     content = renderRetentionReport(allEntries, allPatients);
@@ -13165,6 +13442,19 @@ document.addEventListener("change", event => {
   renderReports();
 });
 
+// Monthly workbook: filter the whole report (all four sections) to one provider.
+document.addEventListener("change", event => {
+  const sel = event.target.closest("[data-monthly-provider]");
+  if (!sel) return;
+  monthlyProviderFilter = sel.value;
+  renderReports();
+});
+
+// Monthly workbook: export the four-sheet Excel workbook.
+document.addEventListener("click", event => {
+  if (event.target.closest("[data-export-monthly-xlsx]")) exportMonthlyWorkbook();
+});
+
 // Audit log filters: by user (who) and by action type.
 document.addEventListener("change", event => {
   const who = event.target.closest("[data-audit-who]");
@@ -15381,6 +15671,154 @@ function exportCurrentReportXls() {
     </html>
   `;
   downloadBlob(new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" }), `riaaya-${safeFilename(title)}-${exportStamp()}.xls`);
+}
+
+/* ── Monthly Workbook Excel export ────────────────────────────────────────────
+   Produces a real multi-sheet workbook (Reconciliation / By Patient / By
+   Provider / Per Procedure) in the SpreadsheetML 2003 XML format — every sheet
+   is right-to-left and the per-sheet totals are live =SUM() formulas that Excel
+   recalculates. No password. */
+
+function xmlEsc(value) {
+  return String(value ?? "").replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
+}
+function wbStr(value, style) {
+  return `<Cell${style ? ` ss:StyleID="${style}"` : ""}><Data ss:Type="String">${xmlEsc(value)}</Data></Cell>`;
+}
+function wbNum(value, style) {
+  return `<Cell${style ? ` ss:StyleID="${style}"` : ""}><Data ss:Type="Number">${Math.round((Number(value) || 0) * 100) / 100}</Data></Cell>`;
+}
+function wbFormula(formula, style) {
+  return `<Cell${style ? ` ss:StyleID="${style}"` : ""} ss:Formula="${xmlEsc(formula)}"><Data ss:Type="Number">0</Data></Cell>`;
+}
+function wbRow(cells) { return `<Row>${cells.join("")}</Row>`; }
+function wbSheet(name, rows) {
+  return `<Worksheet ss:Name="${xmlEsc(name).slice(0, 31)}"><Table>${rows.join("")}</Table>`
+    + `<WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><DisplayRightToLeft/><FreezePanes/><FrozenNoSplit/><SplitHorizontal>1</SplitHorizontal><TopRowBottomPane>1</TopRowBottomPane></WorksheetOptions></Worksheet>`;
+}
+// A standard header/body/total sheet. dataRows: array of arrays; each cell is a
+// string (text) or {n:number} (money). sumCols: 1-based columns to live-SUM.
+function wbTableSheet(name, headers, dataRows, sumCols = []) {
+  const head = wbRow(headers.map(h => wbStr(h, "hdr")));
+  const body = dataRows.map(row => wbRow(row.map(cell =>
+    (cell && typeof cell === "object" && "n" in cell) ? wbNum(cell.n, "money") : wbStr(cell)))).join("");
+  let total = "";
+  if (dataRows.length && sumCols.length) {
+    const last = dataRows.length + 1; // header is row 1, data rows 2..last
+    total = wbRow(headers.map((_, i) => {
+      const col = i + 1;
+      if (col === 1) return wbStr("الإجمالي", "tot");
+      if (sumCols.includes(col)) return wbFormula(`=SUM(R2C${col}:R${last}C${col})`, "totmoney");
+      return wbStr("", "tot");
+    }));
+  }
+  return wbSheet(name, [head, body, total].filter(Boolean));
+}
+
+function buildMonthlyWorkbookXml(entries, meta) {
+  const s = monthlySummary(entries);
+  const nutri = s.nutritionPaid > 0.01;
+
+  // Sheet 1 — Reconciliation (summary)
+  const rec = [wbRow([wbStr("البند", "hdr"), wbStr("القيمة", "hdr")])];
+  const kv = (label, value) => rec.push(wbRow([wbStr(label), wbNum(value, "money")]));
+  rec.push(wbRow([wbStr(meta.clinic, "tot"), wbStr("", "tot")]));
+  rec.push(wbRow([wbStr(`الفترة: ${meta.range}${meta.provider ? " · " + meta.provider : ""}`), wbStr("")]));
+  kv("إجمالي الإجراءات (قيمة الخدمات)", s.net);
+  kv("إجمالي المدفوع (المحصّل)", s.paid);
+  kv("الفرق (المدفوع − الإجراءات)", s.difference);
+  kv("نسبة التحصيل %", Math.round(s.collection * 1000) / 10);
+  kv("الدخل الإجمالي (قبل الخصم)", s.gross);
+  kv("صافي الإجراءات (بعد الخصم)", s.net);
+  kv("التكلفة المباشرة", s.cost);
+  kv("الربح (المحصّل − التكلفة)", s.profit);
+  rec.push(wbRow([wbStr("عدد العمليات"), wbNum(s.count)]));
+  rec.push(wbRow([wbStr("عدد المرضى (ملفات)"), wbNum(s.patients)]));
+  kv("محصّل كاش", s.cash);
+  kv("محصّل فيزا", s.card);
+  kv("محصّل تحويل", s.transfer);
+  if (nutri) { kv("مبلغ التغذية المحصّل", s.nutritionPaid); kv("حصة التغذية 50%", s.nutritionShare); }
+  const sheetRec = wbSheet("المطابقة", rec);
+
+  // Sheet 2 — By Patient
+  const pr = monthlyPatientRows(entries, false);
+  const sheetPatient = wbTableSheet(
+    "حسب المريض",
+    ["المريض", "المدفوع", "قيمة الإجراءات", "الرصيد (مدفوع−إجراءات)", "الحالة"],
+    pr.map(r => [r.patient, { n: r.paid }, { n: r.procedures }, { n: r.balance }, r.status]),
+    [2, 3, 4]
+  );
+
+  // Sheet 3 — By Provider
+  const providers = monthlyProviderRows(entries);
+  const provRows = [...providers.doctors, ...providers.specialists].map(p => [
+    p.name, roleLabel(p.role), { n: p.count }, { n: p.net }, { n: p.paid }, { n: p.cash }, { n: p.share }
+  ]);
+  const sheetProvider = wbTableSheet(
+    "حسب مقدم الخدمة",
+    ["مقدّم الخدمة", "الدور", "عدد الإجراءات", "قيمة الإجراءات", "المحصّل", "الكاش المحصّل", "حصة التغذية 50%"],
+    provRows,
+    [3, 4, 5, 6, 7]
+  );
+
+  // Sheet 4 — Per Procedure (+ recovery-by-method block)
+  const procSorted = entries.slice().sort((a, b) => `${a.date || ""}${a.time || ""}`.localeCompare(`${b.date || ""}${b.time || ""}`));
+  const procHeaders = ["التاريخ", "المريض", "الخدمة", "الطبيب", "الأخصائي", "السعر", "المدفوع", "الحالة"];
+  const procData = procSorted.map(entry => [
+    displayDate(entry.date), entry.patient || "—", serviceLabel(entry),
+    getStaffMember(entry.doctorId)?.name || "—", getStaffMember(entry.specialistId)?.name || "—",
+    { n: netAmount(entry) }, { n: paidAmount(entry) }, monthlyOpStatus(entry, false).t
+  ]);
+  const procHead = wbRow(procHeaders.map(h => wbStr(h, "hdr")));
+  const procBody = procData.map(row => wbRow(row.map(cell =>
+    (cell && typeof cell === "object" && "n" in cell) ? wbNum(cell.n, "money") : wbStr(cell)))).join("");
+  const procLast = procData.length + 1;
+  const procTotal = procData.length ? wbRow(procHeaders.map((_, i) => {
+    const col = i + 1;
+    if (col === 1) return wbStr("الإجمالي", "tot");
+    if (col === 6 || col === 7) return wbFormula(`=SUM(R2C${col}:R${procLast}C${col})`, "totmoney");
+    return wbStr("", "tot");
+  })) : "";
+  const methods = monthlyMethodTotals(entries);
+  const methodBlock = [
+    wbRow([wbStr("", "")]),
+    wbRow([wbStr("الاسترداد حسب الطريقة", "hdr"), wbStr("المبلغ", "hdr"), wbStr("عدد الدفعات", "hdr")]),
+    ...PAYMENT_METHODS.map(m => wbRow([wbStr(paymentLabel(m)), wbNum(methods[m].amount, "money"), wbNum(methods[m].count)])),
+    wbRow([wbStr("الإجمالي", "tot"), wbNum(s.paid, "totmoney"), wbNum(s.count, "tot")])
+  ];
+  const sheetProc = wbSheet("كل عملية", [procHead, procBody, procTotal, ...methodBlock].filter(Boolean));
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet" xmlns:x="urn:schemas-microsoft-com:office:excel">
+ <Styles>
+  <Style ss:ID="Default"><Alignment ss:Vertical="Center"/><Font ss:FontName="Arial"/></Style>
+  <Style ss:ID="hdr"><Font ss:Bold="1" ss:Color="#065C43"/><Interior ss:Color="#E8F7F2" ss:Pattern="Solid"/><Alignment ss:Horizontal="Center"/></Style>
+  <Style ss:ID="money"><NumberFormat ss:Format="#,##0.00"/></Style>
+  <Style ss:ID="tot"><Font ss:Bold="1"/><Interior ss:Color="#F1F5F4" ss:Pattern="Solid"/></Style>
+  <Style ss:ID="totmoney"><Font ss:Bold="1"/><Interior ss:Color="#F1F5F4" ss:Pattern="Solid"/><NumberFormat ss:Format="#,##0.00"/></Style>
+ </Styles>
+ ${sheetRec}
+ ${sheetPatient}
+ ${sheetProvider}
+ ${sheetProc}
+</Workbook>`;
+}
+
+function exportMonthlyWorkbook() {
+  if (!canUseFeature("export_reports")) return;
+  const { from, to } = reportDateRange();
+  const filters = reportFilterValues();
+  const allEntries = entriesForDateRange(from, to).filter(entry => entryMatchesReportFilters(entry, filters));
+  const entries = monthlyEntries(allEntries);
+  const providerName = monthlyProviderFilter ? (getStaffMember(monthlyProviderFilter)?.name || "") : "";
+  const xml = buildMonthlyWorkbookXml(entries, {
+    clinic: state.settings.clinicName || "RIAAYA",
+    range: from === to ? displayDate(from) : `${displayDate(from)} – ${displayDate(to)}`,
+    provider: providerName
+  });
+  const tag = providerName ? `-${safeFilename(providerName)}` : "";
+  downloadBlob(new Blob(["﻿" + xml], { type: "application/vnd.ms-excel;charset=utf-8" }), `riaaya-monthly${tag}-${exportStamp()}.xls`);
 }
 
 function exportClinicCsvBundle() {
