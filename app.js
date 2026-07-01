@@ -11755,8 +11755,29 @@ function fillPatientForm(patientId) {
   els.patientForm.elements.notes.value = patient.notes || "";
   els.patientForm.elements.marketingConsent.checked = patient.marketingConsent === true;
   if (els.patientSubmit) els.patientSubmit.textContent = "تحديث الملف";
-  els.patientForm.scrollIntoView({ behavior: "smooth", block: "center" });
+  openPatientCreateModal();
 }
+
+function openPatientCreateModal() {
+  const modal = document.querySelector("[data-patient-create-modal]");
+  if (!modal) return;
+  modal.hidden = false;
+  setTimeout(() => els.patientForm?.elements?.name?.focus(), 40);
+}
+function closePatientCreateModal() {
+  const modal = document.querySelector("[data-patient-create-modal]");
+  if (modal) modal.hidden = true;
+}
+document.addEventListener("click", event => {
+  if (event.target.closest("[data-open-patient-create]")) { resetPatientForm(); openPatientCreateModal(); }
+  else if (event.target.closest("[data-patient-create-close]")) closePatientCreateModal();
+  else if (event.target.classList && event.target.classList.contains("patient-create-modal")) closePatientCreateModal();
+});
+document.addEventListener("keydown", event => {
+  if (event.key !== "Escape") return;
+  const modal = document.querySelector("[data-patient-create-modal]");
+  if (modal && !modal.hidden) closePatientCreateModal();
+});
 
 if (els.patientForm) {
   els.patientForm.addEventListener("submit", event => {
@@ -11794,6 +11815,7 @@ if (els.patientForm) {
     }
     selectedPatientId = patient.id;
     resetPatientForm();
+    closePatientCreateModal();
     saveState();
     render();
   });

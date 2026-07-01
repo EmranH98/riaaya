@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260624r">
+  <link rel="stylesheet" href="app.css?v=20260624s">
 </head>
 <body>
 
@@ -819,13 +819,17 @@
       </section>
 
       <section class="view" data-view="patients">
+        <div class="patient-create-modal" data-patient-create-modal hidden>
         <article class="panel patient-create-panel">
           <div class="panel-header">
             <div>
               <p class="eyebrow">ملف جديد</p>
               <h2>إضافة مريض أو زائر</h2>
             </div>
-            <button class="text-button" type="button" data-reset-patient-form>تفريغ النموذج</button>
+            <div class="form-actions">
+              <button class="text-button" type="button" data-reset-patient-form>تفريغ</button>
+              <button class="icon-button" type="button" data-patient-create-close aria-label="إغلاق">×</button>
+            </div>
           </div>
           <form class="patient-form" data-patient-form>
             <input name="patientId" type="hidden">
@@ -894,6 +898,7 @@
             <button class="primary-button form-submit" type="submit" data-patient-submit>حفظ الملف</button>
           </form>
         </article>
+        </div>
 
         <div class="patient-workspace">
           <article class="panel patient-directory-panel">
@@ -902,9 +907,7 @@
                 <p class="eyebrow">الدليل</p>
                 <h2>المرضى والزوار</h2>
               </div>
-              <button class="focus-icon-button" type="button" data-expand-view="patients" data-patient-focus="list" aria-label="تكبير مساحة الملفات" title="تكبير مساحة الملفات">
-                <span aria-hidden="true">⛶</span>
-              </button>
+              <button class="primary-button add-file-btn" type="button" data-open-patient-create>＋ ملف جديد</button>
             </div>
             <div class="referral-summary" data-referral-summary></div>
             <form class="patient-filter-form" data-patient-filter-form>
@@ -3171,7 +3174,7 @@
       </form>
     </div>
   </div>
-  <script src="app.js?v=20260624r"></script>
+  <script src="app.js?v=20260624s"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>
