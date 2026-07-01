@@ -3369,14 +3369,16 @@ function ensurePatientFile(name, phone = "") {
 function patientEntries(patient) {
   if (!patient) return [];
   return filterEntriesForAccount(state.entries || [])
-    .filter(entry => entry.patientId === patient.id || patientNameKey(entry.patient) === patientNameKey(patient.name))
+    // A record with a patientId belongs to that file only — never fall through to
+    // the name match, or two different patients with the same name would share ops.
+    .filter(entry => entry.patientId ? entry.patientId === patient.id : patientNameKey(entry.patient) === patientNameKey(patient.name))
     .sort((a, b) => `${b.date} ${b.createdAt || ""}`.localeCompare(`${a.date} ${a.createdAt || ""}`));
 }
 
 function patientBookings(patient) {
   if (!patient) return [];
   return filterBookingsForAccount(state.bookings || [])
-    .filter(booking => booking.patientId === patient.id || patientNameKey(booking.patient) === patientNameKey(patient.name))
+    .filter(booking => booking.patientId ? booking.patientId === patient.id : patientNameKey(booking.patient) === patientNameKey(patient.name))
     .sort((a, b) => `${b.date} ${b.time}`.localeCompare(`${a.date} ${a.time}`));
 }
 
@@ -5707,7 +5709,7 @@ function receiptForEntry(entryId) {
 
 function patientReceipts(patient) {
   return (state.receipts || [])
-    .filter(receipt => receipt.patientId === patient.id || patientNameKey(receipt.patient) === patientNameKey(patient.name))
+    .filter(receipt => receipt.patientId ? receipt.patientId === patient.id : patientNameKey(receipt.patient) === patientNameKey(patient.name))
     .sort((a, b) => `${b.date} ${b.createdAt}`.localeCompare(`${a.date} ${a.createdAt}`));
 }
 
@@ -7625,9 +7627,9 @@ function activeScheduleColumns() {
   const savedColumns = Array.isArray(state.scheduleColumns)
     ? state.scheduleColumns.map(normalizeScheduleColumn).filter(column => column.active !== false)
     : [];
-  const columns = savedColumns.length ? savedColumns : DEFAULT_SCHEDULE_COLUMNS.map(normalizeScheduleColumn);
-  state.scheduleColumns = columns;
-  return columns;
+  // Return the normalized/filtered list without reassigning state — a read-time
+  // mutation here could let a later saveState() persist away inactive columns.
+  return savedColumns.length ? savedColumns : DEFAULT_SCHEDULE_COLUMNS.map(normalizeScheduleColumn);
 }
 
 function scheduleColumnLabel(columnId) {
@@ -7916,9 +7918,11 @@ function renderBookingList() {
 
 function patientBalanceRows(entries, doctorId = "") {
   const isEnglish = currentLanguage() === "en";
+  // Cancelled entries carry no real money — keep them out of the balance.
+  const billable = billableEntries(entries);
   const filtered = doctorId
-    ? entries.filter(e => e.doctorId === doctorId || e.specialistId === doctorId)
-    : entries;
+    ? billable.filter(e => e.doctorId === doctorId || e.specialistId === doctorId)
+    : billable;
 
   const rows = new Map();
   filtered.forEach(entry => {
@@ -10545,6 +10549,9 @@ function applyPriceFieldVisibility() {
 
 function openOperationModal({ returnView = "", patientName = "", serviceId = "", category = "", bookingId = "" } = {}) {
   if (!canView("entries")) return;
+  // Leaving focus mode first — otherwise focus-mode CSS hides the entries view the
+  // operation modal lives in, so the form would open invisible.
+  exitFocusMode();
   const currentView = document.querySelector(".view.active")?.dataset.view || "dashboard";
   runtime.operationReturnView = returnView || currentView;
   setView("entries");
@@ -13688,12 +13695,32 @@ els.serviceBrowseSearch?.addEventListener("input", renderServiceBrowse);
     const data = Object.fromEntries(new FormData(form).entries());
     const entry = (state.entries || []).find(item => item.id === data.entryId);
     if (!entry) { close(); return; }
-    entry.amount = numberValue(data.amount);
-    entry.discount = 0;
+    // The amount field holds the NET (final) price. Preserve the original discount
+    // instead of zeroing it, so editing a discounted entry doesn't corrupt it:
+    // gross = net + discount keeps netAmount() == the value the user sees/edits.
+    const oldDiscount = numberValue(entry.discount);
+    const newNet = numberValue(data.amount);
+    entry.amount = newNet + oldDiscount;
+    entry.discount = oldDiscount;
     if (data.cost !== undefined) entry.cost = numberValue(data.cost);
-    const paid = Math.min(Math.max(numberValue(data.paid), 0), numberValue(data.amount));
-    entry.paymentBreakdown = { cash: paid, card: 0, transfer: 0 };
-    entry.paymentMethod = "cash";
+    // Preserve the payment split. Only touch the breakdown when the paid total
+    // actually changed; then keep the same method mix, scaled to the new total.
+    const oldPaid = paidAmount(entry);
+    const newPaid = Math.min(Math.max(numberValue(data.paid), 0), newNet);
+    if (Math.abs(newPaid - oldPaid) >= 0.01) {
+      if (oldPaid > 0.01) {
+        const factor = newPaid / oldPaid;
+        const b = entryPaymentBreakdown(entry);
+        entry.paymentBreakdown = {
+          cash: numberValue(b.cash) * factor,
+          card: numberValue(b.card) * factor,
+          transfer: numberValue(b.transfer) * factor
+        };
+      } else {
+        entry.paymentBreakdown = { cash: newPaid, card: 0, transfer: 0 };
+      }
+      entry.paymentMethod = paymentMethodFromBreakdown(entry.paymentBreakdown, entry.paymentMethod);
+    }
     entry.status = data.status || entry.status;
     const category = (data.category || "").trim();
     if (entry.packageId) {
@@ -14668,9 +14695,12 @@ if (els.inventoryForm) {
       unitCost: data.unitCost,
       isProduct,
       salePrice: data.salePrice,
-      commissionType: data.commissionType === "fixed" ? "fixed" : "percent",
-      commissionValue: (isProduct && canManageProducts) ? data.commissionValue : 0,
-      image: (isProduct && canManageProducts) ? (data.image || "") : "",
+      // Only manage_products may SET commission/image. But when a non-manager edits
+      // an existing product (e.g. to adjust stock), preserve its current values
+      // instead of wiping them.
+      commissionType: canManageProducts ? (data.commissionType === "fixed" ? "fixed" : "percent") : (existing ? existing.commissionType : "percent"),
+      commissionValue: canManageProducts ? (isProduct ? data.commissionValue : 0) : (existing ? existing.commissionValue : 0),
+      image: canManageProducts ? (isProduct ? (data.image || "") : "") : (existing ? existing.image : ""),
       supplierId: data.supplierId,
       lastOrderedAt: existing ? existing.lastOrderedAt : "",
       active: existing ? existing.active : true
@@ -15360,7 +15390,10 @@ document.addEventListener("click", async event => {
   }
 
   if (patientFocusListAction) {
-    setPatientFocusMode("list");
+    // Return to the full-width files table (exit the single-file focus view).
+    exitFocusMode();
+    setView("patients");
+    renderPatients();
     return;
   }
 
