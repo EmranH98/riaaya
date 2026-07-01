@@ -5850,7 +5850,7 @@ function renderPatientFile() {
         <td>${serviceLabel(entry)} <span class="op-expand-caret">▾</span></td>
         <td><span class="status-pill ${statusClass(entry.status)}">${entryStatusLabel(entry.status)}</span></td>
         <td>${showSensitivePf ? money(paid) : "مخفي"}</td>
-        <td>${showSensitivePf ? (due > 0.009 ? money(due) : "—") : "مخفي"}</td>
+        <td>${showSensitivePf ? (due > 0.009 ? `<span class="pay-badge due">مطلوب دفع ${money(due)}</span>` : `<span class="pay-badge paid">مدفوعة بالكامل ✓</span>`) : "مخفي"}</td>
       </tr>
       <tr class="op-detail-row" data-operation-detail="${entry.id}" hidden>
         <td colspan="6">
@@ -5950,7 +5950,7 @@ function renderPatientFile() {
       </div>
       <div class="table-wrap" data-patient-ops-table>
         <table class="practical-table">
-          <thead><tr><th>التاريخ</th><th>رقم</th><th>الخدمة</th><th>الحالة</th><th>المدفوع</th><th>المتبقي</th></tr></thead>
+          <thead><tr><th>التاريخ</th><th>رقم</th><th>الخدمة</th><th>الحالة</th><th>المدفوع</th><th>الدفع</th></tr></thead>
           <tbody>${operationRows}</tbody>
         </table>
       </div>
@@ -12283,7 +12283,7 @@ function renderPatientOpsFullTable(patient) {
       <td>${entryPaymentLabel(entry)}</td>
       <td>${showSensitive ? money(net) : "—"}</td>
       <td>${showSensitive ? money(paid) : "—"}</td>
-      <td>${showSensitive ? (due > 0.009 ? money(due) : "—") : "—"}</td>
+      <td>${showSensitive ? (due > 0.009 ? `<span class="pay-badge due">مطلوب دفع ${money(due)}</span>` : `<span class="pay-badge paid">مدفوعة بالكامل ✓</span>`) : "—"}</td>
     </tr>`;
   }).join("") : `<tr><td colspan="9" class="report-empty">لا توجد عمليات في هذا الملف.</td></tr>`;
   return `
@@ -12291,7 +12291,7 @@ function renderPatientOpsFullTable(patient) {
       <input type="search" class="patient-ops-search" data-patient-op-search placeholder="بحث (خدمة، تاريخ، منفّذ، حالة)…" aria-label="بحث في العمليات">
       <div class="table-wrap">
         <table class="practical-table">
-          <thead><tr><th>التاريخ</th><th>رقم</th><th>الخدمة</th><th>المنفّذ</th><th>الحالة</th><th>الدفع</th><th>الإجمالي</th><th>المدفوع</th><th>المتبقي</th></tr></thead>
+          <thead><tr><th>التاريخ</th><th>رقم</th><th>الخدمة</th><th>المنفّذ</th><th>الحالة</th><th>طريقة الدفع</th><th>الإجمالي</th><th>المدفوع</th><th>الدفع</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>
@@ -14825,13 +14825,9 @@ document.addEventListener("click", async event => {
   if (openPatientId) {
     selectedPatientId = openPatientId;
     setView("patients");
-    if (document.body.classList.contains("focus-mode") && document.body.dataset.focusView === "patients") {
-      setPatientFocusMode("file");
-    }
+    // Open the file as a dedicated full-page view (sections + operations), not side-by-side.
+    enterFocusMode("patients", { patientFocus: "file" });
     renderPatients();
-    if (document.body.dataset.focusView !== "patients") {
-      els.patientFile?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
     return;
   }
 

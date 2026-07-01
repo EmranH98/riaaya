@@ -4190,6 +4190,11 @@ body.kiosk-locked .global-search { display: none; }
 .audit-filter-count { margin-inline-start: auto; font-size: 12px; font-weight: 800; color: var(--teal-dark); background: var(--teal-pale); padding: 5px 12px; border-radius: 999px; }
 .audit-role { font-size: 11px; font-weight: 800; color: var(--teal-dark); background: var(--teal-pale); padding: 2px 8px; border-radius: 999px; margin-inline-start: 4px; }
 
+/* Operation payment badge — highlighted status next to each op */
+.pay-badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 11px; border-radius: 999px; font-size: 12px; font-weight: 900; white-space: nowrap; }
+.pay-badge.paid { background: var(--status-done-pale); color: var(--status-done); }
+.pay-badge.due { background: var(--danger-pale); color: var(--danger); }
+
 /* Patient operations: filterable table + full-screen */
 .patient-ops-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
 .patient-ops-head h3 { margin: 0; }
