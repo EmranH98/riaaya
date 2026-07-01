@@ -1219,6 +1219,7 @@ function serviceFromEntry(entry, services = seedServices) {
 
 function normalizeService(service) {
   return {
+    ...service, // preserve any field not explicitly normalized below (no silent data loss)
     id: service.id || nextId("service"),
     name: service.name || "خدمة بدون اسم",
     category: service.category || service.group || "",
@@ -1274,7 +1275,7 @@ let _editServicePendingConsumes = [];
 
 function consumeItemLabel(itemId) {
   const item = getInventoryItem(itemId);
-  return item ? `${item.name} (${item.unit})` : "صنف محذوف";
+  return item ? `${esc(item.name)} (${item.unit})` : "صنف محذوف";
 }
 
 function renderConsumeList(listEl, consumes, removeAttr) {
@@ -1287,7 +1288,7 @@ function renderConsumeList(listEl, consumes, removeAttr) {
 function populateConsumeSelects() {
   const items = (state.inventory || []).filter(item => item.active !== false);
   const opts = `<option value="">— اختر صنفاً من المخزون —</option>`
-    + items.map(item => `<option value="${item.id}">${item.name} — متوفر ${numberValue(item.quantity)} ${item.unit}</option>`).join("");
+    + items.map(item => `<option value="${item.id}">${esc(item.name)} — متوفر ${numberValue(item.quantity)} ${item.unit}</option>`).join("");
   document.querySelectorAll("[data-consume-item-select], [data-edit-consume-item-select]").forEach(select => {
     const current = select.value;
     select.innerHTML = opts;
@@ -1434,7 +1435,7 @@ function renderProducts() {
     const low = item.lowThreshold > 0 && item.quantity <= item.lowThreshold;
     return `
       <tr>
-        <td><span class="product-name-cell">${item.image ? `<img class="product-thumb" src="${item.image}" alt="">` : `<span class="product-thumb product-thumb-empty">📦</span>`}<span><strong>${item.name}</strong>${item.sku ? ` <small>${item.sku}</small>` : ""}</span></span></td>
+        <td><span class="product-name-cell">${item.image ? `<img class="product-thumb" src="${item.image}" alt="">` : `<span class="product-thumb product-thumb-empty">📦</span>`}<span><strong>${esc(item.name)}</strong>${item.sku ? ` <small>${esc(item.sku)}</small>` : ""}</span></span></td>
         <td><span class="${low ? "stock-low" : ""}">${numberValue(item.quantity)} ${item.unit}</span></td>
         <td>${money(asNumber(item.salePrice))}</td>
         ${showSensitive ? `<td>${money(asNumber(item.unitCost))}</td><td>${money(margin)}</td><td>${commissionText(item)}</td>` : ""}
@@ -1781,6 +1782,7 @@ function normalizeAccount(account) {
 
 function normalizePatient(patient) {
   return {
+    ...patient, // preserve any field not explicitly normalized below (no silent data loss)
     id: patient.id || nextId("patient"),
     patientNumber: String(patient.patientNumber || patient.patient_number || ""),
     profileType: patient.profileType || patient.profile_type || "patient",
@@ -1882,6 +1884,7 @@ function normalizeEntry(entry, services = seedServices) {
 function normalizeBooking(booking, services = seedServices) {
   const service = serviceFromEntry(booking, services);
   return {
+    ...booking, // preserve any field not explicitly normalized below (no silent data loss)
     id: booking.id || nextId("booking"),
     date: booking.date || today,
     time: booking.time || "09:00",
@@ -1934,6 +1937,7 @@ function normalizeSupplier(supplier) {
 
 function normalizeInventoryItem(item) {
   return {
+    ...item, // preserve any field not explicitly normalized below (no silent data loss)
     id: item.id || nextId("inventory"),
     name: item.name || "صنف بدون اسم",
     sku: item.sku || "",
@@ -2767,8 +2771,8 @@ function openFollowupModal(entryId) {
   if (els.followupSummary) {
     els.followupSummary.innerHTML = `
       <div class="followup-patient-row">
-        <span class="followup-patient-name">${entry.patient}</span>
-        <span class="followup-service-name">${serviceLabel(entry)}</span>
+        <span class="followup-patient-name">${esc(entry.patient)}</span>
+        <span class="followup-service-name">${esc(serviceLabel(entry))}</span>
       </div>
       <div class="followup-amounts-strip">
         <div class="followup-kpi">
@@ -2856,7 +2860,7 @@ function submitFollowup() {
   render();
   showToast(
     isNowComplete
-      ? `✓ تم الدفع الكامل — ${entry.patient} | ${money(paidAmount(entry))}`
+      ? `✓ تم الدفع الكامل — ${esc(entry.patient)} | ${money(paidAmount(entry))}`
       : `✓ تم تسجيل التكملة — المتبقي ${money(netAmount(entry) - paidAmount(entry))}`,
     isNowComplete ? "success" : "partial"
   );
@@ -2924,6 +2928,28 @@ async function saveStateImmediately() {
     if (runtime.savePending) saveState();
   }
 }
+
+// Flush a pending (debounced) save when the tab is hidden or closing, so the last
+// edit isn't lost inside the 350ms debounce window. visibilitychange fires on tab
+// switch/minimise (async flush completes); pagehide uses keepalive for real close.
+function flushPendingSaveOnExit(useKeepalive) {
+  if (runtime.mode !== "live" || !runtime.savePending || runtime.saveInFlight) return;
+  clearTimeout(runtime.saveTimer);
+  if (!useKeepalive) { flushLiveState(); return; }
+  runtime.savePending = false;
+  try {
+    fetch("/api/clinic-state", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", "X-CSRF-Token": runtime.csrfToken },
+      body: JSON.stringify({ state, stateVersion: runtime.stateVersion }),
+      keepalive: true
+    }).catch(() => {});
+  } catch { /* best effort on unload */ }
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") flushPendingSaveOnExit(false);
+});
+window.addEventListener("pagehide", () => flushPendingSaveOnExit(true));
 
 async function flushLiveState() {
   if (runtime.saveInFlight || !runtime.savePending || runtime.mode !== "live") return;
@@ -3131,6 +3157,21 @@ function money(value) {
 function numberValue(value) {
   return Number.parseFloat(value || 0) || 0;
 }
+
+// Escape user-controlled text before it goes into an innerHTML template. Stored
+// values (patient/staff/service names, notes, imported data, etc.) must pass
+// through this or a crafted value like <img src=x onerror=...> becomes stored XSS.
+function escapeHtml(value) {
+  if (value === null || value === undefined) return "";
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+// Short alias used at interpolation points to keep templates readable.
+const esc = escapeHtml;
 
 function nextId(prefix) {
   if (crypto.randomUUID) return `${prefix}-${crypto.randomUUID()}`;
@@ -4220,7 +4261,7 @@ function renderSalarySlip(entries) {
   }
 
   els.salarySlipSelect.innerHTML = staffOptions.map(member => (
-    `<option value="${member.id}">${member.name} | ${roleLabel(member.role)}</option>`
+    `<option value="${member.id}">${esc(member.name)} | ${roleLabel(member.role)}</option>`
   )).join("");
   els.salarySlipSelect.value = selectedSalaryMemberId;
 
@@ -4339,7 +4380,7 @@ function renderAccountStaffSelect() {
   if (!els.accountStaffSelect) return;
   els.accountStaffSelect.innerHTML = [
     `<option value="">غير مرتبط بموظف</option>`,
-    ...state.staff.map(member => `<option value="${member.id}">${member.name} | ${roleLabel(member.role)}</option>`)
+    ...state.staff.map(member => `<option value="${member.id}">${esc(member.name)} | ${roleLabel(member.role)}</option>`)
   ].join("");
 }
 
@@ -4715,7 +4756,7 @@ function renderStaffSelects() {
       (!activeCategory || (service.category || "") === activeCategory)
       && (!activeSub || (service.subcategory || "") === activeSub));
     els.serviceSelect.innerHTML = filtered.length
-      ? filtered.map(service => `<option value="${service.id}">${service.name}</option>`).join("")
+      ? filtered.map(service => `<option value="${service.id}">${esc(service.name)}</option>`).join("")
       : `<option value="">${activeCategory ? "لا خدمات في هذه الفئة" : "أضف خدمة أولاً"}</option>`;
 
     const selectedService = getService(els.serviceSelect.value) || filtered[0];
@@ -4773,7 +4814,7 @@ function renderStaffSelects() {
     const filtered = services.filter(svc =>
       (!activeCat || (svc.category || "") === activeCat) && (!activeSub || (svc.subcategory || "") === activeSub));
     els.bookingServiceSelect.innerHTML = filtered.length
-      ? filtered.map(service => `<option value="${service.id}">${service.name}</option>`).join("")
+      ? filtered.map(service => `<option value="${service.id}">${esc(service.name)}</option>`).join("")
       : `<option value="">${activeCat ? "لا خدمات في هذه الفئة" : "أضف خدمة أولاً"}</option>`;
 
     const selectedService = getService(els.bookingServiceSelect.value) || filtered[0];
@@ -4793,7 +4834,7 @@ function renderStaffSelects() {
   if (els.operationPatientOptions) {
     els.operationPatientOptions.innerHTML = (state.patients || [])
       .filter(patient => patient.active !== false)
-      .map(patient => `<option value="${patient.name}">${patient.patientNumber} | ${patient.phone || patient.profileType}</option>`)
+      .map(patient => `<option value="${esc(patient.name)}">${patient.patientNumber} | ${esc(patient.phone || patient.profileType)}</option>`)
       .join("");
   }
 
@@ -4801,7 +4842,7 @@ function renderStaffSelects() {
     const currentValue = els.entryFilterService.value;
     els.entryFilterService.innerHTML = [
       `<option value="">كل الخدمات</option>`,
-      ...state.services.map(service => `<option value="${service.id}">${service.name}</option>`)
+      ...state.services.map(service => `<option value="${service.id}">${esc(service.name)}</option>`)
     ].join("");
     els.entryFilterService.value = currentValue;
   }
@@ -4810,7 +4851,7 @@ function renderStaffSelects() {
     const currentValue = els.entryFilterStaff.value;
     els.entryFilterStaff.innerHTML = [
       `<option value="">كل الفريق</option>`,
-      ...state.staff.map(member => `<option value="${member.id}">${member.name}</option>`)
+      ...state.staff.map(member => `<option value="${member.id}">${esc(member.name)}</option>`)
     ].join("");
     els.entryFilterStaff.value = currentValue;
   }
@@ -4830,7 +4871,7 @@ function renderRulePersonSelect() {
     ? people.map(member => `
       <label class="rule-person-check">
         <input type="checkbox" name="personId" value="${member.id}"${checkedPeople.has(member.id) ? " checked" : ""}>
-        <span>${member.name}</span>
+        <span>${esc(member.name)}</span>
       </label>`).join("")
     : `<div class="empty-state">لا يوجد ${appliesTo === "doctor" ? "أطباء" : "أخصائيون"} بعد — أضف الموظفين أولاً.</div>`;
   renderRuleServiceSelect();
@@ -4890,7 +4931,7 @@ function renderInventorySelects() {
 
   if (els.orderItemSelect) {
     els.orderItemSelect.innerHTML = items.length
-      ? items.map(item => `<option value="${item.id}">${item.name} (${item.quantity} ${item.unit})</option>`).join("")
+      ? items.map(item => `<option value="${item.id}">${esc(item.name)} (${item.quantity} ${item.unit})</option>`).join("")
       : `<option value="">أضف صنف أولاً</option>`;
   }
 }
@@ -5047,8 +5088,8 @@ function renderNextVisitor() {
       <span class="status-pill ${statusClass(booking.status)}">${bookingStatusLabel(booking.status)}</span>
     </div>
     <div class="next-visitor-time">${displayTime(booking.time)}</div>
-    <button class="next-visitor-name" type="button" data-open-patient="${patient?.id || ""}">${booking.patient}</button>
-    <p>${serviceLabel(booking)} | ${team}</p>
+    <button class="next-visitor-name" type="button" data-open-patient="${patient?.id || ""}">${esc(booking.patient)}</button>
+    <p>${esc(serviceLabel(booking))} | ${team}</p>
     ${canSeePhone && (booking.phone || patient?.phone) ? `<p class="next-visitor-phone">${booking.phone || patient?.phone}</p>` : ""}
     <div class="next-visitor-actions">
       ${canSeePhone && (booking.phone || patient?.phone) ? `<a class="text-button" href="tel:${booking.phone || patient?.phone}">اتصال</a>` : ""}
@@ -5135,8 +5176,8 @@ function renderDashboardSchedule() {
         <time>${displayTime(booking.time)}</time>
         ${genderAvatar(patient || booking, 36)}
         <div>
-          <button class="table-link" type="button" data-open-patient="${patient?.id || ""}">${booking.patient}</button>
-          <span>${serviceLabel(booking)} | ${member?.name || "غير معين"}</span>
+          <button class="table-link" type="button" data-open-patient="${patient?.id || ""}">${esc(booking.patient)}</button>
+          <span>${esc(serviceLabel(booking))} | ${esc(member?.name || "غير معين")}</span>
         </div>
         <span class="status-pill ${statusClass(booking.status)}">${bookingStatusLabel(booking.status)}</span>
       </div>
@@ -5669,8 +5710,8 @@ function renderRecentEntries(entries) {
 
   els.recentEntries.innerHTML = recent.map(entry => `
     <tr>
-        <td>${entry.patient}</td>
-        <td>${serviceLabel(entry)}</td>
+        <td>${esc(entry.patient)}</td>
+        <td>${esc(serviceLabel(entry))}</td>
         <td><span class="pill">${entryPaymentLabel(entry)}</span></td>
         <td>${canViewSensitive() ? money(paidAmount(entry)) : "مخفي"}</td>
       </tr>
@@ -5747,10 +5788,10 @@ function renderEntryTable(entries) {
       <tr>
         <td>${time}</td>
         <td>
-          ${patient ? `<button class="table-link" type="button" data-open-patient="${patient.id}">${entry.patient}</button>` : entry.patient}
+          ${patient ? `<button class="table-link" type="button" data-open-patient="${patient.id}">${esc(entry.patient)}</button>` : entry.patient}
         </td>
-        <td>${serviceLabel(entry)}</td>
-        <td>${[doctor?.name, specialist?.name].filter(Boolean).join(" / ") || "بانتظار التعيين"}</td>
+        <td>${esc(serviceLabel(entry))}</td>
+        <td>${esc([doctor?.name, specialist?.name].filter(Boolean).join(" / ") || "بانتظار التعيين")}</td>
         <td><span class="pill">${entryPaymentLabel(entry)}</span></td>
         <td><span class="status-pill ${statusClass(entry.status)}">${entryStatusLabel(entry.status)}</span></td>
         ${showSensitive ? `<td>${money(paidAmount(entry))}</td>` : ""}
@@ -5790,13 +5831,13 @@ function genderAvatar(person, size = 38) {
   const female = ["female", "أنثى", "f", "انثى"].includes(raw);
   const male = ["male", "ذكر", "m"].includes(raw);
   if (female) {
-    return `<span class="g-avatar female" style="--av:${size}px" title="${name}" aria-hidden="true"><svg viewBox="0 0 40 40"><circle class="g-bg" cx="20" cy="20" r="20"/><g class="g-fig"><circle cx="20" cy="15" r="5.6"/><path d="M20 21.5c-3.2 0-5.4 1.6-6.4 4.3L10.4 35h19.2l-3.2-9.2c-1-2.7-3.2-4.3-6.4-4.3z"/></g></svg></span>`;
+    return `<span class="g-avatar female" style="--av:${size}px" title="${esc(name)}" aria-hidden="true"><svg viewBox="0 0 40 40"><circle class="g-bg" cx="20" cy="20" r="20"/><g class="g-fig"><circle cx="20" cy="15" r="5.6"/><path d="M20 21.5c-3.2 0-5.4 1.6-6.4 4.3L10.4 35h19.2l-3.2-9.2c-1-2.7-3.2-4.3-6.4-4.3z"/></g></svg></span>`;
   }
   if (male) {
-    return `<span class="g-avatar male" style="--av:${size}px" title="${name}" aria-hidden="true"><svg viewBox="0 0 40 40"><circle class="g-bg" cx="20" cy="20" r="20"/><g class="g-fig"><circle cx="20" cy="15" r="5.8"/><path d="M10.4 34.5c0-5.6 4.3-9 9.6-9s9.6 3.4 9.6 9z"/></g></svg></span>`;
+    return `<span class="g-avatar male" style="--av:${size}px" title="${esc(name)}" aria-hidden="true"><svg viewBox="0 0 40 40"><circle class="g-bg" cx="20" cy="20" r="20"/><g class="g-fig"><circle cx="20" cy="15" r="5.8"/><path d="M10.4 34.5c0-5.6 4.3-9 9.6-9s9.6 3.4 9.6 9z"/></g></svg></span>`;
   }
   const initial = (name.trim().charAt(0) || "؟");
-  return `<span class="g-avatar neutral" style="--av:${size}px" title="${name}">${initial}</span>`;
+  return `<span class="g-avatar neutral" style="--av:${size}px" title="${esc(name)}">${esc(initial)}</span>`;
 }
 
 function filteredPatients() {
@@ -5847,9 +5888,9 @@ function renderPatientDirectory() {
     const operations = patientEntries(patient);
     return `
       <tr class="${selectedPatientId === patient.id ? "selected-row" : ""}">
-        <td class="patient-bulk-col"><input type="checkbox" class="patient-check" value="${patient.id}" aria-label="تحديد ${patient.name}"></td>
+        <td class="patient-bulk-col"><input type="checkbox" class="patient-check" value="${patient.id}" aria-label="تحديد ${esc(patient.name)}"></td>
         <td>${canUseFeature("patient_number") ? patient.patientNumber : "—"}</td>
-        <td><span class="cell-with-avatar">${genderAvatar(patient, 32)}<button class="table-link" type="button" data-open-patient="${patient.id}">${patient.name}</button>${patient.rating ? ` ${ratingStarsStatic(patient.rating)}` : ""}</span></td>
+        <td><span class="cell-with-avatar">${genderAvatar(patient, 32)}<button class="table-link" type="button" data-open-patient="${patient.id}">${esc(patient.name)}</button>${patient.rating ? ` ${ratingStarsStatic(patient.rating)}` : ""}</span></td>
         <td><span class="pill">${profileTypeLabel(patient.profileType)}</span></td>
         <td>${canSeePhone ? (patient.phone || "-") : "مخفي"}</td>
         <td>${displayDate(patientLastActivity(patient)) || "-"}</td>
@@ -5932,7 +5973,7 @@ function renderPatientFile() {
       <tr class="op-summary-row" data-toggle-operation="${entry.id}">
         <td>${displayDate(entry.date)}</td>
         <td>${entry.visitNumber ? `#${entry.visitNumber}` : "—"}</td>
-        <td>${serviceLabel(entry)} <span class="op-expand-caret">▾</span></td>
+        <td>${esc(serviceLabel(entry))} <span class="op-expand-caret">▾</span></td>
         <td><span class="status-pill ${statusClass(entry.status)}">${entryStatusLabel(entry.status)}</span></td>
         <td>${showSensitivePf ? money(paid) : "مخفي"}</td>
         <td>${showSensitivePf ? (due > 0.009 ? `<span class="pay-badge due">مطلوب دفع ${money(due)}</span>` : `<span class="pay-badge paid">مدفوعة بالكامل ✓</span>`) : "مخفي"}</td>
@@ -5964,7 +6005,7 @@ function renderPatientFile() {
       <tr>
         <td>${displayDate(booking.date)}</td>
         <td>${booking.time}</td>
-        <td>${serviceLabel(booking)}</td>
+        <td>${esc(serviceLabel(booking))}</td>
         <td><span class="status-pill ${statusClass(booking.status)}">${bookingStatusLabel(booking.status)}</span></td>
       </tr>
     `).join("")
@@ -5996,7 +6037,7 @@ function renderPatientFile() {
     <div class="patient-file-header">
       <div>
         <span class="pill">${profileTypeLabel(patient.profileType)}</span>
-        <h2>${patient.name}</h2>
+        <h2>${esc(patient.name)}</h2>
         <p>${canUseFeature("patient_number") ? `ملف #${patient.patientNumber}` : "رقم الملف مخفي"} | آخر نشاط ${displayDate(lastActivity) || "-"}</p>
         ${ratingStars(patient.id, patient.rating)}
       </div>
@@ -6017,14 +6058,14 @@ function renderPatientFile() {
     </div>
     <div class="patient-demographics">
       <div><span>الهاتف</span><strong>${canSeePhone ? (patient.phone || "-") : "مخفي"}</strong></div>
-      <div><span>البريد</span><strong>${patient.email || "-"}</strong></div>
+      <div><span>البريد</span><strong>${esc(patient.email || "-")}</strong></div>
       <div><span>الجنس</span><strong>${genderLabel(patient.gender)}</strong></div>
-      <div><span>الجنسية</span><strong>${patient.nationality || "-"}</strong></div>
-      <div><span>المدينة</span><strong>${patient.city || "-"}</strong></div>
+      <div><span>الجنسية</span><strong>${esc(patient.nationality || "-")}</strong></div>
+      <div><span>المدينة</span><strong>${esc(patient.city || "-")}</strong></div>
       <div><span>الفئة</span><strong>${patient.category || "-"}</strong></div>
       <div><span>موافقة الرسائل</span><strong>${patient.marketingConsent ? "فعالة" : "غير متوفرة"}</strong></div>
     </div>
-    ${patient.notes ? `<div class="patient-note"><strong>ملاحظات سريرية</strong><p style="white-space:pre-line">${patient.notes}</p></div>` : ""}
+    ${patient.notes ? `<div class="patient-note"><strong>ملاحظات سريرية</strong><p style="white-space:pre-line">${esc(patient.notes)}</p></div>` : ""}
     <div class="patient-history-section" id="patient-ops-section">
       <div class="patient-ops-head">
         <h3>سجل العمليات <span class="patient-ops-count">${operations.length}</span></h3>
@@ -6077,7 +6118,7 @@ function renderStaffList() {
     return `
       <div class="staff-card">
         <div>
-          <strong>${member.name}</strong>
+          <strong>${esc(member.name)}</strong>
           <div class="staff-meta">
             <span class="pill">${roleLabel(member.role)}</span>
             ${member.phone ? `<span class="pill">${member.phone}</span>` : ""}
@@ -6103,7 +6144,7 @@ function serviceBrowseTableHtml(services) {
   const showSensitive = canViewSensitive();
   const rows = services.map(service => `
     <tr class="${showSensitive ? "report-edit-row" : ""}" ${showSensitive ? `data-edit-service="${service.id}" title="اضغط للتعديل"` : ""}>
-      <td>${service.name}</td>
+      <td>${esc(service.name)}</td>
       <td>${service.category || "—"}</td>
       <td>${service.defaultPrice ? money(service.defaultPrice) : "بدون سعر ثابت"}</td>
       ${showSensitive ? `<td>${money(service.defaultCost)}</td>` : ""}
@@ -6186,7 +6227,7 @@ function renderServiceList() {
   els.serviceList.innerHTML = state.services.map(service => `
     <div class="staff-card">
       <div>
-        <strong>${service.name}</strong>
+        <strong>${esc(service.name)}</strong>
         <div class="staff-meta">
           ${service.category ? `<span class="pill">${service.category}</span>` : ""}
           <span class="pill">السعر ${money(service.defaultPrice)}</span>
@@ -6208,7 +6249,7 @@ function renderPackages() {
     if (serviceSelect) {
       const current = serviceSelect.value;
       serviceSelect.innerHTML = `<option value="">— بدون ربط —</option>`
-        + (state.services || []).map(service => `<option value="${service.id}">${service.name}</option>`).join("");
+        + (state.services || []).map(service => `<option value="${service.id}">${esc(service.name)}</option>`).join("");
       serviceSelect.value = current;
     }
   }
@@ -6223,7 +6264,7 @@ function renderPackages() {
           <div class="staff-meta">
             <span class="pill">${template.sessions} جلسة</span>
             ${canViewSensitive() ? `<span class="pill">${money(template.price)}</span>` : ""}
-            ${service ? `<span class="pill">${service.name}</span>` : ""}
+            ${service ? `<span class="pill">${esc(service.name)}</span>` : ""}
             ${template.validityDays ? `<span class="pill">صلاحية ${template.validityDays} يوم</span>` : ""}
             <span class="pill">${template.active === false ? "متوقفة" : "فعالة"}</span>
           </div>
@@ -6238,12 +6279,12 @@ function renderPackages() {
     const templateSelect = els.packageSellForm.querySelector("[name='templateId']");
     const staffSelect = els.packageSellForm.querySelector("[name='soldByStaffId']");
     if (patientSelect) patientSelect.innerHTML = `<option value="">اختر المريض</option>`
-      + (state.patients || []).map(patient => `<option value="${patient.id}">${patient.name}</option>`).join("");
+      + (state.patients || []).map(patient => `<option value="${patient.id}">${esc(patient.name)}</option>`).join("");
     if (templateSelect) templateSelect.innerHTML = `<option value="">اختر الباقة</option>`
       + templates.filter(template => template.active !== false)
         .map(template => `<option value="${template.id}" data-sessions="${template.sessions}" data-price="${template.price}">${template.name} — ${template.sessions} جلسة</option>`).join("");
     if (staffSelect) staffSelect.innerHTML = `<option value="">—</option>`
-      + (state.staff || []).map(member => `<option value="${member.id}">${member.name}</option>`).join("");
+      + (state.staff || []).map(member => `<option value="${member.id}">${esc(member.name)}</option>`).join("");
   }
 
   if (els.operationPackageTemplate) {
@@ -6585,9 +6626,9 @@ function renderLowStockList() {
     return `
       <div class="staff-card low-stock-card">
         <div>
-          <strong>${item.name}</strong>
+          <strong>${esc(item.name)}</strong>
           <p>المتوفر ${item.quantity} ${item.unit} | حد الطلب ${item.lowThreshold} ${item.unit}</p>
-          <p>المورد المقترح: ${supplier?.name || "غير محدد"}${supplier?.contact ? ` | ${supplier.contact}` : ""}</p>
+          <p>المورد المقترح: ${esc(supplier?.name || "غير محدد")}${supplier?.contact ? ` | ${supplier.contact}` : ""}</p>
         </div>
         <button class="text-button" type="button" data-fill-order="${item.id}">طلب</button>
       </div>
@@ -6609,9 +6650,9 @@ function renderInventoryList() {
     return `
       <div class="staff-card inventory-card">
         <div>
-          <strong>${item.name}</strong>
-          <p>${item.sku ? `${item.sku} | ` : ""}${item.quantity} ${item.unit} | حد التنبيه ${item.lowThreshold || "معطل"}</p>
-          <p>المورد: ${supplier?.name || "غير محدد"}${canViewSensitive() ? ` | التكلفة ${money(item.unitCost)}` : ""} | آخر طلب ${lastOrder}</p>
+          <strong>${esc(item.name)}</strong>
+          <p>${item.sku ? `${esc(item.sku)} | ` : ""}${item.quantity} ${item.unit} | حد التنبيه ${item.lowThreshold || "معطل"}</p>
+          <p>المورد: ${esc(supplier?.name || "غير محدد")}${canViewSensitive() ? ` | التكلفة ${money(item.unitCost)}` : ""} | آخر طلب ${lastOrder}</p>
         </div>
         <div class="row-actions">
           <span class="status-pill ${status.className}">${status.label}</span>
@@ -6640,7 +6681,7 @@ function renderPurchaseOrders() {
       <tr>
         <td>${new Date(`${order.date}T12:00:00`).toLocaleDateString("ar-JO-u-nu-latn")}</td>
         <td>${item?.name || "صنف محذوف"}</td>
-        <td>${supplier?.name || "مورد محذوف"}</td>
+        <td>${esc(supplier?.name || "مورد محذوف")}</td>
         <td>${order.branch || state.settings.branch || "الفرع الرئيسي"}</td>
         <td>${order.quantity} ${item?.unit || ""}</td>
         ${showSensitive ? `<td>${money(order.unitCost)}</td>` : ""}
@@ -6839,7 +6880,7 @@ function renderExpenseTable() {
       <td>${displayDate(expense.date)}</td>
       <td>${expenseGroupName(expense)}</td>
       <td>${expenseSubgroupName(expense)}</td>
-      <td>${expense.vendor || "-"}</td>
+      <td>${esc(expense.vendor || "-")}</td>
       <td>${paymentLabel(expense.paymentMethod)}</td>
       <td>${expense.reference || "-"}</td>
       <td><strong>${money(expense.amount)}</strong></td>
@@ -7445,8 +7486,8 @@ function renderImportHistory() {
   els.importHistory.innerHTML = history.length ? history.map(record => `
     <div class="staff-card">
       <div>
-        <strong>${IMPORT_SCHEMAS[record.entity]?.label || record.entity} | ${record.fileName}</strong>
-        <p>${record.sourceSystem || "نظام سابق غير محدد"} | ${new Date(record.createdAt).toLocaleString(currentLanguage() === "en" ? "en-US" : "ar-JO-u-nu-latn")}</p>
+        <strong>${IMPORT_SCHEMAS[record.entity]?.label || record.entity} | ${esc(record.fileName)}</strong>
+        <p>${esc(record.sourceSystem || "نظام سابق غير محدد")} | ${new Date(record.createdAt).toLocaleString(currentLanguage() === "en" ? "en-US" : "ar-JO-u-nu-latn")}</p>
       </div>
       <div class="row-actions">
         <span class="status-pill good">${record.imported} مستورد</span>
@@ -7470,7 +7511,7 @@ async function deleteImportBatch(importId) {
   const patientSet = new Set(record.patientIds || []);
   const total = entrySet.size + bookingSet.size + expenseSet.size + patientSet.size;
   const label = IMPORT_SCHEMAS[record.entity]?.label || record.entity;
-  if (!await showConfirm(`سيتم حذف ${total} سجلاً أُنشئ من هذا الاستيراد (${label} · ${record.fileName}).\nلا يمكن التراجع. هل تريد المتابعة؟`)) return;
+  if (!await showConfirm(`سيتم حذف ${total} سجلاً أُنشئ من هذا الاستيراد (${label} · ${esc(record.fileName)}).\nلا يمكن التراجع. هل تريد المتابعة؟`)) return;
   state.entries = (state.entries || []).filter(item => !entrySet.has(item.id));
   state.bookings = (state.bookings || []).filter(item => !bookingSet.has(item.id));
   state.expenses = (state.expenses || []).filter(item => !expenseSet.has(item.id));
@@ -7546,7 +7587,7 @@ function renderBookingCalendar() {
     const chips = visibleBookings.map(booking => `
       <span class="calendar-booking-chip ${booking.status}">
         <b>${booking.time}</b>
-        <span>${booking.patient}</span>
+        <span>${esc(booking.patient)}</span>
       </span>
     `).join("");
     const more = moreCount > 0
@@ -7681,7 +7722,7 @@ function bookingColumnAllowedForAccount(booking, account = currentAccount()) {
 function bookingScheduleColumnId(booking, columns) {
   if (columns.some(column => column.id === booking.scheduleColumnId)) return booking.scheduleColumnId;
   if (columns.some(column => column.id === "doctor") && booking.doctorId) return "doctor";
-  const text = normalizeSearchText(`${serviceLabel(booking)} ${booking.notes || ""}`);
+  const text = normalizeSearchText(`${esc(serviceLabel(booking))} ${booking.notes || ""}`);
   const patient = getPatient(booking.patientId) || findPatientByName(booking.patient);
   const isMale = patient?.gender === "male" || text.includes("men") || text.includes("رجال");
   const isFemale = patient?.gender === "female" || text.includes("women") || text.includes("نساء");
@@ -7766,8 +7807,8 @@ function renderBookingDayCalendar() {
              draggable="true"
              data-drag-booking="${booking.id}">
           <span class="drag-handle" aria-hidden="true">⠿</span>
-          <strong>${booking.patient}</strong>
-          <span>${booking.time} | ${serviceLabel(booking)}</span>
+          <strong>${esc(booking.patient)}</strong>
+          <span>${booking.time} | ${esc(serviceLabel(booking))}</span>
           <small>${bookingStatusLabel(booking.status)}${booking.phone && canUseFeature("see_mobile") ? ` | ${booking.phone}` : ""}</small>
         </div>
       `).join("");
@@ -7895,10 +7936,10 @@ function renderBookingList() {
       <div class="staff-card booking-card">
         ${genderAvatar(patient || booking, 42)}
         <div>
-          <strong>${booking.time} | ${booking.patient}</strong>
-          <p>${serviceLabel(booking)}${phone && canUseFeature("see_mobile") ? ` | ${phone}` : ""}</p>
-          <p>الفريق: ${[doctor?.name, specialist?.name].filter(Boolean).join(" / ") || "بانتظار التعيين"}${canViewSensitive() ? ` | المتوقع ${money(booking.expectedAmount)}` : ""}</p>
-          ${booking.notes ? `<p>${booking.notes}</p>` : ""}
+          <strong>${booking.time} | ${esc(booking.patient)}</strong>
+          <p>${esc(serviceLabel(booking))}${phone && canUseFeature("see_mobile") ? ` | ${phone}` : ""}</p>
+          <p>الفريق: ${esc([doctor?.name, specialist?.name].filter(Boolean).join(" / ") || "بانتظار التعيين")}${canViewSensitive() ? ` | المتوقع ${money(booking.expectedAmount)}` : ""}</p>
+          ${booking.notes ? `<p>${esc(booking.notes)}</p>` : ""}
         </div>
         <div class="row-actions">
           <span class="status-pill ${statusClass(booking.status)}">${bookingStatusLabel(booking.status)}</span>
@@ -8395,9 +8436,9 @@ function renderMonthlyReport(sourceEntries) {
       <td>${i + 1}</td>
       <td>${displayDate(entry.date)}</td>
       <td>${entry.patient || "—"}</td>
-      <td>${serviceLabel(entry)}</td>
-      <td>${getStaffMember(entry.doctorId)?.name || "—"}</td>
-      <td>${getStaffMember(entry.specialistId)?.name || "—"}</td>
+      <td>${esc(serviceLabel(entry))}</td>
+      <td>${esc(getStaffMember(entry.doctorId)?.name || "—")}</td>
+      <td>${esc(getStaffMember(entry.specialistId)?.name || "—")}</td>
       <td>${money(netAmount(entry))}</td>
       <td>${money(paidAmount(entry))}</td>
       <td>${monthlyStatusPill(st.c, st.t)}</td>
@@ -8433,7 +8474,7 @@ function reportHeader(title, subtitle) {
         <p>${subtitle}</p>
       </div>
       <div class="report-meta">
-        <span>${state.settings.clinicName}</span>
+        <span>${esc(state.settings.clinicName)}</span>
         <span>${state.settings.branch || "الفرع الرئيسي"}</span>
         <span>${dateLabel}</span>
       </div>
@@ -8537,7 +8578,7 @@ function universalReportItems(from, to) {
       source: "operation",
       date: entry.date,
       title: entry.patient,
-      details: `${serviceLabel(entry)} | ${[doctor?.name, specialist?.name].filter(Boolean).join(" / ") || "بانتظار التعيين"}`,
+      details: `${esc(serviceLabel(entry))} | ${esc([doctor?.name, specialist?.name].filter(Boolean).join(" / ") || "بانتظار التعيين")}`,
       status: entry.status,
       statusLabel: entryStatusLabel(entry.status),
       paymentMethod: entry.paymentMethod,
@@ -8553,7 +8594,7 @@ function universalReportItems(from, to) {
       source: "booking",
       date: booking.date,
       title: booking.patient,
-      details: `${booking.time} | ${serviceLabel(booking)} | ${[doctor?.name, specialist?.name].filter(Boolean).join(" / ") || "بانتظار التعيين"}`,
+      details: `${booking.time} | ${esc(serviceLabel(booking))} | ${esc([doctor?.name, specialist?.name].filter(Boolean).join(" / ") || "بانتظار التعيين")}`,
       status: booking.status,
       statusLabel: bookingStatusLabel(booking.status),
       paymentMethod: "",
@@ -8567,7 +8608,7 @@ function universalReportItems(from, to) {
       source: "patient",
       date: patientLastActivity(patient) || patient.createdAt,
       title: patient.name,
-      details: `${profileTypeLabel(patient.profileType)} | ${patient.category || "بدون فئة"} | ${patient.city || "-"}`,
+      details: `${profileTypeLabel(patient.profileType)} | ${patient.category || "بدون فئة"} | ${esc(patient.city || "-")}`,
       status: "",
       statusLabel: profileTypeLabel(patient.profileType),
       paymentMethod: "",
@@ -8581,7 +8622,7 @@ function universalReportItems(from, to) {
       source: "expense",
       date: expense.date,
       title: expenseGroupName(expense),
-      details: `${expenseSubgroupName(expense)} | ${expense.vendor || "بدون مورد"} | ${expense.reference || "بدون مرجع"}`,
+      details: `${expenseSubgroupName(expense)} | ${esc(expense.vendor || "بدون مورد")} | ${expense.reference || "بدون مرجع"}`,
       status: "",
       statusLabel: paymentLabel(expense.paymentMethod),
       paymentMethod: expense.paymentMethod,
@@ -8726,7 +8767,7 @@ function renderExpensesReport(expenses) {
       <td>${displayDate(expense.date)}</td>
       <td>${expenseGroupName(expense)}</td>
       <td>${expenseSubgroupName(expense)}</td>
-      <td>${expense.vendor || "-"}</td>
+      <td>${esc(expense.vendor || "-")}</td>
       <td>${paymentLabel(expense.paymentMethod)}</td>
       <td>${expense.reference || "-"}</td>
       <td><strong>${money(expense.amount)}</strong></td>
@@ -8921,7 +8962,7 @@ function renderPatientsReport(patients) {
   const body = patients.length ? patients.map(patient => `
     <tr>
       <td>${canUseFeature("patient_number") ? patient.patientNumber : "—"}</td>
-      <td><button class="table-link" type="button" data-open-patient="${patient.id}">${patient.name}</button></td>
+      <td><button class="table-link" type="button" data-open-patient="${patient.id}">${esc(patient.name)}</button></td>
       <td>${profileTypeLabel(patient.profileType)}</td>
       <td>${canUseFeature("see_mobile") ? (patient.phone || "-") : "مخفي"}</td>
       <td>${patient.category || "-"}</td>
@@ -9247,7 +9288,7 @@ function renderByPatientReport(entries) {
       <tr>
         <td>${displayDate(entry.date)}</td>
         <td>${patient}</td>
-        <td>${serviceLabel(entry)}</td>
+        <td>${esc(serviceLabel(entry))}</td>
         <td>${entryPaymentLabel(entry)}</td>
         <td>${money(paidAmount(entry))}</td>
         <td>${money(entryCost(entry))}</td>
@@ -9502,9 +9543,9 @@ function renderPerProcedureReport(entries, allEntries = entries) {
       <tr class="report-edit-row" data-edit-entry="${entry.id}" title="اضغط للتعديل">
         <td>${index + 1}</td>
         <td>${displayDate(entry.date)}</td>
-        <td><span class="cell-with-avatar">${genderAvatar(rowPatient || entry, 30)}${entry.patient}</span></td>
-        <td>${serviceLabel(entry)}</td>
-        <td>${[doctor?.name, specialist?.name].filter(Boolean).join(" / ") || label.pendingAssignment}</td>
+        <td><span class="cell-with-avatar">${genderAvatar(rowPatient || entry, 30)}${esc(entry.patient)}</span></td>
+        <td>${esc(serviceLabel(entry))}</td>
+        <td>${esc([doctor?.name, specialist?.name].filter(Boolean).join(" / ") || label.pendingAssignment)}</td>
         <td>${entryPaymentLabel(entry)}</td>
         <td>${money(paidAmount(entry))}</td>
         <td>${money(entryCost(entry))}</td>
@@ -9593,10 +9634,10 @@ function renderBookingsReport(bookings) {
     return `
       <tr>
         <td>${booking.time}</td>
-        <td>${booking.patient}</td>
+        <td>${esc(booking.patient)}</td>
         <td>${canUseFeature("see_mobile") ? (booking.phone || "-") : "مخفي"}</td>
-        <td>${serviceLabel(booking)}</td>
-        <td>${[doctor?.name, specialist?.name].filter(Boolean).join(" / ") || label.pendingAssignment}</td>
+        <td>${esc(serviceLabel(booking))}</td>
+        <td>${esc([doctor?.name, specialist?.name].filter(Boolean).join(" / ") || label.pendingAssignment)}</td>
         <td>${money(booking.expectedAmount)}</td>
         <td><span class="status-pill ${statusClass(booking.status)}">${bookingStatusLabel(booking.status)}</span></td>
         <td>${booking.notes || "-"}</td>
@@ -9661,7 +9702,7 @@ function renderCostsReport(services = state.services) {
     };
   const rows = services.map(service => `
     <tr>
-      <td>${service.name}</td>
+      <td>${esc(service.name)}</td>
       <td>${money(service.defaultPrice)}</td>
       <td>${money(service.defaultCost)}</td>
       <td>${money(numberValue(service.defaultPrice) - numberValue(service.defaultCost))}</td>
@@ -9750,8 +9791,8 @@ function renderAssignmentsReport(entries) {
   `).join("") : `<tr><td colspan="5">${label.noSpecialists}</td></tr>`;
   const reviewRows = unassigned.length ? unassigned.map(entry => `
     <tr>
-      <td>${entry.patient}</td>
-      <td>${serviceLabel(entry)}</td>
+      <td>${esc(entry.patient)}</td>
+      <td>${esc(serviceLabel(entry))}</td>
       <td>${entryPaymentLabel(entry)}</td>
       <td>${entryStatusLabel(entry.status)}</td>
       <td>${entry.notes || "-"}</td>
@@ -10169,12 +10210,12 @@ function renderSpecialistReport(entries) {
     const detail = lines.slice()
       .sort((a, b) => `${a.entry.date}${a.entry.time || ""}`.localeCompare(`${b.entry.date}${b.entry.time || ""}`))
       .map(({ entry, commission }) =>
-        `<tr><td>${displayDate(entry.date)}</td><td>${entry.time ? displayTime(entry.time) : "—"}</td><td>${entry.patient || "—"}</td><td>${serviceLabel(entry)}</td><td>${money(commission)}</td></tr>`).join("");
+        `<tr><td>${displayDate(entry.date)}</td><td>${entry.time ? displayTime(entry.time) : "—"}</td><td>${entry.patient || "—"}</td><td>${esc(serviceLabel(entry))}</td><td>${money(commission)}</td></tr>`).join("");
 
     return `
       <div class="specialist-card">
         <div class="specialist-head">
-          <div><strong>${member.name}</strong> <span class="specialist-role">${roleLabel(member.role)}</span></div>
+          <div><strong>${esc(member.name)}</strong> <span class="specialist-role">${roleLabel(member.role)}</span></div>
           <div class="specialist-netpay"><span>صافي المستحق هذه الفترة</span><strong>${money(netPay)}</strong></div>
         </div>
         <div class="specialist-stats">
@@ -10220,8 +10261,8 @@ function renderPackagesReport(entries) {
       <tr class="report-edit-row" data-edit-entry="${entry.id}" title="اضغط للتعديل">
         <td>${entry.visitNumber ? "#" + entry.visitNumber : "—"}</td>
         <td>${displayDate(entry.date)}</td>
-        <td>${entry.patient}</td>
-        <td>${entry.service}</td>
+        <td>${esc(entry.patient)}</td>
+        <td>${esc(entry.service)}</td>
         <td>${category}</td>
         <td>${sessions}</td>
         <td>${money(net)}</td>
@@ -10256,15 +10297,15 @@ function renderCashReport(entries) {
       <tr class="report-edit-row" data-edit-entry="${entry.id}" title="اضغط للتعديل">
         <td>${displayDate(entry.date)}</td>
         <td>${entry.visitNumber ? "#" + entry.visitNumber : "—"}</td>
-        <td>${entry.patient}</td>
-        <td>${serviceLabel(entry)}</td>
+        <td>${esc(entry.patient)}</td>
+        <td>${esc(serviceLabel(entry))}</td>
         <td>${money(gross)}</td>
         <td>${discount > 0.009 ? money(discount) : "—"}</td>
         <td>${money(net)}</td>
         <td>${money(paid)}</td>
         <td>${due > 0.009 ? money(due) : "—"}</td>
         <td><span class="pill">${entryPaymentLabel(entry)}</span></td>
-        <td>${doctor?.name || "—"}</td>
+        <td>${esc(doctor?.name || "—")}</td>
       </tr>`;
   }).join("");
   return `
@@ -10746,7 +10787,7 @@ function renderLeads() {
     <div class="lead-card">
       <div>
         <strong>${lead.clinic || "عيادة بدون اسم"}</strong>
-        <p>${lead.name || ""} | ${lead.phone || ""} | ${lead.city || ""}</p>
+        <p>${esc(lead.name || "")} | ${esc(lead.phone || "")} | ${esc(lead.city || "")}</p>
         <p>الخطة: ${lead.plan || "غير محدد"} | الحجم: ${lead.size || lead.clinic_size || "غير محدد"}</p>
         ${lead.notes ? `<p>${lead.notes}</p>` : ""}
       </div>
@@ -10787,12 +10828,12 @@ function roleDigestText(account, template = "role_daily") {
     )
   ));
   const totals = totalsFor(ownEntries);
-  const lines = [`رعاية | ${state.settings.clinicName}`, `${accountDisplayName(account)} - ${roleLabel(account.role)}`];
+  const lines = [`رعاية | ${esc(state.settings.clinicName)}`, `${accountDisplayName(account)} - ${roleLabel(account.role)}`];
 
   if (template === "tomorrow_schedule") {
     lines.push(`جدول الغد: ${tomorrowBookings.length} موعد`);
     tomorrowBookings.slice(0, 6).forEach(booking => {
-      lines.push(`${booking.time} ${booking.patient} - ${serviceLabel(booking)}`);
+      lines.push(`${booking.time} ${esc(booking.patient)} - ${esc(serviceLabel(booking))}`);
     });
     return lines.join("\n");
   }
@@ -10800,7 +10841,7 @@ function roleDigestText(account, template = "role_daily") {
   if (template === "inventory_alerts") {
     const items = lowStockItems();
     lines.push(`تنبيهات المخزون: ${items.length}`);
-    items.slice(0, 6).forEach(item => lines.push(`${item.name}: ${item.quantity} ${item.unit}`));
+    items.slice(0, 6).forEach(item => lines.push(`${esc(item.name)}: ${item.quantity} ${item.unit}`));
     return lines.join("\n");
   }
 
@@ -11141,7 +11182,7 @@ function renderReceiptDocument(receipt) {
     <div class="receipt-brand">
       <div>
         <span>Riaaya Clinic Receipt</span>
-        <h2 id="receipt-dialog-title">${state.settings.clinicName}</h2>
+        <h2 id="receipt-dialog-title">${esc(state.settings.clinicName)}</h2>
         <p>${state.settings.branch || "الفرع الرئيسي"}</p>
       </div>
       <div>
@@ -11150,7 +11191,7 @@ function renderReceiptDocument(receipt) {
       </div>
     </div>
     <div class="receipt-parties">
-      <div><span>المريض / المشتري</span><strong>${receipt.patient}</strong></div>
+      <div><span>المريض / المشتري</span><strong>${esc(receipt.patient)}</strong></div>
       <div><span>النوع</span><strong>${receipt.buyerType === "business" ? "شركة / جهة" : "فرد"}</strong></div>
       <div><span>الرقم الوطني / الضريبي</span><strong>${receipt.buyerTaxNumber || "-"}</strong></div>
       <div><span>طريقة الدفع</span><strong>${receiptPaymentLabel(receipt)}</strong></div>
@@ -11161,7 +11202,7 @@ function renderReceiptDocument(receipt) {
         ${entries.map((entry, index) => `
           <tr>
             <td>${index + 1}</td>
-            <td>${serviceLabel(entry)}</td>
+            <td>${esc(serviceLabel(entry))}</td>
             <td>${entry.quantity || 1}</td>
             <td>${money(numberValue(entry.unitPrice))}</td>
             <td>${money(netAmount(entry))}</td>
@@ -11211,7 +11252,7 @@ function renderReceipts() {
     <tr>
       <td><strong>${receipt.invoiceNumber}</strong></td>
       <td>${displayDate(receipt.date)}</td>
-      <td>${receipt.patient}</td>
+      <td>${esc(receipt.patient)}</td>
       <td>${receipt.itemCount}</td>
       <td>${money(receipt.total)}</td>
       <td>
@@ -12543,10 +12584,10 @@ function renderEntriesFocusTable() {
     return `
       <tr>
         <td>${displayDate(entry.date)}</td>
-        <td>${entry.patient}</td>
-        <td>${serviceLabel(entry)}</td>
-        <td>${doctor?.name || "-"}</td>
-        <td>${specialist?.name || "-"}</td>
+        <td>${esc(entry.patient)}</td>
+        <td>${esc(serviceLabel(entry))}</td>
+        <td>${esc(doctor?.name || "-")}</td>
+        <td>${esc(specialist?.name || "-")}</td>
         <td><span class="status-pill ${statusClass(entry.status)}">${entryStatusLabel(entry.status)}</span></td>
         <td>${entry.quantity || 1}</td>
         <td>${entryPaymentLabel(entry)}</td>
@@ -12628,7 +12669,7 @@ function renderInventoryFocusTable() {
     const status = stockStatus(item);
     return `
       <tr>
-        <td>${item.name}</td>
+        <td>${esc(item.name)}</td>
         <td>${item.sku || "-"}</td>
         <td>${item.unit}</td>
         <td><strong>${item.quantity}</strong></td>
@@ -12677,7 +12718,7 @@ function renderPatientOpsFullTable(patient) {
     return `<tr class="patient-op-frow">
       <td>${displayDate(entry.date)}</td>
       <td>${entry.visitNumber ? "#" + entry.visitNumber : "—"}</td>
-      <td>${serviceLabel(entry)}</td>
+      <td>${esc(serviceLabel(entry))}</td>
       <td>${staff}</td>
       <td><span class="status-pill ${statusClass(entry.status)}">${entryStatusLabel(entry.status)}</span></td>
       <td>${entryPaymentLabel(entry)}</td>
@@ -12725,7 +12766,7 @@ function openTableFocus(type) {
 
   if (type === "entries") {
     title = currentLanguage() === "en" ? "Today Operations Table" : "جدول عمليات اليوم";
-    subtitle = `${state.settings.clinicName} | ${displayDate(state.settings.activeDate)}`;
+    subtitle = `${esc(state.settings.clinicName)} | ${displayDate(state.settings.activeDate)}`;
     content = renderEntriesFocusTable();
   } else if (type === "inventory") {
     title = currentLanguage() === "en" ? "Inventory Table" : "جدول المخزون";
@@ -12744,7 +12785,7 @@ function openTableFocus(type) {
     content = serviceBrowseTableHtml(serviceBrowseRows(category, query));
   } else if (type === "patient-ops") {
     const patient = getPatient(selectedPatientId);
-    title = patient ? `سجل عمليات: ${patient.name}` : "سجل العمليات";
+    title = patient ? `سجل عمليات: ${esc(patient.name)}` : "سجل العمليات";
     subtitle = `${patientEntries(patient).length} عملية`;
     content = renderPatientOpsFullTable(patient);
   }
@@ -12836,7 +12877,7 @@ if (els.entryForm) {
       const services = activeServices();
       const filtered = activeCategory ? services.filter(service => (service.category || "") === activeCategory) : services;
       els.serviceSelect.innerHTML = filtered.length
-        ? filtered.map(service => `<option value="${service.id}">${service.name}</option>`).join("")
+        ? filtered.map(service => `<option value="${service.id}">${esc(service.name)}</option>`).join("")
         : `<option value="">${activeCategory ? "لا خدمات في هذه الفئة" : "أضف خدمة أولاً"}</option>`;
       els.serviceSelect.dispatchEvent(new Event("change", { bubbles: true }));
       return;
@@ -13052,7 +13093,7 @@ function openCategoryRowPrompt(category) {
     if (columnCategories.length) services = services.filter(service => columnCategories.includes(service.category || ""));
     if (category) services = services.filter(service => (service.category || "") === category);
     serviceSel.innerHTML = services.length
-      ? services.map(service => `<option value="${service.id}">${service.name}</option>`).join("")
+      ? services.map(service => `<option value="${service.id}">${esc(service.name)}</option>`).join("")
       : `<option value="">لا توجد خدمات في هذه الفئة</option>`;
   }
   if (catSel) catSel.addEventListener("change", () => fillServices(catSel.value));
@@ -13072,7 +13113,7 @@ function openCategoryRowPrompt(category) {
     }
     fillServices(catSel ? catSel.value : "");
     doctorSel.innerHTML = `<option value="">—</option>`
-      + (state.staff || []).filter(member => member.role === "doctor").map(member => `<option value="${member.id}">${member.name}</option>`).join("");
+      + (state.staff || []).filter(member => member.role === "doctor").map(member => `<option value="${member.id}">${esc(member.name)}</option>`).join("");
     form.elements.date.value = date;
     form.elements.scheduleColumnId.value = columnId;
     form.elements.time.value = time;
@@ -13259,7 +13300,7 @@ function renderPhysicalCount() {
         <thead><tr><th>الصنف</th><th>المسجّل في النظام</th><th>استُهلك منذ آخر جرد</th><th>العدد الفعلي</th></tr></thead>
         <tbody>${items.map(item => `
           <tr>
-            <td><strong>${item.name}</strong></td>
+            <td><strong>${esc(item.name)}</strong></td>
             <td>${numberValue(item.quantity)} ${item.unit}</td>
             <td>${consumedSinceCount(item.id, since)} ${item.unit}</td>
             <td><input type="number" min="0" step="0.01" data-count-item="${item.id}" value="${numberValue(item.quantity)}" style="width:110px"></td>
@@ -13434,7 +13475,7 @@ function renderImpersonationBanner() {
     document.body.prepend(banner);
     document.body.classList.add("has-impersonation-banner");
   }
-  banner.innerHTML = `<span>↪ أنت تتصفّح عيادة <strong>${imp.clinicName || ""}</strong> كمالك المنصّة — كل إجراء يُسجَّل.</span><button type="button" data-exit-impersonation>خروج والعودة للمالك</button>`;
+  banner.innerHTML = `<span>↪ أنت تتصفّح عيادة <strong>${esc(imp.clinicName || "")}</strong> كمالك المنصّة — كل إجراء يُسجَّل.</span><button type="button" data-exit-impersonation>خروج والعودة للمالك</button>`;
 }
 document.addEventListener("click", async event => {
   if (!event.target.closest("[data-exit-impersonation]")) return;
@@ -13685,7 +13726,7 @@ els.serviceBrowseSearch?.addEventListener("input", renderServiceBrowse);
     form.elements.paid.value = paidAmount(entry);
     form.elements.category.value = entryCategory(entry);
     form.elements.status.value = ["completed", "partial_payment", "pending_payment", "cancelled"].includes(entry.status) ? entry.status : "completed";
-    titleEl.textContent = `تعديل: ${entry.service}`;
+    titleEl.textContent = `تعديل: ${esc(entry.service)}`;
     modal.hidden = false;
   }
 
@@ -14082,12 +14123,12 @@ if (els.serviceForm) {
   function fillOptions(presetItemId) {
     const products = (state.inventory || []).filter(item => item.isProduct && item.active !== false && item.quantity > 0);
     productSelect.innerHTML = `<option value="">اختر المنتج</option>`
-      + products.map(item => `<option value="${item.id}">${item.name} — ${money(asNumber(item.salePrice))} (${numberValue(item.quantity)} ${item.unit})</option>`).join("");
+      + products.map(item => `<option value="${item.id}">${esc(item.name)} — ${money(asNumber(item.salePrice))} (${numberValue(item.quantity)} ${item.unit})</option>`).join("");
     if (presetItemId && products.some(item => item.id === presetItemId)) productSelect.value = presetItemId;
     // Any staff member can be recorded as the seller.
     staffSelect.innerHTML = `<option value="">— بدون —</option>`
       + (state.staff || []).filter(member => member.active !== false)
-        .map(member => `<option value="${member.id}">${member.name}${member.role ? " · " + roleLabel(member.role) : ""}</option>`).join("");
+        .map(member => `<option value="${member.id}">${esc(member.name)}${member.role ? " · " + roleLabel(member.role) : ""}</option>`).join("");
   }
 
   function open({ itemId = "", patientName = "" } = {}) {
@@ -14205,7 +14246,7 @@ if (els.serviceForm) {
     const role = appliesSel.value;
     const people = (state.staff || []).filter(member => member.role === role);
     peopleEl.innerHTML = people.length
-      ? people.map(member => `<label class="rule-person-check"><input type="checkbox" data-ct-person value="${member.id}"><span>${member.name}</span></label>`).join("")
+      ? people.map(member => `<label class="rule-person-check"><input type="checkbox" data-ct-person value="${member.id}"><span>${esc(member.name)}</span></label>`).join("")
       : `<div class="empty-state">لا يوجد ${role === "doctor" ? "أطباء" : "أخصائيون"} بعد.</div>`;
   }
 
@@ -14462,7 +14503,7 @@ document.addEventListener("click", event => {
     saveState();
     render();
     if (paidInput) paidInput.value = "";
-    setStatus(`✅ تم بيع «${template.name}» للمريض ${patient.name}.`);
+    setStatus(`✅ تم بيع «${template.name}» للمريض ${esc(patient.name)}.`);
     return;
   }
   const deleteTemplate = event.target.closest("[data-delete-package-template]");
@@ -14639,7 +14680,7 @@ function fillEntryFromBooking(bookingId) {
   els.entryForm.elements.paidCard.value = "";
   els.entryForm.elements.paidTransfer.value = "";
   els.entryForm.elements.status.value = booking.doctorId || booking.specialistId ? "completed" : "pending_assignment";
-  els.entryForm.elements.notes.value = booking.notes ? `من حجز ${booking.time}: ${booking.notes}` : `من حجز ${booking.time}`;
+  els.entryForm.elements.notes.value = booking.notes ? `من حجز ${booking.time}: ${esc(booking.notes)}` : `من حجز ${booking.time}`;
   pendingOperationLines.push({
     id: nextId("operation-line"),
     serviceId: booking.serviceId,
@@ -15050,7 +15091,7 @@ document.addEventListener("click", async event => {
       const dateStr  = displayDate(booking.date);
       const timeStr  = displayTime(booking.time);
       const service  = serviceLabel(booking);
-      const message  = `مرحباً ${booking.patient}، نذكّركم بموعدكم في ${clinic} يوم ${dateStr} الساعة ${timeStr}. الخدمة: ${service}. نتطلع لرؤيتكم.`;
+      const message  = `مرحباً ${esc(booking.patient)}، نذكّركم بموعدكم في ${clinic} يوم ${dateStr} الساعة ${timeStr}. الخدمة: ${service}. نتطلع لرؤيتكم.`;
       const btn = event.target.closest("[data-send-sms]");
       if (btn) { btn.disabled = true; btn.textContent = "⏳ جاري الإرسال..."; }
       sendCommunication({ channel: "sms", to: phone, message })
@@ -15077,7 +15118,7 @@ document.addEventListener("click", async event => {
       const dateStr = displayDate(booking.date);
       const timeStr = displayTime(booking.time);
       const service = serviceLabel(booking);
-      const msg = `السلام عليكم ${booking.patient}،\n\nنذكّركم بموعدكم في ${clinicName}\nالتاريخ: ${dateStr}\nالوقت: ${timeStr}\nالخدمة: ${service}\n\nنتمنى لكم دوام الصحة والعافية 🌿\n\nللاستفسار أو التعديل على الموعد يُرجى التواصل معنا.`;
+      const msg = `السلام عليكم ${esc(booking.patient)}،\n\nنذكّركم بموعدكم في ${clinicName}\nالتاريخ: ${dateStr}\nالوقت: ${timeStr}\nالخدمة: ${service}\n\nنتمنى لكم دوام الصحة والعافية 🌿\n\nللاستفسار أو التعديل على الموعد يُرجى التواصل معنا.`;
       navigator.clipboard.writeText(msg).then(() => {
         showToast("✓ تم نسخ رسالة التذكير — الصقها في واتساب", "success");
         const btn = event.target.closest("[data-copy-reminder]");
@@ -15922,7 +15963,7 @@ function exportCurrentReportXls() {
         </style>
       </head>
       <body>
-        <h1>${state.settings.clinicName}</h1>
+        <h1>${esc(state.settings.clinicName)}</h1>
         <h2>${title}</h2>
         <p>${reportRangeLabel()}</p>
         ${els.reportPage?.innerHTML || ""}
