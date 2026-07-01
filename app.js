@@ -1423,6 +1423,7 @@ function renderProducts() {
   }
   const showSensitive = canViewSensitive();
   const canSell = canUseFeature("sell_product");
+  const canManage = canUseFeature("manage_products");
   const commissionText = item => {
     const v = asNumber(item.commissionValue);
     if (v <= 0) return "—";
@@ -1437,7 +1438,10 @@ function renderProducts() {
         <td><span class="${low ? "stock-low" : ""}">${numberValue(item.quantity)} ${item.unit}</span></td>
         <td>${money(asNumber(item.salePrice))}</td>
         ${showSensitive ? `<td>${money(asNumber(item.unitCost))}</td><td>${money(margin)}</td><td>${commissionText(item)}</td>` : ""}
-        <td>${canSell ? `<button class="dark-button" type="button" data-sell-product="${item.id}" ${item.quantity <= 0 ? "disabled" : ""}>بيع</button>` : ""}</td>
+        <td class="product-row-actions">
+          ${canSell ? `<button class="dark-button" type="button" data-sell-product="${item.id}" ${item.quantity <= 0 ? "disabled" : ""}>بيع</button>` : ""}
+          ${canManage ? `<button class="text-button" type="button" data-edit-inventory="${item.id}">تعديل</button>` : ""}
+        </td>
       </tr>`;
   }).join("");
   els.productsList.innerHTML = `
@@ -6610,6 +6614,7 @@ function renderInventoryList() {
         <div class="row-actions">
           <span class="status-pill ${status.className}">${status.label}</span>
           <button class="text-button" type="button" data-fill-order="${item.id}">طلب</button>
+          <button class="text-button" type="button" data-edit-inventory="${item.id}">تعديل</button>
           <button class="icon-button danger" type="button" data-delete-inventory="${item.id}">حذف</button>
         </div>
       </div>
@@ -14651,8 +14656,10 @@ if (els.inventoryForm) {
     const isProduct = data.isProduct === "on";
     // Only staff allowed to manage products may set price/commission/image.
     const canManageProducts = canUseFeature("manage_products");
-    state.inventory.push(normalizeInventoryItem({
-      id: nextId("inventory"),
+    const existing = data.itemId ? getInventoryItem(data.itemId) : null;
+    const built = normalizeInventoryItem({
+      // Editing an existing item preserves its id, stock movements history, and last-order date.
+      id: existing ? existing.id : nextId("inventory"),
       name: data.name.trim(),
       sku: data.sku.trim(),
       unit: data.unit.trim(),
@@ -14665,22 +14672,87 @@ if (els.inventoryForm) {
       commissionValue: (isProduct && canManageProducts) ? data.commissionValue : 0,
       image: (isProduct && canManageProducts) ? (data.image || "") : "",
       supplierId: data.supplierId,
-      active: true
-    }));
-    logEdit("إضافة صنف مخزون", `${data.name.trim()} · ${numberValue(data.quantity)} ${data.unit.trim()}${isProduct ? " · منتج" : ""}`);
-    els.inventoryForm.reset();
-    const salePriceWrap = els.inventoryForm.querySelector("[data-inventory-saleprice-wrap]");
-    if (salePriceWrap) salePriceWrap.hidden = true;
-    const productFields = els.inventoryForm.querySelector("[data-inventory-product-fields]");
-    if (productFields) productFields.hidden = true;
-    const imgValue = els.inventoryForm.querySelector("[data-inventory-image-value]");
-    if (imgValue) imgValue.value = "";
-    const imgPreview = els.inventoryForm.querySelector("[data-inventory-image-preview]");
-    if (imgPreview) { imgPreview.hidden = true; imgPreview.src = ""; }
+      lastOrderedAt: existing ? existing.lastOrderedAt : "",
+      active: existing ? existing.active : true
+    });
+    if (existing) {
+      const index = state.inventory.findIndex(item => item.id === existing.id);
+      if (index >= 0) state.inventory[index] = built;
+      logEdit("تعديل صنف مخزون", `${built.name} · ${numberValue(built.quantity)} ${built.unit}${isProduct ? " · منتج" : ""}`);
+    } else {
+      state.inventory.push(built);
+      logEdit("إضافة صنف مخزون", `${built.name} · ${numberValue(built.quantity)} ${built.unit}${isProduct ? " · منتج" : ""}`);
+    }
+    resetInventoryForm();
     saveState();
     render();
   });
 }
+
+function resetInventoryForm() {
+  if (!els.inventoryForm) return;
+  els.inventoryForm.reset();
+  const idEl = els.inventoryForm.querySelector("[data-inventory-item-id]");
+  if (idEl) idEl.value = "";
+  const salePriceWrap = els.inventoryForm.querySelector("[data-inventory-saleprice-wrap]");
+  if (salePriceWrap) salePriceWrap.hidden = true;
+  const productFields = els.inventoryForm.querySelector("[data-inventory-product-fields]");
+  if (productFields) productFields.hidden = true;
+  const imgValue = els.inventoryForm.querySelector("[data-inventory-image-value]");
+  if (imgValue) imgValue.value = "";
+  const imgPreview = els.inventoryForm.querySelector("[data-inventory-image-preview]");
+  if (imgPreview) { imgPreview.hidden = true; imgPreview.src = ""; }
+  const submitBtn = els.inventoryForm.querySelector("[data-inventory-submit]");
+  if (submitBtn) submitBtn.textContent = "حفظ الصنف";
+  const cancelBtn = els.inventoryForm.querySelector("[data-inventory-cancel-edit]");
+  if (cancelBtn) cancelBtn.hidden = true;
+}
+
+// Load an existing inventory item into the form for in-place editing.
+function editInventoryItem(id) {
+  const item = getInventoryItem(id);
+  if (!item || !els.inventoryForm) return;
+  // The form lives in the inventory view's "items" tab — the edit button can be
+  // pressed from the separate products page, so make sure it's visible first.
+  if (typeof exitFocusMode === "function") exitFocusMode();
+  setView("inventory");
+  const itemsTab = document.querySelector('[data-inventory-tab="items"]');
+  if (itemsTab) itemsTab.click();
+  resetInventoryForm();
+  const f = els.inventoryForm;
+  const set = (name, value) => { if (f.elements[name] !== undefined) f.elements[name].value = value; };
+  set("itemId", item.id);
+  set("name", item.name);
+  set("sku", item.sku || "");
+  set("unit", item.unit || "");
+  set("quantity", item.quantity);
+  set("lowThreshold", item.lowThreshold);
+  set("unitCost", item.unitCost);
+  set("supplierId", item.supplierId || "");
+  if (f.elements.isProduct) {
+    f.elements.isProduct.checked = item.isProduct === true;
+    f.elements.isProduct.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+  set("salePrice", item.salePrice || "");
+  set("commissionType", item.commissionType || "percent");
+  set("commissionValue", item.commissionValue || "");
+  const imgValue = f.querySelector("[data-inventory-image-value]");
+  if (imgValue) imgValue.value = item.image || "";
+  const imgPreview = f.querySelector("[data-inventory-image-preview]");
+  if (imgPreview && item.image) { imgPreview.src = item.image; imgPreview.hidden = false; }
+  const submitBtn = f.querySelector("[data-inventory-submit]");
+  if (submitBtn) submitBtn.textContent = "تحديث الصنف";
+  const cancelBtn = f.querySelector("[data-inventory-cancel-edit]");
+  if (cancelBtn) cancelBtn.hidden = false;
+  f.scrollIntoView({ behavior: "smooth", block: "center" });
+  f.elements.name?.focus();
+}
+
+document.addEventListener("click", event => {
+  const editBtn = event.target.closest("[data-edit-inventory]");
+  if (editBtn) { editInventoryItem(editBtn.dataset.editInventory); return; }
+  if (event.target.closest("[data-inventory-cancel-edit]")) resetInventoryForm();
+});
 
 if (els.orderForm) {
   els.orderForm.elements.date.value = today;

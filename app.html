@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260624w">
+  <link rel="stylesheet" href="app.css?v=20260624x">
 </head>
 <body>
 
@@ -1630,6 +1630,7 @@
               </div>
             </div>
             <form class="entry-form" data-inventory-form>
+              <input type="hidden" name="itemId" data-inventory-item-id>
               <label>
                 اسم الصنف
                 <input name="name" type="text" placeholder="قفازات نيتريل" required>
@@ -1685,7 +1686,10 @@
                 <img class="inventory-image-preview" data-inventory-image-preview alt="" hidden>
               </div>
               <div class="formula-preview">اكتب 0 في حد الطلب إذا كان الصنف لا يحتاج تنبيهات، حتى لا تظهر إشعارات بلا سبب.</div>
-              <button class="primary-button form-submit" type="submit">حفظ الصنف</button>
+              <div class="form-actions">
+                <button class="primary-button form-submit" type="submit" data-inventory-submit>حفظ الصنف</button>
+                <button class="text-button" type="button" data-inventory-cancel-edit hidden>إلغاء التعديل</button>
+              </div>
             </form>
           </article>
 
@@ -3194,7 +3198,7 @@
       </form>
     </div>
   </div>
-  <script src="app.js?v=20260624w"></script>
+  <script src="app.js?v=20260624x"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>

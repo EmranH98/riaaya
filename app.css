@@ -4140,6 +4140,7 @@ body.kiosk-locked .global-search { display: none; }
 .commission-row select { flex: 1 1 auto; }
 .commission-row input { width: 96px; }
 .inventory-image-preview { display: block; margin-top: 8px; width: 96px; height: 96px; object-fit: cover; border-radius: 10px; border: 1px solid var(--border, #d9e5e0); }
+.product-row-actions { display: flex; gap: 6px; align-items: center; justify-content: flex-end; }
 
 /* Service → inventory consumption builder */
 .service-consume-expander { margin: 4px 0 8px; border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; background: var(--surface); }
