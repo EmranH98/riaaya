@@ -143,6 +143,8 @@ const PERMISSION_FEATURES = [
   { id: "inventory", label: "User Can Access Inventory", category: "inventory", views: ["inventory"] },
   { id: "material_consumable_inventory", label: "User Can Access Material Consumable In Inventory", category: "inventory", views: ["inventory"] },
   { id: "consumable_price_inventory", label: "User Can Access Consumable Price In Inventory", category: "inventory", views: ["inventory"], sensitive: true },
+  { id: "sell_product", label: "User Can Sell Products (record who sold & attach to a file)", category: "inventory", views: ["inventory", "patients"] },
+  { id: "manage_products", label: "User Can Add / Edit Products, Prices, Commission & Image", category: "inventory", views: ["inventory"], sensitive: true },
   { id: "consumed_amount_required", label: "Consumed Amount Required For User", category: "inventory", views: ["inventory"] },
   { id: "material_remaining_report", label: "User Can Access Material Name / Remaining In Inventory ( Materials Report )", category: "inventory", views: ["inventory", "reports"] },
   { id: "sms_report", label: "User Can Access SMS Report", category: "communication", views: ["reports"] },
@@ -1329,20 +1331,61 @@ document.addEventListener("click", event => {
 
 document.addEventListener("change", event => {
   if (event.target.matches("[data-inventory-isproduct]")) {
+    const on = event.target.checked;
     const wrap = document.querySelector("[data-inventory-saleprice-wrap]");
-    if (wrap) wrap.hidden = !event.target.checked;
+    if (wrap) wrap.hidden = !on;
+    const productFields = document.querySelector("[data-inventory-product-fields]");
+    if (productFields) productFields.hidden = !on;
+  }
+  // Product image: downscale to a small JPEG data URL so the state blob stays light.
+  if (event.target.matches("[data-inventory-image-input]")) {
+    const file = event.target.files && event.target.files[0];
+    const valueEl = document.querySelector("[data-inventory-image-value]");
+    const previewEl = document.querySelector("[data-inventory-image-preview]");
+    if (!file) return;
+    downscaleImageFile(file, 400, dataUrl => {
+      if (valueEl) valueEl.value = dataUrl;
+      if (previewEl) { previewEl.src = dataUrl; previewEl.hidden = false; }
+    });
   }
 });
 
+// Read an image File, downscale it to fit within maxPx, and return a JPEG data URL.
+function downscaleImageFile(file, maxPx, done) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+      const w = Math.max(1, Math.round(img.width * scale));
+      const h = Math.max(1, Math.round(img.height * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+      try { done(canvas.toDataURL("image/jpeg", 0.82)); }
+      catch { done(reader.result); }
+    };
+    img.onerror = () => done(reader.result);
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+}
+
 // ── Products: a sellable inventory item; selling deducts stock + books revenue ──
-function sellProduct(itemId, qty, paymentMethod, patientName) {
+function sellProduct(itemId, qty, paymentMethod, patientName, soldByStaffId) {
   const item = getInventoryItem(itemId);
   if (!item || !(qty > 0)) return false;
   const amount = asNumber(item.salePrice) * qty;
+  // Optionally attach the sale to a patient file (by name) — never required.
+  const patient = findPatientByName(patientName);
+  // Record who sold it. The seller is also stored on doctorId/specialistId (by
+  // role) so the sale flows into the per-provider and employee reports unchanged.
+  const seller = getStaffMember(soldByStaffId);
   const entry = normalizeEntry({
     id: nextId("entry"),
     date: state.settings.activeDate,
-    patient: (patientName || "").trim() || "بيع منتج",
+    patientId: patient?.id || "",
+    patient: (patient?.name || patientName || "").trim() || "بيع منتج",
     service: item.name,
     serviceId: "",
     amount,
@@ -1350,6 +1393,9 @@ function sellProduct(itemId, qty, paymentMethod, patientName) {
     quantity: qty,
     cost: asNumber(item.unitCost) * qty,
     discount: 0,
+    doctorId: seller && seller.role === "doctor" ? seller.id : "",
+    specialistId: seller && seller.role && seller.role !== "doctor" ? seller.id : "",
+    soldByStaffId: soldByStaffId || "",
     paymentMethod: paymentMethod || "cash",
     status: "completed",
     category: "منتجات",
@@ -1362,7 +1408,7 @@ function sellProduct(itemId, qty, paymentMethod, patientName) {
     id: nextId("invmove"), itemId: item.id, qty: -qty, reason: "sale",
     entryId: entry.id, date: entry.date, at: new Date().toISOString()
   });
-  logEdit("بيع منتج", `${item.name} × ${qty} · ${money(amount)}`);
+  logEdit("بيع منتج", `${item.name} × ${qty} · ${money(amount)}${seller ? " · البائع " + seller.name : ""}${patient ? " · " + patient.name : ""}`);
   saveState();
   render();
   return true;
@@ -1376,22 +1422,28 @@ function renderProducts() {
     return;
   }
   const showSensitive = canViewSensitive();
+  const canSell = canUseFeature("sell_product");
+  const commissionText = item => {
+    const v = asNumber(item.commissionValue);
+    if (v <= 0) return "—";
+    return item.commissionType === "fixed" ? `${money(v)}/وحدة` : `${v}%`;
+  };
   const rows = products.map(item => {
     const margin = asNumber(item.salePrice) - asNumber(item.unitCost);
     const low = item.lowThreshold > 0 && item.quantity <= item.lowThreshold;
     return `
       <tr>
-        <td><strong>${item.name}</strong>${item.sku ? ` <small>${item.sku}</small>` : ""}</td>
+        <td><span class="product-name-cell">${item.image ? `<img class="product-thumb" src="${item.image}" alt="">` : `<span class="product-thumb product-thumb-empty">📦</span>`}<span><strong>${item.name}</strong>${item.sku ? ` <small>${item.sku}</small>` : ""}</span></span></td>
         <td><span class="${low ? "stock-low" : ""}">${numberValue(item.quantity)} ${item.unit}</span></td>
         <td>${money(asNumber(item.salePrice))}</td>
-        ${showSensitive ? `<td>${money(asNumber(item.unitCost))}</td><td>${money(margin)}</td>` : ""}
-        <td><button class="dark-button" type="button" data-sell-product="${item.id}" ${item.quantity <= 0 ? "disabled" : ""}>بيع</button></td>
+        ${showSensitive ? `<td>${money(asNumber(item.unitCost))}</td><td>${money(margin)}</td><td>${commissionText(item)}</td>` : ""}
+        <td>${canSell ? `<button class="dark-button" type="button" data-sell-product="${item.id}" ${item.quantity <= 0 ? "disabled" : ""}>بيع</button>` : ""}</td>
       </tr>`;
   }).join("");
   els.productsList.innerHTML = `
     <div class="table-wrap">
       <table class="practical-table">
-        <thead><tr><th>المنتج</th><th>المتوفر</th><th>سعر البيع</th>${showSensitive ? "<th>التكلفة</th><th>الربح/وحدة</th>" : ""}<th></th></tr></thead>
+        <thead><tr><th>المنتج</th><th>المتوفر</th><th>سعر البيع</th>${showSensitive ? "<th>التكلفة</th><th>الربح/وحدة</th><th>عمولة البائع</th>" : ""}<th></th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>`;
@@ -1887,6 +1939,13 @@ function normalizeInventoryItem(item) {
     unitCost: asNumber(item.unitCost ?? item.unit_cost ?? item.cost),
     isProduct: item.isProduct === true || item.is_product === true,
     salePrice: asNumber(item.salePrice ?? item.sale_price ?? item.price),
+    // Product image (optional) — stored as a downscaled data URL so it travels
+    // inside the clinic state blob without a separate file store.
+    image: item.image || item.image_url || "",
+    // Seller commission for this product: percent of the sale, or a fixed amount
+    // per unit. Only paid to the staff member recorded as the seller.
+    commissionType: item.commissionType === "fixed" ? "fixed" : "percent",
+    commissionValue: asNumber(item.commissionValue ?? item.commission ?? 0),
     supplierId: item.supplierId || item.supplier_id || "",
     lastOrderedAt: item.lastOrderedAt || item.last_ordered_at || "",
     active: item.active !== false
@@ -3604,6 +3663,26 @@ function billableEntries(entries) {
 function calculateMemberPayout(entry, member) {
   if (!member || !isBillableEntry(entry)) return null;
   const isEnglish = currentLanguage() === "en";
+
+  // Product sale: commission is controlled per-product and paid only to the
+  // recorded seller (percent of the collected amount, or a fixed amount per unit).
+  if (entry.productId) {
+    if (entry.soldByStaffId && entry.soldByStaffId !== member.id) return null;
+    const product = getInventoryItem(entry.productId);
+    const value = numberValue(product?.commissionValue);
+    if (!product || value <= 0) return null;
+    const qty = Math.max(numberValue(entry.quantity) || 1, 1);
+    const paid = paidAmount(entry);
+    const payout = product.commissionType === "fixed" ? value * qty : paid * (value / 100);
+    return {
+      member,
+      payout,
+      formula: product.commissionType === "fixed"
+        ? (isEnglish ? `${money(value)} fixed × ${qty}` : `${money(value)} ثابت × ${qty}`)
+        : (isEnglish ? `${value}% of product sale ${money(paid)}` : `${value}% من بيع المنتج ${money(paid)}`)
+    };
+  }
+
   const appliesTo = member.role === "doctor" ? "doctor" : "specialist";
   const rule = findRule(appliesTo, member.id, entry.serviceId, entryCategory(entry));
   // Salary-only staff earn no default commission — only an explicit per-service rule pays out.
@@ -5918,6 +5997,7 @@ function renderPatientFile() {
       <div class="form-actions">
         ${canView("entries") ? `<button class="primary-button" type="button" data-add-operation-patient="${patient.id}">＋ تسجيل عملية</button>` : ""}
         ${canView("packages") ? `<button class="text-button" type="button" data-add-package-patient="${patient.id}">＋ باقة</button>` : ""}
+        ${canUseFeature("sell_product") ? `<button class="text-button" type="button" data-add-product-patient="${patient.id}">＋ منتج</button>` : ""}
         <button class="text-button patient-focus-back" type="button" data-patient-focus-list>رجوع للملفات</button>
         ${canEdit ? `<button class="text-button" type="button" data-edit-patient="${patient.id}">تعديل</button>` : ""}
         ${canDelete ? `<button class="text-button danger" type="button" data-delete-patient="${patient.id}">حذف</button>` : ""}
@@ -13956,29 +14036,45 @@ if (els.serviceForm) {
   const form = modal.querySelector("[data-product-sale-form]");
   const nameEl = modal.querySelector("[data-product-sale-name]");
   const totalEl = modal.querySelector("[data-product-sale-total]");
+  const productSelect = form.querySelector("[data-product-sale-select]");
+  const staffSelect = form.querySelector("[data-product-sale-staff]");
   const close = () => { modal.hidden = true; };
+  const selectedItem = () => getInventoryItem(productSelect.value);
   const updateTotal = () => {
-    const item = getInventoryItem(form.elements.productId.value);
+    const item = selectedItem();
     const qty = Math.max(1, Number(form.elements.qty.value) || 1);
+    if (nameEl) nameEl.textContent = item ? item.name : "منتج";
     if (totalEl) totalEl.textContent = money(asNumber(item?.salePrice) * qty);
   };
 
-  function open(itemId) {
-    const item = getInventoryItem(itemId);
-    if (!item) return;
-    form.elements.productId.value = item.id;
+  function fillOptions(presetItemId) {
+    const products = (state.inventory || []).filter(item => item.isProduct && item.active !== false && item.quantity > 0);
+    productSelect.innerHTML = `<option value="">اختر المنتج</option>`
+      + products.map(item => `<option value="${item.id}">${item.name} — ${money(asNumber(item.salePrice))} (${numberValue(item.quantity)} ${item.unit})</option>`).join("");
+    if (presetItemId && products.some(item => item.id === presetItemId)) productSelect.value = presetItemId;
+    // Any staff member can be recorded as the seller.
+    staffSelect.innerHTML = `<option value="">— بدون —</option>`
+      + (state.staff || []).filter(member => member.active !== false)
+        .map(member => `<option value="${member.id}">${member.name}${member.role ? " · " + roleLabel(member.role) : ""}</option>`).join("");
+  }
+
+  function open({ itemId = "", patientName = "" } = {}) {
+    if (!canUseFeature("sell_product")) return;
+    fillOptions(itemId);
     form.elements.qty.value = "1";
-    form.elements.patient.value = "";
-    if (nameEl) nameEl.textContent = item.name;
+    form.elements.patient.value = patientName || "";
+    staffSelect.value = "";
     updateTotal();
     modal.hidden = false;
   }
 
   form.elements.qty.addEventListener("input", updateTotal);
+  productSelect.addEventListener("change", updateTotal);
   form.addEventListener("submit", event => {
     event.preventDefault();
     const data = Object.fromEntries(new FormData(form).entries());
-    const ok = sellProduct(data.productId, Math.max(1, Number(data.qty) || 1), data.paymentMethod, data.patient);
+    if (!data.productId) return;
+    const ok = sellProduct(data.productId, Math.max(1, Number(data.qty) || 1), data.paymentMethod, data.patient, data.soldByStaffId);
     if (ok) close();
   });
   modal.querySelectorAll("[data-product-sale-close]").forEach(button => button.addEventListener("click", close));
@@ -13986,7 +14082,14 @@ if (els.serviceForm) {
   document.addEventListener("keydown", event => { if (event.key === "Escape" && !modal.hidden) close(); });
   document.addEventListener("click", event => {
     const trigger = event.target.closest("[data-sell-product]");
-    if (trigger) open(trigger.dataset.sellProduct);
+    if (trigger) { open({ itemId: trigger.dataset.sellProduct }); return; }
+    // ＋ منتج from a patient file → open the sale with that patient pre-linked.
+    const fromFile = event.target.closest("[data-add-product-patient]");
+    if (fromFile) {
+      const patient = (state.patients || []).find(item => item.id === fromFile.dataset.addProductPatient);
+      exitFocusMode();
+      open({ patientName: patient?.name || "" });
+    }
   });
 })();
 
@@ -14545,6 +14648,9 @@ if (els.inventoryForm) {
   els.inventoryForm.addEventListener("submit", event => {
     event.preventDefault();
     const data = Object.fromEntries(new FormData(els.inventoryForm).entries());
+    const isProduct = data.isProduct === "on";
+    // Only staff allowed to manage products may set price/commission/image.
+    const canManageProducts = canUseFeature("manage_products");
     state.inventory.push(normalizeInventoryItem({
       id: nextId("inventory"),
       name: data.name.trim(),
@@ -14553,15 +14659,24 @@ if (els.inventoryForm) {
       quantity: data.quantity,
       lowThreshold: data.lowThreshold,
       unitCost: data.unitCost,
-      isProduct: data.isProduct === "on",
+      isProduct,
       salePrice: data.salePrice,
+      commissionType: data.commissionType === "fixed" ? "fixed" : "percent",
+      commissionValue: (isProduct && canManageProducts) ? data.commissionValue : 0,
+      image: (isProduct && canManageProducts) ? (data.image || "") : "",
       supplierId: data.supplierId,
       active: true
     }));
-    logEdit("إضافة صنف مخزون", `${data.name.trim()} · ${numberValue(data.quantity)} ${data.unit.trim()}`);
+    logEdit("إضافة صنف مخزون", `${data.name.trim()} · ${numberValue(data.quantity)} ${data.unit.trim()}${isProduct ? " · منتج" : ""}`);
     els.inventoryForm.reset();
     const salePriceWrap = els.inventoryForm.querySelector("[data-inventory-saleprice-wrap]");
     if (salePriceWrap) salePriceWrap.hidden = true;
+    const productFields = els.inventoryForm.querySelector("[data-inventory-product-fields]");
+    if (productFields) productFields.hidden = true;
+    const imgValue = els.inventoryForm.querySelector("[data-inventory-image-value]");
+    if (imgValue) imgValue.value = "";
+    const imgPreview = els.inventoryForm.querySelector("[data-inventory-image-preview]");
+    if (imgPreview) { imgPreview.hidden = true; imgPreview.src = ""; }
     saveState();
     render();
   });

@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260624v">
+  <link rel="stylesheet" href="app.css?v=20260624w">
 </head>
 <body>
 
@@ -1666,6 +1666,24 @@
                 سعر البيع للوحدة
                 <input name="salePrice" type="number" min="0" step="0.01" placeholder="15">
               </label>
+              <div data-inventory-product-fields hidden>
+                <label data-sensitive>
+                  عمولة البائع (كم يأخذ من باع المنتج)
+                  <span class="commission-row">
+                    <select name="commissionType">
+                      <option value="percent">% من قيمة البيع</option>
+                      <option value="fixed">مبلغ ثابت لكل وحدة</option>
+                    </select>
+                    <input name="commissionValue" type="number" min="0" step="0.01" placeholder="0">
+                  </span>
+                </label>
+                <label>
+                  صورة المنتج (اختياري)
+                  <input type="file" accept="image/*" data-inventory-image-input>
+                </label>
+                <input type="hidden" name="image" data-inventory-image-value>
+                <img class="inventory-image-preview" data-inventory-image-preview alt="" hidden>
+              </div>
               <div class="formula-preview">اكتب 0 في حد الطلب إذا كان الصنف لا يحتاج تنبيهات، حتى لا تظهر إشعارات بلا سبب.</div>
               <button class="primary-button form-submit" type="submit">حفظ الصنف</button>
             </form>
@@ -3134,10 +3152,11 @@
       <button class="icon-button slot-booking-close" type="button" data-product-sale-close aria-label="إغلاق">×</button>
       <h3>بيع منتج: <span data-product-sale-name></span></h3>
       <form class="slot-booking-form" data-product-sale-form>
-        <input type="hidden" name="productId">
+        <label>المنتج<select name="productId" data-product-sale-select required><option value="">اختر المنتج</option></select></label>
         <label>الكمية<input name="qty" type="number" min="1" step="1" value="1" required></label>
         <label>طريقة الدفع<select name="paymentMethod"><option value="cash">كاش</option><option value="card">فيزا</option><option value="transfer">تحويل</option></select></label>
-        <label>اسم المريض (اختياري)<input name="patient" type="text" placeholder="بيع منتج" list="operation-patient-options"></label>
+        <label>البائع (من باع المنتج)<select name="soldByStaffId" data-product-sale-staff><option value="">— بدون —</option></select></label>
+        <label>المريض / الملف (اختياري)<input name="patient" type="text" placeholder="اختياري — اربط البيع بملف مريض" list="operation-patient-options"></label>
         <div class="product-sale-total">الإجمالي: <strong data-product-sale-total>0</strong></div>
         <div class="slot-booking-actions">
           <button class="primary-button" type="submit">تأكيد البيع</button>
@@ -3175,7 +3194,7 @@
       </form>
     </div>
   </div>
-  <script src="app.js?v=20260624v"></script>
+  <script src="app.js?v=20260624w"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>
