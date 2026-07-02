@@ -11856,7 +11856,12 @@ els.viewButtons.forEach(button => {
     });
   });
   document.querySelectorAll(".side-nav .nav-item").forEach(item => {
-    item.addEventListener("click", () => item.closest(".nav-group")?.classList.add("open"));
+    // Selecting a top-bar menu item navigates and then closes the dropdown by
+    // releasing focus (the menu is shown via :hover / :focus-within).
+    item.addEventListener("click", () => {
+      if (item.closest(".nav-dropdown")) { if (typeof item.blur === "function") item.blur(); }
+      else item.closest(".nav-group")?.classList.add("open");
+    });
   });
 
   const overlay = document.querySelector("[data-cmdk]");

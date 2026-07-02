@@ -156,11 +156,8 @@ button {
   gap: 4px;
   flex: 1 1 auto;
   min-width: 0;
-  overflow-x: auto;
-  overflow-y: visible;
-  overscroll-behavior: contain;
-  scrollbar-width: thin;
-  -webkit-overflow-scrolling: touch;
+  flex-wrap: wrap;
+  overflow: visible;
 }
 
 .side-nav::-webkit-scrollbar {
@@ -7612,14 +7609,27 @@ html[dir="ltr"] label {
 .nav-collapse-toggle:hover { background: var(--sidebar-hover); color: var(--sidebar-text-active); }
 
 /* ── Top-bar layout overrides ─────────────────────────────────────────────
-   Nav is now a horizontal top bar, so groups flow inline, every item is always
-   visible, and the old vertical slide-out/collapse behaviors are neutralized. */
+   Nav is a horizontal top bar. The primary (daily) group shows inline; the other
+   groups become dropdown MENUS so everything fits with no left/right scrolling. */
 .app-shell { transition: none; }
-.side-nav .nav-group { display: contents; }
-.side-nav .nav-group-label { display: none; }
-.app-shell .nav-group:not(.open) > .nav-item { display: flex; }
-.side-nav .nav-item { gap: 8px; padding: 8px 11px; font-size: 13px; }
+.side-nav .nav-item { gap: 6px; padding: 7px 9px; font-size: 12.5px; }
 .side-nav .nav-item .nav-label { white-space: nowrap; }
+.sidebar .side-nav .nav-ic { width: 17px; height: 17px; }
+.sidebar { gap: 10px; }
+
+/* Primary group = inline chips, always visible. */
+.side-nav .nav-group:first-child { display: contents; }
+.side-nav .nav-group:first-child .nav-group-label { display: none; }
+
+/* Every other group = a labelled dropdown menu that opens on hover/focus. */
+.side-nav .nav-group:not(:first-child) { position: relative; display: flex; align-items: stretch; align-self: stretch; flex: 0 0 auto; margin: 0; }
+.side-nav .nav-group:not(:first-child) .nav-group-label { display: inline-flex; align-items: center; justify-content: flex-start; gap: 5px; width: auto; background: transparent; color: var(--sidebar-text); padding: 7px 9px; font-size: 12.5px; font-weight: 700; letter-spacing: 0; border-radius: 8px; white-space: nowrap; cursor: pointer; }
+.side-nav .nav-group:not(:first-child) .nav-group-label:hover { background: var(--sidebar-hover); color: #fff; }
+.side-nav .nav-group:not(:first-child) .nav-group-chevron { transform: none; }
+.nav-dropdown { display: none; position: absolute; top: calc(100% + 5px); inset-inline-start: 0; flex-direction: column; gap: 2px; min-width: 214px; padding: 6px; background: var(--sidebar-bg); border: 1px solid rgba(255,255,255,0.09); border-radius: 12px; box-shadow: 0 18px 40px rgba(0,0,0,0.36); z-index: 80; }
+.side-nav .nav-group:not(:first-child):hover .nav-dropdown,
+.side-nav .nav-group:not(:first-child):focus-within .nav-dropdown { display: flex; }
+.nav-dropdown .nav-item { width: 100%; justify-content: flex-start; text-align: start; }
 .sidebar .brand { flex: 0 0 auto; }
 .sidebar .brand small { display: none; }
 /* No more off-canvas sliding — the bar is always in flow at the top. */
@@ -7631,12 +7641,8 @@ html[dir="ltr"] label {
 .app-shell.nav-autohide.sidebar-peek .sidebar { transform: none; }
 .app-shell.calendar-focus .sidebar { display: none; }
 .nav-collapsed .nav-label { display: inline; }
-/* Health widget collapses to a compact inline pill on the bar. */
-.sidebar .sidebar-card { flex: 0 0 auto; flex-direction: row; align-items: center; gap: 7px; padding: 5px 11px; background: rgba(255,255,255,0.06); border-radius: 999px; }
-.sidebar .sidebar-health-bar,
-.sidebar [data-health-note] { display: none; }
-.sidebar .sidebar-card-label { font-size: 11px; margin: 0; opacity: 0.7; }
-.sidebar .sidebar-card-value { font-size: 12px; }
+/* Health / reconcile widget removed from the bar (still computed elsewhere). */
+.sidebar .sidebar-card { display: none; }
 .sidebar .brand-logo-mark { width: 38px; height: 38px; }
 
 .app-shell.nav-collapsed { grid-template-columns: 78px minmax(0, 1fr); }
