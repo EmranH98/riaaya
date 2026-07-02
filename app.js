@@ -13686,6 +13686,21 @@ document.addEventListener("click", event => {
 // Top bar is always visible; autohide (a leftover of the vertical rail) stays off.
 try { setNavAutohide(localStorage.getItem("riaaya-nav-autohide") === "1"); } catch { setNavAutohide(false); }
 
+// Smart top bar: slides away scrolling DOWN, returns on ANY upward scroll —
+// no need to reach the top of the page.
+(function initSmartTopBar() {
+  const bar = document.querySelector(".app-shell > .sidebar");
+  if (!bar) return;
+  let lastY = window.scrollY;
+  window.addEventListener("scroll", () => {
+    const y = window.scrollY;
+    if (y <= 8) bar.classList.remove("bar-hidden");            // at the top → always shown
+    else if (y > lastY + 4 && y > 70) bar.classList.add("bar-hidden");  // going down → hide
+    else if (y < lastY - 2) bar.classList.remove("bar-hidden");         // going up → show
+    lastY = y;
+  }, { passive: true });
+})();
+
 // Calendar: show/hide the management area (KPIs, legend, column controls). Hidden
 // by default; the toggle is data-sensitive so restricted staff only ever see the rows.
 document.addEventListener("click", event => {

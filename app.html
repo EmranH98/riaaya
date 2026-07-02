@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260701g">
+  <link rel="stylesheet" href="app.css?v=20260701h">
 </head>
 <body>
 
@@ -74,20 +74,20 @@
         </span>
       </a>
 
-      <button class="nav-collapse-toggle" type="button" data-nav-collapse aria-label="طي أو فتح القائمة الجانبية" title="طي / فتح القائمة">
-        <svg class="nav-ic" aria-hidden="true"><use href="#ic-menu"/></svg>
-      </button>
-
       <nav class="side-nav" aria-label="أقسام لوحة التحكم">
         <div class="nav-group">
-          <button class="nav-group-label" type="button" data-nav-group="daily"><span>اليومي</span><svg class="nav-group-chevron" aria-hidden="true"><use href="#ic-chevron"/></svg></button>
           <button class="nav-item active" data-view-button="dashboard" type="button" title="ملخص اليوم"><svg class="nav-ic" aria-hidden="true"><use href="#ic-dashboard"/></svg><span class="nav-label">الملخص</span></button>
-          <button class="nav-item" data-view-button="reception" type="button" title="لوحة الاستقبال — يوم العيادة"><svg class="nav-ic" aria-hidden="true"><use href="#ic-users"/></svg><span class="nav-label">الاستقبال</span></button>
-          <button class="nav-item" data-view-button="growth" type="button" title="فرص النمو والتسويق"><svg class="nav-ic" aria-hidden="true"><use href="#ic-spark"/></svg><span class="nav-label">النمو</span></button>
-          <button class="nav-item" data-view-button="entries" type="button" title="عمليات اليوم"><svg class="nav-ic" aria-hidden="true"><use href="#ic-receipt"/></svg><span class="nav-label">العمليات</span></button>
-          <button class="nav-item" data-view-button="packages" type="button" title="الباقات والجلسات"><svg class="nav-ic" aria-hidden="true"><use href="#ic-package"/></svg><span class="nav-label">الباقات</span></button>
-          <button class="nav-item" data-view-button="bookings" type="button" title="الحجوزات"><svg class="nav-ic" aria-hidden="true"><use href="#ic-calendar"/></svg><span class="nav-label">الحجوزات</span></button>
-          <button class="nav-item" data-view-button="patients" type="button" title="ملفات المرضى والزوار"><svg class="nav-ic" aria-hidden="true"><use href="#ic-user"/></svg><span class="nav-label">المرضى</span></button>
+        </div>
+        <div class="nav-group">
+          <button class="nav-group-label" type="button" data-nav-group="daily"><span>اليومي</span><svg class="nav-group-chevron" aria-hidden="true"><use href="#ic-chevron"/></svg></button>
+          <div class="nav-dropdown">
+            <button class="nav-item" data-view-button="reception" type="button" title="لوحة الاستقبال — يوم العيادة"><svg class="nav-ic" aria-hidden="true"><use href="#ic-users"/></svg><span class="nav-label">الاستقبال</span></button>
+            <button class="nav-item" data-view-button="bookings" type="button" title="الحجوزات"><svg class="nav-ic" aria-hidden="true"><use href="#ic-calendar"/></svg><span class="nav-label">الحجوزات</span></button>
+            <button class="nav-item" data-view-button="entries" type="button" title="عمليات اليوم"><svg class="nav-ic" aria-hidden="true"><use href="#ic-receipt"/></svg><span class="nav-label">العمليات</span></button>
+            <button class="nav-item" data-view-button="patients" type="button" title="ملفات المرضى والزوار"><svg class="nav-ic" aria-hidden="true"><use href="#ic-user"/></svg><span class="nav-label">المرضى</span></button>
+            <button class="nav-item" data-view-button="packages" type="button" title="الباقات والجلسات"><svg class="nav-ic" aria-hidden="true"><use href="#ic-package"/></svg><span class="nav-label">الباقات</span></button>
+            <button class="nav-item" data-view-button="growth" type="button" title="فرص النمو والتسويق"><svg class="nav-ic" aria-hidden="true"><use href="#ic-spark"/></svg><span class="nav-label">النمو</span></button>
+          </div>
         </div>
         <div class="nav-group">
           <button class="nav-group-label" type="button" data-nav-group="finance"><span>المالية</span><svg class="nav-group-chevron" aria-hidden="true"><use href="#ic-chevron"/></svg></button>
@@ -3235,7 +3235,7 @@
       </form>
     </div>
   </div>
-  <script src="app.js?v=20260701g"></script>
+  <script src="app.js?v=20260701h"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>

@@ -83,8 +83,9 @@ button {
   flex-direction: column;
 }
 
-/* Navigation is a horizontal top bar. It sits in normal flow (static), so it
-   scrolls away with the page instead of covering content. */
+/* Navigation is a horizontal top bar with smart-sticky behavior: it scrolls
+   away going DOWN (no screen space wasted) and slides back the moment the user
+   scrolls UP — no need to reach the top. */
 .sidebar {
   background: var(--sidebar-bg);
   color: var(--sidebar-text-active);
@@ -93,13 +94,19 @@ button {
   flex-direction: row;
   align-items: center;
   gap: 14px;
-  position: static;
+  position: sticky;
+  top: 0;
+  z-index: 90;
   width: 100%;
   height: auto;
   max-height: none;
   overflow: visible;
   box-shadow: 0 2px 16px rgba(0,0,0,0.16);
+  transition: transform 0.22s ease;
 }
+.sidebar.bar-hidden { transform: translateY(-110%); }
+/* Highlight a menu whose section is currently open. */
+.side-nav .nav-group:has(.nav-item.active) .nav-group-label { background: var(--sidebar-active); color: #fff; }
 
 .brand {
   display: flex;
