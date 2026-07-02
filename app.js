@@ -1472,13 +1472,13 @@ function renderReception() {
   const teamLabel = item => {
     const doctor = getStaffMember(item.doctorId);
     const specialist = getStaffMember(item.specialistId);
-    return [doctor?.name, specialist?.name].filter(Boolean).join(" / ") || "—";
+    return esc([doctor?.name, specialist?.name].filter(Boolean).join(" / ") || "—");
   };
 
   const bookingRow = (b, actions) => `
     <tr>
       <td class="reception-time">${displayTime(b.time)}</td>
-      <td><strong>${b.patient}</strong><small>${serviceLabel(b)} · ${teamLabel(b)}</small></td>
+      <td><strong>${esc(b.patient)}</strong><small>${esc(serviceLabel(b))} · ${teamLabel(b)}</small></td>
       <td class="reception-actions">${actions}</td>
     </tr>`;
 
@@ -1500,7 +1500,7 @@ function renderReception() {
     return `
     <tr>
       <td class="reception-time">${e.time ? displayTime(e.time) : "—"}</td>
-      <td><strong>${e.patient}</strong><small>${serviceLabel(e)} · ${teamLabel(e)}</small></td>
+      <td><strong>${esc(e.patient)}</strong><small>${esc(serviceLabel(e))} · ${teamLabel(e)}</small></td>
       <td>${badge}</td>
       <td class="reception-actions">${rem > 0.009 && showMoney ? `<button class="dark-button" type="button" data-followup-entry="${e.id}">تحصيل</button>` : ""}</td>
     </tr>`;
@@ -1549,7 +1549,7 @@ function ruleTargetOptionsHtml(allLabel = "كل الخدمات") {
   const catGroup = categories.length
     ? `<optgroup label="الفئات (تُطبّق على كل الفئة والباقات)">${categories.map(c => `<option value="cat:${c}">${c} — كل الفئة</option>`).join("")}</optgroup>`
     : "";
-  const svcGroup = `<optgroup label="خدمة واحدة">${activeServices().map(s => `<option value="${s.id}">${s.name}</option>`).join("")}</optgroup>`;
+  const svcGroup = `<optgroup label="خدمة واحدة">${activeServices().map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join("")}</optgroup>`;
   return `<option value="">${allLabel}</option>${catGroup}${svcGroup}`;
 }
 
@@ -4418,13 +4418,13 @@ function renderSalarySlip(entries) {
 
   const operationRows = rows.length ? rows.map(row => `
     <tr>
-      <td>${row.entry.patient}</td>
-      <td>${serviceLabel(row.entry)}</td>
-      <td>${row.roleInOperation}</td>
+      <td>${esc(row.entry.patient)}</td>
+      <td>${esc(serviceLabel(row.entry))}</td>
+      <td>${esc(row.roleInOperation)}</td>
       <td>${money(netAmount(row.entry))}</td>
-      <td>${row.payout.formula}</td>
+      <td>${esc(row.payout.formula)}</td>
       <td><strong>${money(row.payout.payout)}</strong></td>
-      <td>${row.entry.notes || "-"}</td>
+      <td>${esc(row.entry.notes || "-")}</td>
     </tr>
   `).join("") : `<tr><td colspan="7">${label.empty}</td></tr>`;
 
@@ -4432,7 +4432,7 @@ function renderSalarySlip(entries) {
     <div class="salary-slip-heading">
       <div>
         <span>${label.salarySlip}</span>
-        <h3>${member?.name || ""}</h3>
+        <h3>${esc(member?.name || "")}</h3>
         <p>${label.date}: ${displayDate(state.settings.activeDate)} | ${label.branch}: ${state.settings.branch || "الفرع الرئيسي"} | ${label.status}: ${salaryStatusLabel(salaryStatusFor(member?.id))}</p>
       </div>
       <div class="salary-slip-total">
@@ -4473,7 +4473,7 @@ function renderAccountSwitcher() {
     state.currentAccountId = accounts[0].id;
   }
   els.accountSwitcher.innerHTML = accounts.map(account => (
-    `<option value="${account.id}">${account.name} | ${roleLabel(account.role)}</option>`
+    `<option value="${account.id}">${esc(account.name)} | ${roleLabel(account.role)}</option>`
   )).join("");
   els.accountSwitcher.value = state.currentAccountId;
 }
@@ -4610,12 +4610,12 @@ function renderAccountList() {
     const canDelete = account.role !== "admin" && account.id !== state.currentAccountId;
     return `
       <tr>
-        <td>${account.userName}</td>
-        <td>${account.arabicFirstName || "-"}</td>
-        <td>${account.arabicLastName || "-"}</td>
-        <td>${account.uid}</td>
-        <td>${account.firstName || "-"}</td>
-        <td>${account.lastName || "-"}</td>
+        <td>${esc(account.userName)}</td>
+        <td>${esc(account.arabicFirstName || "-")}</td>
+        <td>${esc(account.arabicLastName || "-")}</td>
+        <td>${esc(account.uid)}</td>
+        <td>${esc(account.firstName || "-")}</td>
+        <td>${esc(account.lastName || "-")}</td>
         <td>${roleCodeLabel(account.role)}</td>
         <td><span class="status-pill ${account.active === false ? "bad" : "good"}">${account.active === false ? "موقوف" : "نشط"}</span></td>
         <td>${account.memberSince ? displayDate(account.memberSince) : "-"}</td>
@@ -4795,7 +4795,7 @@ function renderStaffSelects() {
     ? [scopedMember]
     : state.staff.filter(member => member.role === "specialist");
   const services = activeServices();
-  const staffOptionLabel = member => member.name;
+  const staffOptionLabel = member => esc(member.name);
 
   const doctorOptions = doctors.map(member => (
     `<option value="${member.id}">${staffOptionLabel(member)}</option>`
@@ -4827,7 +4827,7 @@ function renderStaffSelects() {
     const columns = scheduleColumnsForAccount();
     const current = els.operationScheduleColumn.value;
     els.operationScheduleColumn.innerHTML = columns.length
-      ? columns.map(column => `<option value="${column.id}">${column.label}</option>`).join("")
+      ? columns.map(column => `<option value="${column.id}">${esc(column.label)}</option>`).join("")
       : `<option value="">لا أعمدة مسموح بها</option>`;
     els.operationScheduleColumn.value = current;
   }
@@ -4836,7 +4836,7 @@ function renderStaffSelects() {
     const categories = serviceCategories();
     const current = els.operationCategorySelect.value;
     els.operationCategorySelect.innerHTML = `<option value="">كل الفئات</option>`
-      + categories.map(category => `<option value="${category}">${category}</option>`).join("");
+      + categories.map(category => `<option value="${esc(category)}">${esc(category)}</option>`).join("");
     els.operationCategorySelect.value = current;
     els.operationCategorySelect.parentElement.hidden = categories.length === 0;
   }
@@ -4848,7 +4848,7 @@ function renderStaffSelects() {
       .map(service => service.subcategory).filter(Boolean))].sort((a, b) => a.localeCompare(b, "ar"));
     const currentSub = els.operationSubcategorySelect.value;
     els.operationSubcategorySelect.innerHTML = `<option value="">الكل</option>`
-      + subs.map(sub => `<option value="${sub}">${sub}</option>`).join("");
+      + subs.map(sub => `<option value="${esc(sub)}">${esc(sub)}</option>`).join("");
     els.operationSubcategorySelect.value = subs.includes(currentSub) ? currentSub : "";
     const field = els.operationSubcategorySelect.closest("[data-operation-subcategory-field]");
     if (field) field.hidden = subs.length === 0;
@@ -4879,12 +4879,12 @@ function renderStaffSelects() {
   if (svcCatSelect) {
     const current = svcCatSelect.value;
     svcCatSelect.innerHTML = `<option value="">— بدون فئة —</option>`
-      + serviceCategories().map(category => `<option value="${category}">${category}</option>`).join("")
+      + serviceCategories().map(category => `<option value="${esc(category)}">${esc(category)}</option>`).join("")
       + `<option value="__new__">➕ فئة جديدة…</option>`;
     svcCatSelect.value = [...svcCatSelect.options].some(option => option.value === current) ? current : "";
   }
   if (els.serviceCategoryList) {
-    els.serviceCategoryList.innerHTML = serviceCategories().map(category => `<option value="${category}"></option>`).join("");
+    els.serviceCategoryList.innerHTML = serviceCategories().map(category => `<option value="${esc(category)}"></option>`).join("");
   }
 
   if (els.bookingServiceSelect) {
@@ -4910,7 +4910,7 @@ function renderStaffSelects() {
     if (els.bookingSubcategorySelect) {
       const subs = [...new Set(services.filter(svc => !activeCat || (svc.category || "") === activeCat).map(svc => svc.subcategory).filter(Boolean))].sort((a, b) => a.localeCompare(b, "ar"));
       const currentSub = els.bookingSubcategorySelect.value;
-      els.bookingSubcategorySelect.innerHTML = `<option value="">الكل</option>` + subs.map(sub => `<option value="${sub}">${sub}</option>`).join("");
+      els.bookingSubcategorySelect.innerHTML = `<option value="">الكل</option>` + subs.map(sub => `<option value="${esc(sub)}">${esc(sub)}</option>`).join("");
       els.bookingSubcategorySelect.value = subs.includes(currentSub) ? currentSub : "";
       const subField = els.bookingSubcategorySelect.closest("[data-booking-subcategory-field]");
       if (subField) subField.hidden = subs.length === 0;
@@ -4998,7 +4998,7 @@ function renderRuleServiceSelect() {
     subMap.get(sub).push(svc);
   });
   const svcRow = (svc, cat, subKey) =>
-    `<label class="rule-tree-service${checked.has(svc.id) ? " on" : ""}"><input type="checkbox" name="serviceId" value="${svc.id}"${checked.has(svc.id) ? " checked" : ""} data-svc-cat="${cat}" data-svc-subkey="${subKey}"><span class="rule-tree-plus">${checked.has(svc.id) ? "✓" : "+"}</span><span>${svc.name}</span></label>`;
+    `<label class="rule-tree-service${checked.has(svc.id) ? " on" : ""}"><input type="checkbox" name="serviceId" value="${svc.id}"${checked.has(svc.id) ? " checked" : ""} data-svc-cat="${cat}" data-svc-subkey="${subKey}"><span class="rule-tree-plus">${checked.has(svc.id) ? "✓" : "+"}</span><span>${esc(svc.name)}</span></label>`;
   const selCount = list => list.filter(svc => checked.has(svc.id)).length;
   els.ruleServiceSelect.innerHTML = [...byCat.entries()].map(([cat, subMap]) => {
     const all = [...subMap.values()].flat();
@@ -5006,13 +5006,13 @@ function renderRuleServiceSelect() {
     const subs = [...subMap.entries()].filter(([sub]) => sub).sort((a, b) => a[0].localeCompare(b[0], "ar"));
     return `
       <details class="rule-tree-cat"${selCount(all) ? " open" : ""}>
-        <summary><span class="rule-tree-cat-name">${cat}</span><span class="tree-count">${selCount(all)}/${all.length}</span></summary>
-        <label class="rule-tree-all"><input type="checkbox" data-rule-cat-all="${cat}"> تحديد كل «${cat}»</label>
+        <summary><span class="rule-tree-cat-name">${esc(cat)}</span><span class="tree-count">${selCount(all)}/${all.length}</span></summary>
+        <label class="rule-tree-all"><input type="checkbox" data-rule-cat-all="${esc(cat)}"> تحديد كل «${esc(cat)}»</label>
         ${noSub.map(svc => svcRow(svc, cat, `${cat}__`)).join("")}
         ${subs.map(([sub, list]) => `
           <details class="rule-tree-sub" open>
-            <summary><span class="rule-tree-sub-name">${sub}</span><span class="tree-count">${selCount(list)}/${list.length}</span></summary>
-            <label class="rule-tree-all"><input type="checkbox" data-rule-sub-all="${cat}__${sub}"> تحديد كل «${sub}»</label>
+            <summary><span class="rule-tree-sub-name">${esc(sub)}</span><span class="tree-count">${selCount(list)}/${list.length}</span></summary>
+            <label class="rule-tree-all"><input type="checkbox" data-rule-sub-all="${esc(cat)}__${esc(sub)}"> تحديد كل «${esc(sub)}»</label>
             ${list.map(svc => svcRow(svc, cat, `${cat}__${sub}`)).join("")}
           </details>`).join("")}
       </details>`;
@@ -5023,7 +5023,7 @@ function renderInventorySelects() {
   const suppliers = activeSuppliers();
   const items = activeInventoryItems();
   const supplierOptions = suppliers.length
-    ? suppliers.map(supplier => `<option value="${supplier.id}">${supplier.name}</option>`).join("")
+    ? suppliers.map(supplier => `<option value="${supplier.id}">${esc(supplier.name)}</option>`).join("")
     : `<option value="">أضف مورد أولاً</option>`;
 
   if (els.inventorySupplierSelect) {
@@ -5066,7 +5066,7 @@ function renderScheduleColumnControls() {
     const current = els.bookingColumnSelect.value;
     els.bookingColumnSelect.disabled = !formColumns.length;
     els.bookingColumnSelect.innerHTML = formColumns.length
-      ? formColumns.map(column => `<option value="${column.id}">${column.label}</option>`).join("")
+      ? formColumns.map(column => `<option value="${column.id}">${esc(column.label)}</option>`).join("")
       : `<option value="">لا توجد أعمدة تقويم متاحة لهذا الحساب</option>`;
     els.bookingColumnSelect.value = formColumns.some(column => column.id === current)
       ? current
@@ -5189,7 +5189,7 @@ function renderNextVisitor() {
   const specialist = getStaffMember(booking.specialistId);
   const canSeePhone = canUseFeature("see_mobile");
   const whatsappNumber = phoneDigits(booking.phone || patient?.phone);
-  const team = [doctor?.name, specialist?.name].filter(Boolean).join(" / ") || "بانتظار التعيين";
+  const team = esc([doctor?.name, specialist?.name].filter(Boolean).join(" / ") || "بانتظار التعيين");
   els.nextVisitor.innerHTML = `
     <div class="next-visitor-top">
       <span class="next-visitor-label">الموعد القادم</span>
@@ -5198,7 +5198,7 @@ function renderNextVisitor() {
     <div class="next-visitor-time">${displayTime(booking.time)}</div>
     <button class="next-visitor-name" type="button" data-open-patient="${patient?.id || ""}">${esc(booking.patient)}</button>
     <p>${esc(serviceLabel(booking))} | ${team}</p>
-    ${canSeePhone && (booking.phone || patient?.phone) ? `<p class="next-visitor-phone">${booking.phone || patient?.phone}</p>` : ""}
+    ${canSeePhone && (booking.phone || patient?.phone) ? `<p class="next-visitor-phone">${esc(booking.phone || patient?.phone)}</p>` : ""}
     <div class="next-visitor-actions">
       ${canSeePhone && (booking.phone || patient?.phone) ? `<a class="text-button" href="tel:${booking.phone || patient?.phone}">اتصال</a>` : ""}
       ${canSeePhone && whatsappNumber ? `<a class="text-button whatsapp-action" href="https://wa.me/${whatsappNumber}" target="_blank" rel="noreferrer">WhatsApp</a>` : ""}
@@ -5471,7 +5471,7 @@ function renderNotificationCenters() {
     ? notifications.map(notification => `
       <button class="notification-item ${notification.severity} ${state.notificationReads?.[notification.id] ? "read" : ""}" type="button" data-notification-view="${notification.view}" data-notification-id="${notification.id}">
         <span></span>
-        <div><strong>${notification.title}</strong><small>${notification.body}</small></div>
+        <div><strong>${esc(notification.title)}</strong><small>${esc(notification.body)}</small></div>
       </button>
     `).join("")
     : `<div class="empty-state">لا توجد تنبيهات تشغيلية حالياً.</div>`;
@@ -5494,7 +5494,7 @@ function renderSmartActions() {
   els.smartActions.innerHTML = actions.map(action => `
     <button class="smart-action ${action.severity}" type="button" data-jump="${action.view}">
       <span>${action.severity === "danger" ? "!" : "•"}</span>
-      <div><strong>${action.title}</strong><p>${action.body}</p></div>
+      <div><strong>${esc(action.title)}</strong><p>${esc(action.body)}</p></div>
     </button>
   `).join("");
 }
@@ -5885,7 +5885,7 @@ function renderEntryTable(entries) {
     const payouts = entryPayouts(entry);
     const patient = getPatient(entry.patientId) || findPatientByName(entry.patient);
     const payoutText = payouts.length
-      ? payouts.map(row => `${row.member.name}: ${money(row.payout)}`).join("<br>")
+      ? payouts.map(row => `${esc(row.member.name)}: ${money(row.payout)}`).join("<br>")
       : "لا يوجد";
     const time = entry.createdAt
       ? new Date(entry.createdAt).toLocaleTimeString(currentLanguage() === "en" ? "en-US" : "ar-JO-u-nu-latn", { hour: "2-digit", minute: "2-digit" })
@@ -6000,7 +6000,7 @@ function renderPatientDirectory() {
         <td>${canUseFeature("patient_number") ? patient.patientNumber : "—"}</td>
         <td><span class="cell-with-avatar">${genderAvatar(patient, 32)}<button class="table-link" type="button" data-open-patient="${patient.id}">${esc(patient.name)}</button>${patient.rating ? ` ${ratingStarsStatic(patient.rating)}` : ""}</span></td>
         <td><span class="pill">${profileTypeLabel(patient.profileType)}</span></td>
-        <td>${canSeePhone ? (patient.phone || "-") : "مخفي"}</td>
+        <td>${esc(canSeePhone ? (patient.phone || "-") : "مخفي")}</td>
         <td>${displayDate(patientLastActivity(patient)) || "-"}</td>
         <td>${operations.length}</td>
         <td><button class="text-button" type="button" data-open-patient="${patient.id}">فتح الملف</button></td>
@@ -6074,8 +6074,8 @@ function renderPatientFile() {
       const net = netAmount(entry);
       const paid = paidAmount(entry);
       const due = Math.max(net - paid, 0);
-      const staffNames = [getStaffMember(entry.doctorId)?.name, getStaffMember(entry.specialistId)?.name]
-        .filter(Boolean).join(" / ") || "بدون تعيين";
+      const staffNames = esc([getStaffMember(entry.doctorId)?.name, getStaffMember(entry.specialistId)?.name]
+        .filter(Boolean).join(" / ") || "بدون تعيين");
       const receipt = receiptForEntry(entry.id);
       return `
       <tr class="op-summary-row" data-toggle-operation="${entry.id}">
@@ -6165,12 +6165,12 @@ function renderPatientFile() {
       <div><span>إجمالي المدفوع</span><strong>${canViewSensitive() ? money(totalPaid) : "مخفي"}</strong></div>
     </div>
     <div class="patient-demographics">
-      <div><span>الهاتف</span><strong>${canSeePhone ? (patient.phone || "-") : "مخفي"}</strong></div>
+      <div><span>الهاتف</span><strong>${esc(canSeePhone ? (patient.phone || "-") : "مخفي")}</strong></div>
       <div><span>البريد</span><strong>${esc(patient.email || "-")}</strong></div>
       <div><span>الجنس</span><strong>${genderLabel(patient.gender)}</strong></div>
       <div><span>الجنسية</span><strong>${esc(patient.nationality || "-")}</strong></div>
       <div><span>المدينة</span><strong>${esc(patient.city || "-")}</strong></div>
-      <div><span>الفئة</span><strong>${patient.category || "-"}</strong></div>
+      <div><span>الفئة</span><strong>${esc(patient.category || "-")}</strong></div>
       <div><span>موافقة الرسائل</span><strong>${patient.marketingConsent ? "فعالة" : "غير متوفرة"}</strong></div>
     </div>
     ${patient.notes ? `<div class="patient-note"><strong>ملاحظات سريرية</strong><p style="white-space:pre-line">${esc(patient.notes)}</p></div>` : ""}
@@ -6229,7 +6229,7 @@ function renderStaffList() {
           <strong>${esc(member.name)}</strong>
           <div class="staff-meta">
             <span class="pill">${roleLabel(member.role)}</span>
-            ${member.phone ? `<span class="pill">${member.phone}</span>` : ""}
+            ${member.phone ? `<span class="pill">${esc(member.phone)}</span>` : ""}
             ${canViewSensitive() ? `<span class="pill sensitive-pill">${rateDisplay} · ${modelDisplay}</span>` : ""}
             ${canViewSensitive() && memberRules.length ? `<span class="pill">+${memberRules.length} قاعدة خاصة</span>` : ""}
           </div>
@@ -6282,8 +6282,8 @@ function serviceTreeHtml(services) {
     subMap.get(sub).push(svc);
   });
   const serviceRow = svc => showSensitive
-    ? `<div class="tree-service"><button class="tree-service-main" type="button" data-edit-service="${svc.id}" title="اضغط للتعديل"><span class="tree-service-name">${svc.name}</span><span class="tree-service-price">${money(svc.defaultPrice)}${svc.active === false ? " · متوقفة" : ""}</span></button><button class="tree-service-del" type="button" data-delete-service="${svc.id}" title="حذف الخدمة" aria-label="حذف ${svc.name}">×</button></div>`
-    : `<div class="tree-service readonly"><span class="tree-service-name">${svc.name}</span><span class="tree-service-price">${money(svc.defaultPrice)}</span></div>`;
+    ? `<div class="tree-service"><button class="tree-service-main" type="button" data-edit-service="${svc.id}" title="اضغط للتعديل"><span class="tree-service-name">${esc(svc.name)}</span><span class="tree-service-price">${money(svc.defaultPrice)}${svc.active === false ? " · متوقفة" : ""}</span></button><button class="tree-service-del" type="button" data-delete-service="${svc.id}" title="حذف الخدمة" aria-label="حذف ${esc(svc.name)}">×</button></div>`
+    : `<div class="tree-service readonly"><span class="tree-service-name">${esc(svc.name)}</span><span class="tree-service-price">${money(svc.defaultPrice)}</span></div>`;
   return [...byCat.entries()].map(([cat, subMap]) => {
     const total = [...subMap.values()].reduce((sum, arr) => sum + arr.length, 0);
     const noSub = subMap.get("") || [];
@@ -6306,7 +6306,7 @@ function renderServiceBrowse() {
     const categories = serviceCategories();
     const current = els.serviceBrowseCategory.value;
     els.serviceBrowseCategory.innerHTML = `<option value="">كل الفئات</option>`
-      + categories.map(category => `<option value="${category}">${category}</option>`).join("");
+      + categories.map(category => `<option value="${esc(category)}">${esc(category)}</option>`).join("");
     els.serviceBrowseCategory.value = current;
   }
   const subDatalist = document.getElementById("service-subcategories");
@@ -6390,7 +6390,7 @@ function renderPackages() {
       + (state.patients || []).map(patient => `<option value="${patient.id}">${esc(patient.name)}</option>`).join("");
     if (templateSelect) templateSelect.innerHTML = `<option value="">اختر الباقة</option>`
       + templates.filter(template => template.active !== false)
-        .map(template => `<option value="${template.id}" data-sessions="${template.sessions}" data-price="${template.price}">${template.name} — ${template.sessions} جلسة</option>`).join("");
+        .map(template => `<option value="${template.id}" data-sessions="${template.sessions}" data-price="${template.price}">${esc(template.name)} — ${template.sessions} جلسة</option>`).join("");
     if (staffSelect) staffSelect.innerHTML = `<option value="">—</option>`
       + (state.staff || []).map(member => `<option value="${member.id}">${esc(member.name)}</option>`).join("");
   }
@@ -6399,7 +6399,7 @@ function renderPackages() {
     const current = els.operationPackageTemplate.value;
     els.operationPackageTemplate.innerHTML = `<option value="">اختر الباقة</option>`
       + templates.filter(template => template.active !== false)
-        .map(template => `<option value="${template.id}" data-price="${template.price}">${template.name} — ${template.sessions} جلسة</option>`).join("");
+        .map(template => `<option value="${template.id}" data-price="${template.price}">${esc(template.name)} — ${template.sessions} جلسة</option>`).join("");
     els.operationPackageTemplate.value = current;
   }
 
@@ -6414,7 +6414,7 @@ function renderPackages() {
       return `
       <div class="staff-card">
         <div>
-          <strong>${patient ? patient.name : "—"} · ${pkg.name}</strong>
+          <strong>${esc(patient ? patient.name : "—")} · ${esc(pkg.name)}</strong>
           <div class="staff-meta">
             <span class="pill">${pkg.usedSessions}/${pkg.totalSessions} جلسة · المتبقي ${remaining}</span>
             <span class="pill pkg-${statusClass}">${statusLabel}</span>
@@ -6443,14 +6443,14 @@ function renderPackages() {
           .filter(pkg => packageComputedStatus(pkg) === "active")
           .map(pkg => {
             const patient = patientById(pkg.patientId);
-            return `<option value="${pkg.id}">${patient ? patient.name : "—"} · ${pkg.name} (المتبقي ${packageRemaining(pkg)})</option>`;
+            return `<option value="${pkg.id}">${esc(patient ? patient.name : "—")} · ${esc(pkg.name)} (المتبقي ${packageRemaining(pkg)})</option>`;
           }).join("");
       packageSelect.value = current;
     }
     if (columnSelect) {
       const current = columnSelect.value;
       columnSelect.innerHTML = `<option value="">—</option>`
-        + (state.scheduleColumns || []).map(column => `<option value="${column.id}">${column.label}</option>`).join("");
+        + (state.scheduleColumns || []).map(column => `<option value="${column.id}">${esc(column.label)}</option>`).join("");
       columnSelect.value = current;
     }
   }
@@ -6466,9 +6466,9 @@ function renderPackages() {
         <div>
           <strong>${booking.date} · ${booking.time}</strong>
           <div class="staff-meta">
-            <span class="pill">${patient ? patient.name : booking.patient}</span>
+            <span class="pill">${esc(patient ? patient.name : booking.patient)}</span>
             ${pkg ? `<span class="pill">${pkg.name} · المتبقي ${remaining}</span>` : ""}
-            ${booking.service ? `<span class="pill">${booking.service}</span>` : ""}
+            ${booking.service ? `<span class="pill">${esc(booking.service)}</span>` : ""}
           </div>
         </div>
         <div class="pkg-actions">
@@ -6639,7 +6639,7 @@ function renderDashboardZones() {
     sesEl.innerHTML = sessions.length
       ? sessions.slice(0, 6).map(booking => {
           const patient = patientById(booking.patientId);
-          return `<div class="dash-row"><span>${patient ? patient.name : booking.patient} · ${booking.service}</span><span class="dash-time">${booking.time}</span></div>`;
+          return `<div class="dash-row"><span>${esc(patient ? patient.name : booking.patient)} · ${esc(booking.service)}</span><span class="dash-time">${booking.time}</span></div>`;
         }).join("")
       : `<div class="empty-state">لا جلسات باقات مجدولة اليوم.</div>`;
   }
@@ -6659,7 +6659,7 @@ function renderCollections() {
     const patient = row.patientId ? patientById(row.patientId) : null;
     return `
       <tr>
-        <td>${patient ? patient.name : (row.name || "—")}</td>
+        <td>${esc(patient ? patient.name : (row.name || "—"))}</td>
         <td>${row.operations > 0.009 ? money(row.operations) : "—"}</td>
         <td>${row.packages > 0.009 ? money(row.packages) : "—"}</td>
         <td><strong>${money(row.total)}</strong></td>
@@ -6681,8 +6681,8 @@ function renderRuleList() {
   els.ruleList.innerHTML = state.rules.map(rule => `
     <div class="staff-card${rule.id === _editingRuleId ? " editing" : ""}">
       <div>
-        <strong>${rule.name}</strong>
-        <p>${ruleDescription(rule)}</p>
+        <strong>${esc(rule.name)}</strong>
+        <p>${esc(ruleDescription(rule))}</p>
       </div>
       <div class="rule-card-actions">
         <button class="text-button" type="button" data-edit-rule="${rule.id}">تعديل</button>
@@ -6704,7 +6704,7 @@ function renderSupplierList() {
       <div>
         <strong>${supplier.name}</strong>
         <p>${supplier.category || "عام"} | ${supplier.city || "بدون مدينة"} | ${supplier.contact || "لا يوجد تواصل"}</p>
-        ${supplier.notes ? `<p>${supplier.notes}</p>` : ""}
+        ${supplier.notes ? `<p>${esc(supplier.notes)}</p>` : ""}
       </div>
       <button class="icon-button danger" type="button" data-delete-supplier="${supplier.id}">حذف</button>
     </div>
@@ -6867,7 +6867,7 @@ function fillExpenseSubgroups(groupSelect, subgroupSelect, selected = "") {
     ? `<option value="">كل الفئات</option>`
     : `<option value="">اختر الفئة</option>`;
   subgroupSelect.innerHTML = `${prefix}${(group?.subgroups || []).map(subgroup => (
-    `<option value="${subgroup.id}">${subgroup.name}</option>`
+    `<option value="${subgroup.id}">${esc(subgroup.name)}</option>`
   )).join("")}`;
   subgroupSelect.value = (group?.subgroups || []).some(subgroup => subgroup.id === selected) ? selected : "";
 }
@@ -6878,7 +6878,7 @@ function renderExpenseSelects() {
   const currentSubgroup = els.expenseSubgroup?.value || "";
   if (els.expenseGroup) {
     els.expenseGroup.innerHTML = groups.length
-      ? groups.map(group => `<option value="${group.id}">${group.name}</option>`).join("")
+      ? groups.map(group => `<option value="${group.id}">${esc(group.name)}</option>`).join("")
       : `<option value="">أضف مجموعة أولاً</option>`;
     els.expenseGroup.value = groups.some(group => group.id === currentGroup) ? currentGroup : groups[0]?.id || "";
     fillExpenseSubgroups(els.expenseGroup, els.expenseSubgroup, currentSubgroup);
@@ -6891,7 +6891,7 @@ function renderExpenseSelects() {
     const filterGroup = els.expenseFilterGroup.value;
     const filterSubgroup = els.expenseFilterSubgroup?.value || "";
     els.expenseFilterGroup.innerHTML = `<option value="">كل المجموعات</option>${groups.map(group => (
-      `<option value="${group.id}">${group.name}</option>`
+      `<option value="${group.id}">${esc(group.name)}</option>`
     )).join("")}`;
     els.expenseFilterGroup.value = groups.some(group => group.id === filterGroup) ? filterGroup : "";
     fillExpenseSubgroups(els.expenseFilterGroup, els.expenseFilterSubgroup, filterSubgroup);
@@ -6986,13 +6986,13 @@ function renderExpenseTable() {
   els.expenseTable.innerHTML = pagination.items.length ? pagination.items.map(expense => `
     <tr>
       <td>${displayDate(expense.date)}</td>
-      <td>${expenseGroupName(expense)}</td>
-      <td>${expenseSubgroupName(expense)}</td>
+      <td>${esc(expenseGroupName(expense))}</td>
+      <td>${esc(expenseSubgroupName(expense))}</td>
       <td>${esc(expense.vendor || "-")}</td>
       <td>${paymentLabel(expense.paymentMethod)}</td>
-      <td>${expense.reference || "-"}</td>
+      <td>${esc(expense.reference || "-")}</td>
       <td><strong>${money(expense.amount)}</strong></td>
-      <td>${expense.notes || "-"}${expense.recurring ? ` <span class="pill">متكرر</span>` : ""}</td>
+      <td>${esc(expense.notes || "-")}${expense.recurring ? ` <span class="pill">متكرر</span>` : ""}</td>
       <td>
         <div class="row-actions">
           ${canUseFeature("edit_expense") ? `<button class="text-button" type="button" data-edit-expense="${expense.id}">تعديل</button>` : ""}
@@ -7350,7 +7350,7 @@ function renderImportPreview() {
   els.importPreviewBody.innerHTML = rows.slice(0, 100).map(row => `
     <tr class="${row.errors.length ? "invalid" : row.duplicate ? "duplicate" : ""}">
       <td>${row.index}</td>
-      ${previewFields.map(([field]) => `<td>${row.record[field] || "-"}</td>`).join("")}
+      ${previewFields.map(([field]) => `<td>${esc(row.record[field] || "-")}</td>`).join("")}
       <td class="${row.errors.length ? "import-cell-error" : ""}">
         ${row.errors.length ? row.errors.join("، ") : row.duplicate ? "سجل مكرر" : "جاهز"}
       </td>
@@ -7917,7 +7917,7 @@ function renderBookingDayCalendar() {
           <span class="drag-handle" aria-hidden="true">⠿</span>
           <strong>${esc(booking.patient)}</strong>
           <span>${booking.time} | ${esc(serviceLabel(booking))}</span>
-          <small>${bookingStatusLabel(booking.status)}${booking.phone && canUseFeature("see_mobile") ? ` | ${booking.phone}` : ""}</small>
+          <small>${bookingStatusLabel(booking.status)}${booking.phone && canUseFeature("see_mobile") ? ` | ${esc(booking.phone)}` : ""}</small>
         </div>
       `).join("");
 
@@ -8000,11 +8000,11 @@ function renderBookingList() {
         ${pendingOnline.map(b => `
           <div class="staff-card pending-online-card">
             <div>
-              <strong>${b.time} | ${b.patient}</strong>
-              <p>${b.service || "—"} | ${b.date}</p>
-              ${b.phone && canUseFeature("see_mobile") ? `<p>📞 ${b.phone}</p>` : ""}
-              ${b.notes ? `<p style="color:#666;font-size:12px">${b.notes}</p>` : ""}
-              ${b.reference ? `<p style="font-size:11px;color:#999">Ref: ${b.reference}</p>` : ""}
+              <strong>${b.time} | ${esc(b.patient)}</strong>
+              <p>${esc(b.service || "—")} | ${b.date}</p>
+              ${b.phone && canUseFeature("see_mobile") ? `<p>📞 ${esc(b.phone)}</p>` : ""}
+              ${b.notes ? `<p style="color:#666;font-size:12px">${esc(b.notes)}</p>` : ""}
+              ${b.reference ? `<p style="font-size:11px;color:#999">Ref: ${esc(b.reference)}</p>` : ""}
             </div>
             <div class="row-actions">
               ${canUseFeature("change_appointment_status") ? `
@@ -8045,7 +8045,7 @@ function renderBookingList() {
         ${genderAvatar(patient || booking, 42)}
         <div>
           <strong>${booking.time} | ${esc(booking.patient)}</strong>
-          <p>${esc(serviceLabel(booking))}${phone && canUseFeature("see_mobile") ? ` | ${phone}` : ""}</p>
+          <p>${esc(serviceLabel(booking))}${phone && canUseFeature("see_mobile") ? ` | ${esc(phone)}` : ""}</p>
           <p>الفريق: ${esc([doctor?.name, specialist?.name].filter(Boolean).join(" / ") || "بانتظار التعيين")}${canViewSensitive() ? ` | المتوقع ${money(booking.expectedAmount)}` : ""}</p>
           ${booking.notes ? `<p>${esc(booking.notes)}</p>` : ""}
         </div>
@@ -8208,7 +8208,7 @@ function renderPatientBalanceReport(entries) {
     ? rows.map(row => `
       <tr class="balance-row balance-row--${row.className}">
         <td class="patient-cell">
-          <strong>${row.patient}</strong>
+          <strong>${esc(row.patient)}</strong>
           <small>${displayDate(row.lastDate)}</small>
         </td>
         <td>${row.doctorName}</td>
@@ -8436,7 +8436,7 @@ function monthlyProviderBar(sourceEntries) {
   const specialists = (state.staff || []).filter(m => m.role === "specialist");
   const sel = id => (id === monthlyProviderFilter ? " selected" : "");
   const grp = (label, list) => list.length
-    ? `<optgroup label="${label}">${list.map(m => `<option value="${m.id}"${sel(m.id)}>${m.name}</option>`).join("")}</optgroup>`
+    ? `<optgroup label="${esc(label)}">${list.map(m => `<option value="${m.id}"${sel(m.id)}>${esc(m.name)}</option>`).join("")}</optgroup>`
     : "";
   return `
     <div class="monthly-toolbar no-print">
@@ -8490,7 +8490,7 @@ function renderMonthlyReport(sourceEntries) {
   const patientRows = monthlyPatientRows(entries, isEn);
   const patientBody = patientRows.length ? patientRows.map(r => `
     <tr class="balance-row balance-row--${r.cls}">
-      <td class="patient-cell"><strong>${r.patient}</strong><small>${displayDate(r.lastDate)} · ${r.count}</small></td>
+      <td class="patient-cell"><strong>${esc(r.patient)}</strong><small>${displayDate(r.lastDate)} · ${r.count}</small></td>
       <td>${money(r.paid)}</td>
       <td>${money(r.procedures)}</td>
       <td class="${r.balance < -0.01 ? "balance-negative" : r.balance > 0.01 ? "balance-positive" : ""}"><strong>${r.balance > 0.01 ? "+" : ""}${money(r.balance)}</strong></td>
@@ -8510,7 +8510,7 @@ function renderMonthlyReport(sourceEntries) {
   const nutriAny = provList.some(p => p.nutritionPaid > 0.01);
   const provBody = provList.length ? provList.map(p => `
     <tr>
-      <td><strong>${p.name}</strong></td>
+      <td><strong>${esc(p.name)}</strong></td>
       <td>${roleLabel(p.role)}</td>
       <td>${p.count}</td>
       <td>${money(p.net)}</td>
@@ -8543,7 +8543,7 @@ function renderMonthlyReport(sourceEntries) {
     <tr class="report-edit-row" data-edit-entry="${entry.id}" title="اضغط للتعديل">
       <td>${i + 1}</td>
       <td>${displayDate(entry.date)}</td>
-      <td>${entry.patient || "—"}</td>
+      <td>${esc(entry.patient || "—")}</td>
       <td>${esc(serviceLabel(entry))}</td>
       <td>${esc(getStaffMember(entry.doctorId)?.name || "—")}</td>
       <td>${esc(getStaffMember(entry.specialistId)?.name || "—")}</td>
@@ -8843,8 +8843,8 @@ function renderUniversalReport(items) {
     <tr>
       <td>${item.date ? displayDate(item.date) : "-"}</td>
       <td><span class="pill">${reportSourceLabel(item.source)}</span></td>
-      <td>${item.source === "patient" ? `<button class="table-link" type="button" data-open-patient="${item.id}">${item.title}</button>` : item.title}</td>
-      <td>${item.details}</td>
+      <td>${item.source === "patient" ? `<button class="table-link" type="button" data-open-patient="${item.id}">${esc(item.title)}</button>` : esc(item.title)}</td>
+      <td>${esc(item.details)}</td>
       <td>${item.statusLabel || "-"}</td>
       <td>${canViewSensitive() && ["operation", "booking", "expense", "reconciliation"].includes(item.source) ? money(item.value) : item.source === "patient" ? `${item.value} ${isEnglish ? "operations" : "عملية"}` : item.value || "-"}</td>
     </tr>
@@ -8873,13 +8873,13 @@ function renderExpensesReport(expenses) {
   const body = expenses.length ? expenses.map(expense => `
     <tr>
       <td>${displayDate(expense.date)}</td>
-      <td>${expenseGroupName(expense)}</td>
-      <td>${expenseSubgroupName(expense)}</td>
+      <td>${esc(expenseGroupName(expense))}</td>
+      <td>${esc(expenseSubgroupName(expense))}</td>
       <td>${esc(expense.vendor || "-")}</td>
       <td>${paymentLabel(expense.paymentMethod)}</td>
-      <td>${expense.reference || "-"}</td>
+      <td>${esc(expense.reference || "-")}</td>
       <td><strong>${money(expense.amount)}</strong></td>
-      <td>${expense.notes || "-"}</td>
+      <td>${esc(expense.notes || "-")}</td>
     </tr>
   `).join("") : `<tr><td colspan="8">${isEnglish ? "No matching expenses." : "لا توجد مصروفات مطابقة."}</td></tr>`;
   return `
@@ -9024,7 +9024,7 @@ function renderProfitReport(entries, expenses) {
   const rows = [...byService.values()].sort((a, b) => (b.paid - b.cost - b.payouts) - (a.paid - a.cost - a.payouts));
   const body = rows.length ? rows.map(row => `
     <tr>
-      <td>${row.service}</td>
+      <td>${esc(row.service)}</td>
       <td>${row.operations}</td>
       <td>${money(row.gross)}</td>
       <td><strong>${money(row.paid)}</strong></td>
@@ -9072,8 +9072,8 @@ function renderPatientsReport(patients) {
       <td>${canUseFeature("patient_number") ? patient.patientNumber : "—"}</td>
       <td><button class="table-link" type="button" data-open-patient="${patient.id}">${esc(patient.name)}</button></td>
       <td>${profileTypeLabel(patient.profileType)}</td>
-      <td>${canUseFeature("see_mobile") ? (patient.phone || "-") : "مخفي"}</td>
-      <td>${patient.category || "-"}</td>
+      <td>${esc(canUseFeature("see_mobile") ? (patient.phone || "-") : "مخفي")}</td>
+      <td>${esc(patient.category || "-")}</td>
       <td>${patientEntries(patient).length}</td>
       <td>${patientBookings(patient).length}</td>
       <td>${displayDate(patientLastActivity(patient)) || "-"}</td>
@@ -9191,7 +9191,7 @@ function renderReconciliationReport(entries) {
   const difference = paid - procedures;
   const body = rows.length ? rows.map(row => `
     <tr class="${row.className}">
-      <td>${row.patient}</td>
+      <td>${esc(row.patient)}</td>
       <td>${money(row.paid)}</td>
       <td>${money(row.procedures)}</td>
       <td><strong>${money(row.balance)}</strong></td>
@@ -9395,7 +9395,7 @@ function renderByPatientReport(entries) {
     const rows = patientEntries.map(entry => `
       <tr>
         <td>${displayDate(entry.date)}</td>
-        <td>${patient}</td>
+        <td>${esc(patient)}</td>
         <td>${esc(serviceLabel(entry))}</td>
         <td>${entryPaymentLabel(entry)}</td>
         <td>${money(paidAmount(entry))}</td>
@@ -9408,7 +9408,7 @@ function renderByPatientReport(entries) {
     const cost = patientEntries.reduce((sum, entry) => sum + entryCost(entry), 0);
     return `${rows}
       <tr class="subtotal-row">
-        <td colspan="4">${label.subtotal} | ${patient}</td>
+        <td colspan="4">${label.subtotal} | ${esc(patient)}</td>
         <td>${money(subtotal)}</td>
         <td>${money(cost)}</td>
         <td>${money(subtotal - cost)}</td>
@@ -9890,7 +9890,7 @@ function renderAssignmentsReport(entries) {
   const unassigned = unassignedEntries(entries);
   const body = rows.length ? rows.map(row => `
     <tr>
-      <td>${row.member.name}</td>
+      <td>${esc(row.member.name)}</td>
       <td>${row.operations}</td>
       <td>${canViewSensitive() ? money(row.revenue) : label.hidden}</td>
       <td>${canViewSensitive() ? money(row.payout) : label.hidden}</td>
@@ -10167,7 +10167,7 @@ function renderReports() {
   if (reportCatFilter) {
     const currentCat = reportCatFilter.value;
     reportCatFilter.innerHTML = `<option value="">كل الفئات</option>`
-      + serviceCategories().map(category => `<option value="${category}">${category}</option>`).join("");
+      + serviceCategories().map(category => `<option value="${esc(category)}">${esc(category)}</option>`).join("");
     reportCatFilter.value = [...reportCatFilter.options].some(option => option.value === currentCat) ? currentCat : "";
   }
   const financialReports = ["monthly", "profit", "reconciliation", "patientBalance", "byPatient", "perProcedure", "costs", "expenses", "retention", "packages", "cash", "audit", "specialist"];
@@ -10292,7 +10292,7 @@ function renderSpecialistReport(entries) {
   }
 
   const options = [`<option value="">كل الموظفين</option>`]
-    .concat(memberData.map(item => `<option value="${item.member.id}"${item.member.id === specialistReportFilter ? " selected" : ""}>${item.member.name}</option>`))
+    .concat(memberData.map(item => `<option value="${item.member.id}"${item.member.id === specialistReportFilter ? " selected" : ""}>${esc(item.member.name)}</option>`))
     .join("");
   const shown = specialistReportFilter ? memberData.filter(item => item.member.id === specialistReportFilter) : memberData;
 
@@ -10318,7 +10318,7 @@ function renderSpecialistReport(entries) {
     const detail = lines.slice()
       .sort((a, b) => `${a.entry.date}${a.entry.time || ""}`.localeCompare(`${b.entry.date}${b.entry.time || ""}`))
       .map(({ entry, commission }) =>
-        `<tr><td>${displayDate(entry.date)}</td><td>${entry.time ? displayTime(entry.time) : "—"}</td><td>${entry.patient || "—"}</td><td>${esc(serviceLabel(entry))}</td><td>${money(commission)}</td></tr>`).join("");
+        `<tr><td>${displayDate(entry.date)}</td><td>${entry.time ? displayTime(entry.time) : "—"}</td><td>${esc(entry.patient || "—")}</td><td>${esc(serviceLabel(entry))}</td><td>${money(commission)}</td></tr>`).join("");
 
     return `
       <div class="specialist-card">
@@ -10803,7 +10803,7 @@ function renderSalaries(entries) {
     const salaryStatus = salaryStatusFor(row.member.id);
     return `
       <tr>
-        <td>${row.member.name}</td>
+        <td>${esc(row.member.name)}</td>
         <td>${roleLabel(row.member.role)}</td>
         <td>${row.formulas.join("<br>") || `${row.member.rate}% افتراضي`}</td>
         <td>${row.operations}</td>
@@ -10897,7 +10897,7 @@ function renderLeads() {
         <strong>${lead.clinic || "عيادة بدون اسم"}</strong>
         <p>${esc(lead.name || "")} | ${esc(lead.phone || "")} | ${esc(lead.city || "")}</p>
         <p>الخطة: ${lead.plan || "غير محدد"} | الحجم: ${lead.size || lead.clinic_size || "غير محدد"}</p>
-        ${lead.notes ? `<p>${lead.notes}</p>` : ""}
+        ${lead.notes ? `<p>${esc(lead.notes)}</p>` : ""}
       </div>
       <span class="pill">${lead.createdAt ? new Date(lead.createdAt).toLocaleDateString("ar-JO-u-nu-latn") : "محلي"}</span>
     </div>
@@ -11324,7 +11324,7 @@ function renderReceiptDocument(receipt) {
       <div class="receipt-grand-total"><span>الإجمالي المستحق</span><strong>${money(receipt.total)}</strong></div>
     </div>
     ${receipt.reference ? `<p class="receipt-note"><strong>المرجع:</strong> ${receipt.reference}</p>` : ""}
-    ${receipt.notes ? `<p class="receipt-note"><strong>ملاحظات:</strong> ${receipt.notes}</p>` : ""}
+    ${receipt.notes ? `<p class="receipt-note"><strong>ملاحظات:</strong> ${esc(receipt.notes)}</p>` : ""}
     <div class="receipt-footer">
       <span>الحالة: ${receiptStatusLabel(receipt.status)}</span>
       <span>${receipt.providerReference ? `مرجع الإرسال: ${receipt.providerReference}` : "يخضع الإرسال الضريبي لإعداد JoFotara المعتمد للعيادة."}</span>
@@ -12693,7 +12693,7 @@ function renderEntriesFocusTable() {
     const specialist = getStaffMember(entry.specialistId);
     const payouts = entryPayouts(entry);
     const payoutText = payouts.length
-      ? payouts.map(row => `${row.member.name}: ${money(row.payout)}`).join("<br>")
+      ? payouts.map(row => `${esc(row.member.name)}: ${money(row.payout)}`).join("<br>")
       : "-";
     return `
       <tr>
@@ -13152,7 +13152,7 @@ function openCategoryRowPrompt(category) {
   const select = modal.querySelector("[data-category-row-select]");
   const columns = activeScheduleColumns();
   if (select) select.innerHTML = columns.length
-    ? columns.map(column => `<option value="${column.id}">${column.label}</option>`).join("")
+    ? columns.map(column => `<option value="${column.id}">${esc(column.label)}</option>`).join("")
     : `<option value="">لا توجد أعمدة</option>`;
   modal.hidden = false;
 }
@@ -13217,11 +13217,11 @@ function openCategoryRowPrompt(category) {
     columnCategories = column?.categories || [];
     if (catSel) {
       if (columnCategories.length) {
-        catSel.innerHTML = columnCategories.map(category => `<option value="${category}">${category}</option>`).join("");
+        catSel.innerHTML = columnCategories.map(category => `<option value="${esc(category)}">${esc(category)}</option>`).join("");
         catSel.value = columnCategories[0];
       } else {
         catSel.innerHTML = `<option value="">كل الخدمات</option>`
-          + serviceCategories().map(category => `<option value="${category}">${category}</option>`).join("");
+          + serviceCategories().map(category => `<option value="${esc(category)}">${esc(category)}</option>`).join("");
         catSel.value = "";
       }
     }
@@ -13694,6 +13694,12 @@ try { setNavAutohide(localStorage.getItem("riaaya-nav-autohide") === "1"); } cat
 (function initSmartTopBar() {
   const bar = document.querySelector(".app-shell > .sidebar");
   if (!bar) return;
+  // Publish the bar's real height so sticky content (e.g. calendar column
+  // headers) can offset exactly below it — even when the bar wraps to 2 rows.
+  const syncHeight = () => document.documentElement.style.setProperty("--topbar-h", `${Math.round(bar.getBoundingClientRect().height)}px`);
+  syncHeight();
+  window.addEventListener("resize", syncHeight, { passive: true });
+  if (window.ResizeObserver) new ResizeObserver(syncHeight).observe(bar);
   let lastY = window.scrollY;
   window.addEventListener("scroll", () => {
     const y = window.scrollY;
@@ -14445,7 +14451,7 @@ if (els.serviceForm) {
       if (!subMap.has(sub)) subMap.set(sub, []);
       subMap.get(sub).push(svc);
     });
-    const svcRow = svc => `<tr><td class="ct-svc-name">${svc.name}</td><td><input type="number" min="0" step="0.01" data-ct-value="${svc.id}" data-svc-cat="${svc.category || "بدون فئة"}" data-svc-sub="${(svc.category || "بدون فئة")}__${svc.subcategory || ""}" placeholder="—"></td></tr>`;
+    const svcRow = svc => `<tr><td class="ct-svc-name">${esc(svc.name)}</td><td><input type="number" min="0" step="0.01" data-ct-value="${svc.id}" data-svc-cat="${svc.category || "بدون فئة"}" data-svc-sub="${(svc.category || "بدون فئة")}__${svc.subcategory || ""}" placeholder="—"></td></tr>`;
     bodyEl.innerHTML = `<table class="ct-table"><thead><tr><th>الخدمة / الفئة</th><th>العمولة</th></tr></thead><tbody>`
       + [...byCat.entries()].map(([cat, subMap]) => {
         const noSub = subMap.get("") || [];
