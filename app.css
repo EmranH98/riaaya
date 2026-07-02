@@ -3476,6 +3476,26 @@ body:not(.can-bulk-delete) .patient-bulk-col { display: none; }
 .view[data-view="bookings"] .split-layout > article:first-child { display: none; }
 .view[data-view="bookings"] .day-schedule-scroll { max-height: calc(100vh - 230px); }
 
+/* ── Dedicated calendar page ─────────────────────────────────────────────────
+   When الحجوزات is open the screen is ONLY: nav bar → compact strip (date +
+   actions) → full-height calendar rows. All other chrome disappears. */
+body.calendar-page .topbar,
+body.calendar-page .runtime-banner,
+body.calendar-page .clinic-strip { display: none; }
+body.calendar-page .workspace { padding: 6px 10px 0; }
+/* Compact strip: hide the big title block, keep the actions/date row. */
+body.calendar-page .booking-calendar-panel { padding: 8px 10px; }
+body.calendar-page .calendar-panel-header { margin: 0; padding: 0; border: 0; }
+body.calendar-page .calendar-panel-header > div:first-child { display: none; }
+body.calendar-page .calendar-actions { width: 100%; justify-content: flex-start; flex-wrap: wrap; gap: 8px; }
+/* Second panel (the grid) loses its own header + inner title; list is gone. */
+body.calendar-page .view[data-view="bookings"] .split-layout > article:nth-child(2) { padding: 0; border: 0; background: transparent; box-shadow: none; }
+body.calendar-page .view[data-view="bookings"] .split-layout > article:nth-child(2) > .panel-header { display: none; }
+body.calendar-page .day-schedule-title { display: none; }
+body.calendar-page [data-booking-list] { display: none; }
+/* Rows own the rest of the viewport (nav 54 + strip ~56 + margins). */
+body.calendar-page .day-schedule-scroll { max-height: calc(100vh - 128px); }
+
 .day-schedule-cell {
   min-width: 0;
   min-height: 48px;

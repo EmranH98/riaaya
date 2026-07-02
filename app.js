@@ -4725,6 +4725,9 @@ function setView(viewName) {
   els.views.forEach(view => {
     view.classList.toggle("active", view.dataset.view === targetView);
   });
+  // الحجوزات is a dedicated calendar page: chrome (banners, day-settings strip,
+  // page header) is hidden by CSS under this class so the rows own the screen.
+  document.body.classList.toggle("calendar-page", targetView === "bookings");
   if (targetView !== "reports") {
     document.querySelectorAll("[data-report-jump]").forEach(button => button.classList.remove("active"));
   }
