@@ -227,7 +227,7 @@ button {
 }
 /* Reports run edge-to-edge and practical — no card inset, full workspace width. */
 .view[data-view="reports"] .full-report-panel {
-  border-radius: 10px;
+  border-radius: 0;
 }
 .view[data-view="reports"].active {
   margin: -4px;
@@ -413,9 +413,9 @@ html[dir="rtl"] .eyebrow {
 .panel,
 .kpi {
   background: white;
-  border: 1px solid rgba(36,21,19,0.12);
-  border-radius: 12px;
-  box-shadow: 0 1px 2px rgba(36,21,19,0.05);
+  border: 1px solid rgba(36,21,19,0.16);
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .clinic-strip {
@@ -1611,7 +1611,7 @@ textarea {
 }
 
 .panel {
-  padding: 20px;
+  padding: 14px;
   min-width: 0;
 }
 
@@ -1800,8 +1800,8 @@ table {
 
 th,
 td {
-  border-bottom: 1px solid #edf3f1;
-  padding: 11px 8px;
+  border-bottom: 1px solid #e4ebe8;
+  padding: 6px 8px;
   text-align: right;
   vertical-align: middle;
 }
@@ -4301,7 +4301,7 @@ body:not(.can-bulk-delete) .patient-bulk-col { display: none; }
 
 .report-table td,
 .report-table th {
-  padding: 12px 10px;
+  padding: 6px 8px;
 }
 
 .report-table tr.match td {
