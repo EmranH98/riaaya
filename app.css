@@ -3493,8 +3493,11 @@ body.calendar-page .view[data-view="bookings"] .split-layout > article:nth-child
 body.calendar-page .view[data-view="bookings"] .split-layout > article:nth-child(2) > .panel-header { display: none; }
 body.calendar-page .day-schedule-title { display: none; }
 body.calendar-page [data-booking-list] { display: none; }
-/* Rows own the rest of the viewport (nav 54 + strip ~56 + margins). */
-body.calendar-page .day-schedule-scroll { max-height: calc(100vh - 128px); }
+/* The PAGE scrolls, not a box: the grid takes its full natural height and the
+   window is the scroller — column headers stick to the top while you scroll,
+   and the nav bar slides back on any scroll-up. */
+body.calendar-page .view[data-view="bookings"] .day-schedule-scroll { max-height: none; overflow: visible; }
+body.calendar-page .booking-day-calendar { overflow: visible; }
 
 .day-schedule-cell {
   min-width: 0;
