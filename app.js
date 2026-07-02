@@ -65,6 +65,7 @@ const today = `${jordanDateParts.year}-${jordanDateParts.month}-${jordanDatePart
 
 const VIEW_LABELS = {
   dashboard: "ملخص اليوم",
+  reception: "الاستقبال",
   growth: "فرص النمو",
   products: "المنتجات",
   entries: "عمليات اليوم",
@@ -1454,6 +1455,82 @@ function renderProducts() {
     </div>`;
 }
 
+// ── Reception board: the whole clinic day on one screen ─────────────────────
+// Columns: upcoming bookings → arrived (in clinic) → today's operations with
+// payment state. Every action reuses the existing handlers (booking status,
+// operation modal prefill, entry edit/collect).
+function renderReception() {
+  if (!els.receptionBoard) return;
+  const bookings = activeBookings();
+  const entries = billableEntries(activeEntries());
+  const upcoming = bookings.filter(b => ["scheduled", "confirmed"].includes(b.status));
+  const arrived = bookings.filter(b => b.status === "arrived");
+  const showMoney = canViewSensitive();
+  const collected = entries.reduce((s, e) => s + paidAmount(e), 0);
+  const due = entries.reduce((s, e) => s + Math.max(netAmount(e) - paidAmount(e), 0), 0);
+
+  const teamLabel = item => {
+    const doctor = getStaffMember(item.doctorId);
+    const specialist = getStaffMember(item.specialistId);
+    return [doctor?.name, specialist?.name].filter(Boolean).join(" / ") || "—";
+  };
+
+  const bookingRow = (b, actions) => `
+    <tr>
+      <td class="reception-time">${displayTime(b.time)}</td>
+      <td><strong>${b.patient}</strong><small>${serviceLabel(b)} · ${teamLabel(b)}</small></td>
+      <td class="reception-actions">${actions}</td>
+    </tr>`;
+
+  const upcomingRows = upcoming.length ? upcoming.map(b => bookingRow(b, `
+      ${b.status === "scheduled" ? `<button class="text-button" type="button" data-booking-status-id="${b.id}" data-booking-status="confirmed">تأكيد</button>` : ""}
+      <button class="dark-button" type="button" data-booking-status-id="${b.id}" data-booking-status="arrived">وصل</button>
+      <button class="text-button danger" type="button" data-booking-status-id="${b.id}" data-booking-status="no_show">لم يحضر</button>
+    `)).join("") : `<tr><td colspan="3" class="report-empty">لا مواعيد متبقية اليوم.</td></tr>`;
+
+  const arrivedRows = arrived.length ? arrived.map(b => bookingRow(b, `
+      <button class="primary-button reception-op-btn" type="button" data-reception-to-op="${b.id}">تسجيل العملية</button>
+    `)).join("") : `<tr><td colspan="3" class="report-empty">لا يوجد مرضى في الانتظار.</td></tr>`;
+
+  const entryRows = entries.length ? entries.map(e => {
+    const net = netAmount(e), paid = paidAmount(e), rem = Math.max(net - paid, 0);
+    const badge = rem > 0.009
+      ? `<span class="pay-badge due">متبقي ${money(rem)}</span>`
+      : `<span class="pay-badge paid">مدفوعة ✓</span>`;
+    return `
+    <tr>
+      <td class="reception-time">${e.time ? displayTime(e.time) : "—"}</td>
+      <td><strong>${e.patient}</strong><small>${serviceLabel(e)} · ${teamLabel(e)}</small></td>
+      <td>${badge}</td>
+      <td class="reception-actions">${rem > 0.009 && showMoney ? `<button class="dark-button" type="button" data-edit-entry="${e.id}">تحصيل</button>` : ""}</td>
+    </tr>`;
+  }).join("") : `<tr><td colspan="4" class="report-empty">لا عمليات بعد اليوم.</td></tr>`;
+
+  els.receptionBoard.innerHTML = `
+    <div class="reception-stats">
+      <div><span>مواعيد اليوم</span><strong>${bookings.length}</strong></div>
+      <div><span>بالانتظار</span><strong>${upcoming.length}</strong></div>
+      <div><span>في العيادة</span><strong>${arrived.length}</strong></div>
+      <div><span>عمليات اليوم</span><strong>${entries.length}</strong></div>
+      <div><span>المحصّل اليوم</span><strong>${showMoney ? money(collected) : "مخفي"}</strong></div>
+      <div class="${due > 0.009 ? "reception-due" : ""}"><span>مستحقات اليوم</span><strong>${showMoney ? money(due) : "مخفي"}</strong></div>
+    </div>
+    <div class="reception-columns">
+      <div class="reception-col">
+        <h3>المواعيد القادمة <span class="patient-ops-count">${upcoming.length}</span></h3>
+        <table class="reception-table"><tbody>${upcomingRows}</tbody></table>
+      </div>
+      <div class="reception-col reception-col-arrived">
+        <h3>في العيادة الآن <span class="patient-ops-count">${arrived.length}</span></h3>
+        <table class="reception-table"><tbody>${arrivedRows}</tbody></table>
+      </div>
+      <div class="reception-col">
+        <h3>عمليات اليوم <span class="patient-ops-count">${entries.length}</span></h3>
+        <table class="reception-table"><tbody>${entryRows}</tbody></table>
+      </div>
+    </div>`;
+}
+
 // Single source of truth for categories — gathered from services, packages, and
 // calendar columns so a category defined anywhere shows up in every picker.
 function serviceCategories() {
@@ -1660,8 +1737,8 @@ function normalizeStaffMember(member) {
 
 function defaultViewsForRole(role) {
   if (role === "admin") return ADMIN_VIEWS;
-  if (role === "data_entry") return ["entries"];
-  return ["dashboard", "entries"];
+  if (role === "data_entry") return ["reception", "entries"];
+  return ["dashboard", "reception", "entries"];
 }
 
 function featureById(featureId) {
@@ -2398,6 +2475,7 @@ const els = {
   supplierForm: document.querySelector("[data-supplier-form]"),
   inventoryForm: document.querySelector("[data-inventory-form]"),
   productsList: document.querySelector("[data-products-list]"),
+  receptionBoard: document.querySelector("[data-reception-board]"),
   orderForm: document.querySelector("[data-order-form]"),
   bookingForm: document.querySelector("[data-booking-form]"),
   reconcileForm: document.querySelector("[data-reconcile-form]"),
@@ -11657,6 +11735,7 @@ function render() {
   renderInventorySelects();
   populateConsumeSelects();
   renderProducts();
+  renderReception();
   renderPhysicalCount();
   renderCountHistory();
   renderKpis(entries, totals, diffs);
@@ -13613,6 +13692,20 @@ document.addEventListener("change", event => {
   renderReports();
 });
 
+// Reception board: convert an arrived booking into an operation, prefilled.
+document.addEventListener("click", event => {
+  const trigger = event.target.closest("[data-reception-to-op]");
+  if (!trigger) return;
+  const booking = (state.bookings || []).find(item => item.id === trigger.dataset.receptionToOp);
+  if (!booking) return;
+  openOperationModal({
+    returnView: "reception",
+    patientName: booking.patient,
+    serviceId: booking.serviceId,
+    bookingId: booking.id
+  });
+});
+
 // Monthly workbook: filter the whole report (all four sections) to one provider.
 document.addEventListener("change", event => {
   const sel = event.target.closest("[data-monthly-provider]");
@@ -13692,6 +13785,8 @@ document.addEventListener("click", event => {
     if (els.reportSelect) els.reportSelect.value = type;
     document.querySelectorAll("[data-report-tab]").forEach(tab => tab.classList.toggle("active", tab.dataset.reportTab === type));
     renderReports();
+    // Opened reports take the whole screen — the catalog keeps the app chrome.
+    enterFocusMode("reports");
     const exp = openBtn.dataset.thenExport;
     if (exp === "xls") document.querySelector("[data-export-report-xls]")?.click();
     else if (exp === "print") document.querySelector("[data-print-selected-report]")?.click();
@@ -13700,9 +13795,9 @@ document.addEventListener("click", event => {
   const catBtn = event.target.closest("[data-catalog-cat]");
   if (catBtn) { catalogCategory = catBtn.dataset.catalogCat; renderReports(); return; }
   const backBtn = event.target.closest("[data-report-back]");
-  if (backBtn) { reportCenterMode = true; renderReports(); return; }
+  if (backBtn) { exitFocusMode(); reportCenterMode = true; renderReports(); return; }
   const centerBtn = event.target.closest("[data-report-center]");
-  if (centerBtn) { if (!canView("reports")) return; reportCenterMode = true; setView("reports"); renderReports(); }
+  if (centerBtn) { if (!canView("reports")) return; exitFocusMode(); reportCenterMode = true; setView("reports"); renderReports(); }
 });
 
 // Catalog search — re-render then restore focus/caret so typing isn't interrupted.

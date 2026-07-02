@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260701c">
+  <link rel="stylesheet" href="app.css?v=20260701d">
 </head>
 <body>
 
@@ -82,6 +82,7 @@
         <div class="nav-group">
           <button class="nav-group-label" type="button" data-nav-group="daily"><span>اليومي</span><svg class="nav-group-chevron" aria-hidden="true"><use href="#ic-chevron"/></svg></button>
           <button class="nav-item active" data-view-button="dashboard" type="button" title="ملخص اليوم"><svg class="nav-ic" aria-hidden="true"><use href="#ic-dashboard"/></svg><span class="nav-label">ملخص اليوم</span></button>
+          <button class="nav-item" data-view-button="reception" type="button" title="لوحة الاستقبال — يوم العيادة"><svg class="nav-ic" aria-hidden="true"><use href="#ic-users"/></svg><span class="nav-label">الاستقبال</span></button>
           <button class="nav-item" data-view-button="growth" type="button" title="فرص النمو والتسويق"><svg class="nav-ic" aria-hidden="true"><use href="#ic-spark"/></svg><span class="nav-label">فرص النمو</span></button>
           <button class="nav-item" data-view-button="entries" type="button" title="عمليات اليوم"><svg class="nav-ic" aria-hidden="true"><use href="#ic-receipt"/></svg><span class="nav-label">عمليات اليوم</span></button>
           <button class="nav-item" data-view-button="packages" type="button" title="الباقات والجلسات"><svg class="nav-ic" aria-hidden="true"><use href="#ic-package"/></svg><span class="nav-label">الباقات والجلسات</span></button>
@@ -555,6 +556,22 @@
             <div class="alerts" data-alerts></div>
           </article>
         </div>
+      </section>
+
+      <section class="view" data-view="reception">
+        <article class="panel reception-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">يوم العيادة</p>
+              <h2>لوحة الاستقبال</h2>
+            </div>
+            <div class="top-actions">
+              <button class="primary-button" type="button" data-open-operation-modal>＋ تسجيل عملية</button>
+              <button class="ghost-chip" type="button" data-view-button="bookings">التقويم الكامل</button>
+            </div>
+          </div>
+          <div data-reception-board></div>
+        </article>
       </section>
 
       <section class="view" data-view="entries">
@@ -3206,7 +3223,7 @@
       </form>
     </div>
   </div>
-  <script src="app.js?v=20260701c"></script>
+  <script src="app.js?v=20260701d"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>
