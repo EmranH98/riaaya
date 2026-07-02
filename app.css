@@ -6825,6 +6825,16 @@ html[dir="ltr"] label {
 }
 
 /* Amount input row */
+/* Split collect (checkout) */
+.followup-split { display: flex; flex-direction: column; gap: 8px; }
+.followup-split-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.followup-split-cell { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 800; color: var(--ink-soft); }
+.followup-split-cell input { border: 1.5px solid #d0d0d0; border-radius: 8px; padding: 8px; font-size: 15px; font-weight: 800; text-align: center; background: #fff; }
+.followup-split-cell input:focus { outline: none; border-color: #d97706; }
+.followup-split-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.followup-split-total { font-size: 13px; font-weight: 800; color: var(--ink); }
+.followup-split-total strong { color: #b45309; }
+
 .followup-amount-row {
   display: flex;
   align-items: center;

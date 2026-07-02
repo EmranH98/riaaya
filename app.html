@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260701d">
+  <link rel="stylesheet" href="app.css?v=20260701e">
 </head>
 <body>
 
@@ -2956,21 +2956,24 @@
       </div>
       <div class="followup-summary" data-followup-summary></div>
       <form class="followup-form" data-followup-form novalidate>
-        <label class="followup-label">
-          مبلغ التكملة
-          <div class="followup-amount-row">
-            <input class="followup-amount-input" type="number" name="amount" min="0.01" step="0.01" placeholder="0.00" data-followup-amount required>
-            <span class="followup-currency">د.أ</span>
+        <div class="followup-split">
+          <span class="followup-method-label">التحصيل الآن — وزّع على طرق الدفع</span>
+          <div class="followup-split-grid">
+            <label class="followup-split-cell">كاش
+              <input class="followup-amount-input" type="number" name="cash" min="0" step="0.01" placeholder="0.00" data-followup-split="cash">
+            </label>
+            <label class="followup-split-cell">فيزا / بطاقة
+              <input class="followup-amount-input" type="number" name="card" min="0" step="0.01" placeholder="0.00" data-followup-split="card">
+            </label>
+            <label class="followup-split-cell">تحويل بنكي
+              <input class="followup-amount-input" type="number" name="transfer" min="0" step="0.01" placeholder="0.00" data-followup-split="transfer">
+            </label>
+          </div>
+          <div class="followup-split-footer">
+            <button type="button" class="ghost-chip" data-followup-fill-cash>املأ المتبقي كاش</button>
+            <span class="followup-split-total">إجمالي التحصيل: <strong data-followup-total>0</strong></span>
           </div>
           <small class="followup-remaining-hint" data-followup-remaining-hint></small>
-        </label>
-        <div class="followup-method-row">
-          <span class="followup-method-label">طريقة الدفع</span>
-          <div class="followup-chips">
-            <button type="button" class="payment-chip active" data-followup-method="cash">كاش</button>
-            <button type="button" class="payment-chip" data-followup-method="card">فيزا / بطاقة</button>
-            <button type="button" class="payment-chip" data-followup-method="transfer">تحويل بنكي</button>
-          </div>
         </div>
         <label class="followup-label">
           ملاحظة (اختياري)
@@ -2978,7 +2981,7 @@
         </label>
         <div class="followup-actions">
           <button type="button" class="followup-cancel-btn" data-close-followup>إلغاء</button>
-          <button type="button" class="followup-submit-btn" data-submit-followup>تأكيد التكملة ←</button>
+          <button type="button" class="followup-submit-btn" data-submit-followup>تأكيد التحصيل ←</button>
         </div>
       </form>
     </div>
@@ -3223,7 +3226,7 @@
       </form>
     </div>
   </div>
-  <script src="app.js?v=20260701d"></script>
+  <script src="app.js?v=20260701e"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>

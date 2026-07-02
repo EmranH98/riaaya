@@ -1502,7 +1502,7 @@ function renderReception() {
       <td class="reception-time">${e.time ? displayTime(e.time) : "—"}</td>
       <td><strong>${e.patient}</strong><small>${serviceLabel(e)} · ${teamLabel(e)}</small></td>
       <td>${badge}</td>
-      <td class="reception-actions">${rem > 0.009 && showMoney ? `<button class="dark-button" type="button" data-edit-entry="${e.id}">تحصيل</button>` : ""}</td>
+      <td class="reception-actions">${rem > 0.009 && showMoney ? `<button class="dark-button" type="button" data-followup-entry="${e.id}">تحصيل</button>` : ""}</td>
     </tr>`;
   }).join("") : `<tr><td colspan="4" class="report-empty">لا عمليات بعد اليوم.</td></tr>`;
 
@@ -2393,6 +2393,24 @@ let communicationBackendStatus = null;
 let storageSafetyStatus = null;
 let currentFollowupId = null;
 let selectedFollowupMethod = "cash";
+let followupRemaining = 0;
+
+// Sum the split inputs and reflect it in the live total.
+function readFollowupSplit() {
+  const split = { cash: 0, card: 0, transfer: 0 };
+  document.querySelectorAll("[data-followup-split]").forEach(input => {
+    split[input.dataset.followupSplit] = Math.max(numberValue(input.value), 0);
+  });
+  split.total = split.cash + split.card + split.transfer;
+  return split;
+}
+function updateFollowupTotal() {
+  const totalEl = document.querySelector("[data-followup-total]");
+  if (totalEl) totalEl.textContent = money(readFollowupSplit().total);
+}
+document.addEventListener("input", event => {
+  if (event.target.closest("[data-followup-split]")) updateFollowupTotal();
+});
 
 const els = {
   viewButtons: document.querySelectorAll("[data-view-button]"),
@@ -2870,18 +2888,15 @@ function openFollowupModal(entryId) {
       </div>`;
   }
 
-  if (els.followupAmount) {
-    els.followupAmount.value = remaining > 0 ? remaining.toFixed(2) : "";
-    els.followupAmount.max = remaining > 0 ? remaining.toFixed(2) : "";
-  }
+  followupRemaining = remaining;
+  // Reset the split inputs — prefill cash with the full remaining (the common path).
+  const splitInputs = document.querySelectorAll("[data-followup-split]");
+  splitInputs.forEach(input => { input.value = input.dataset.followupSplit === "cash" && remaining > 0 ? remaining.toFixed(2) : ""; });
   if (els.followupRemainingHint) {
-    els.followupRemainingHint.textContent = `الحد الأقصى: ${money(remaining)}`;
+    els.followupRemainingHint.textContent = `المتبقي على الجلسة: ${money(remaining)}`;
   }
   if (els.followupNote) els.followupNote.value = "";
-
-  document.querySelectorAll("[data-followup-method]").forEach(btn => {
-    btn.classList.toggle("active", btn.dataset.followupMethod === "cash");
-  });
+  updateFollowupTotal();
 
   if (els.followupModal) {
     els.followupModal.hidden = false;
@@ -2904,37 +2919,44 @@ function submitFollowup() {
   const entry = state.entries.find(e => e.id === currentFollowupId);
   if (!entry) return;
 
-  const rawVal = parseFloat(els.followupAmount?.value || "0");
-  if (!rawVal || rawVal <= 0) {
-    alert("يرجى إدخال مبلغ صحيح أكبر من صفر.");
+  const split = readFollowupSplit();
+  if (split.total <= 0) {
+    alert("يرجى إدخال مبلغ التحصيل على طريقة دفع واحدة على الأقل.");
     return;
   }
 
   const net = netAmount(entry);
   const remaining = Math.max(net - paidAmount(entry), 0);
-  const amount = Math.min(rawVal, remaining > 0 ? remaining : rawVal);
+  // Don't silently overshoot the balance — ask the user to correct it.
+  if (remaining > 0 && split.total > remaining + 0.01) {
+    alert(`إجمالي التحصيل (${money(split.total)}) أكبر من المتبقي (${money(remaining)}). عدّل المبالغ.`);
+    return;
+  }
 
   const note = (els.followupNote?.value || "").trim();
   const date = new Date().toISOString().slice(0, 10);
   const methodLabels = { cash: "كاش", card: "فيزا", transfer: "تحويل" };
-  const methodLabel = methodLabels[selectedFollowupMethod] || selectedFollowupMethod;
 
-  if (!entry.paymentBreakdown) {
-    entry.paymentBreakdown = { cash: 0, card: 0, transfer: 0, insurance: 0 };
-  }
-  entry.paymentBreakdown[selectedFollowupMethod] =
-    (entry.paymentBreakdown[selectedFollowupMethod] || 0) + amount;
+  const breakdown = entryPaymentBreakdown(entry);
+  entry.paymentBreakdown = {
+    cash: numberValue(breakdown.cash) + split.cash,
+    card: numberValue(breakdown.card) + split.card,
+    transfer: numberValue(breakdown.transfer) + split.transfer
+  };
+  entry.paymentMethod = paymentMethodFromBreakdown(entry.paymentBreakdown, entry.paymentMethod);
 
   const newPaid = paidAmount(entry);
   entry.status = newPaid >= net - 0.01 ? "completed" : "partial_payment";
 
-  const noteStamp = `تكملة ${date}: ${money(amount)} (${methodLabel})`;
+  const parts = PAYMENT_METHODS.filter(m => split[m] > 0.009).map(m => `${methodLabels[m]} ${money(split[m])}`).join(" + ");
+  const noteStamp = `تكملة ${date}: ${parts}`;
+  const amount = split.total;
   const combined = [note ? `${noteStamp} — ${note}` : noteStamp];
   if (entry.notes) combined.unshift(entry.notes);
   entry.notes = combined.join(" | ");
 
   const isNowComplete = entry.status === "completed";
-  logEdit("تكملة دفع", `${entry.visitNumber ? "#" + entry.visitNumber + " " : ""}${entry.patient || ""} · ${money(amount)} (${methodLabel})`);
+  logEdit("تكملة دفع", `${entry.visitNumber ? "#" + entry.visitNumber + " " : ""}${entry.patient || ""} · ${money(amount)} (${parts})`);
   saveState();
   closeFollowupModal();
   render();
@@ -13648,7 +13670,8 @@ document.addEventListener("click", event => {
   if (!event.target.closest("[data-nav-autohide-toggle]")) return;
   setNavAutohide(!document.querySelector(".app-shell")?.classList.contains("nav-autohide"));
 });
-try { setNavAutohide(localStorage.getItem("riaaya-nav-autohide") === "1"); } catch {}
+// Sidebar hidden by default (autohide on) — only stay open if the user explicitly turned it off.
+try { setNavAutohide(localStorage.getItem("riaaya-nav-autohide") !== "0"); } catch { setNavAutohide(true); }
 
 // Calendar: show/hide the management area (KPIs, legend, column controls). Hidden
 // by default; the toggle is data-sensitive so restricted staff only ever see the rows.
@@ -15333,11 +15356,15 @@ document.addEventListener("click", async event => {
     return;
   }
 
-  if (followupMethodAction) {
-    selectedFollowupMethod = followupMethodAction.dataset.followupMethod;
-    document.querySelectorAll("[data-followup-method]").forEach(btn => {
-      btn.classList.toggle("active", btn.dataset.followupMethod === selectedFollowupMethod);
-    });
+  if (event.target.closest("[data-followup-fill-cash]")) {
+    // Put whatever is still uncovered by card/transfer into cash.
+    const split = readFollowupSplit();
+    const cashInput = document.querySelector('[data-followup-split="cash"]');
+    if (cashInput) {
+      const rest = Math.max(followupRemaining - split.card - split.transfer, 0);
+      cashInput.value = rest > 0 ? rest.toFixed(2) : "";
+      updateFollowupTotal();
+    }
     return;
   }
 
