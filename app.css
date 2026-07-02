@@ -79,25 +79,26 @@ button {
 
 .app-shell {
   min-height: 100vh;
-  display: grid;
-  grid-template-columns: 260px minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
 }
 
+/* Navigation is a horizontal top bar. It sits in normal flow (static), so it
+   scrolls away with the page instead of covering content. */
 .sidebar {
   background: var(--sidebar-bg);
   color: var(--sidebar-text-active);
-  padding: 24px 18px;
+  padding: 8px 16px;
   display: flex;
-  flex-direction: column;
-  gap: 24px;
-  position: sticky;
-  top: 0;
-  height: 100vh;
-  height: 100dvh;
-  max-height: 100dvh;
-  overflow: hidden;
-  border-inline-start: none;
-  box-shadow: 2px 0 24px rgba(0,0,0,0.18);
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+  position: static;
+  width: 100%;
+  height: auto;
+  max-height: none;
+  overflow: visible;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.16);
 }
 
 .brand {
@@ -150,14 +151,15 @@ button {
 
 .side-nav {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
   flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: visible;
   overscroll-behavior: contain;
-  padding-inline-end: 4px;
-  scrollbar-gutter: stable;
+  scrollbar-width: thin;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -175,14 +177,16 @@ button {
 }
 
 .nav-item {
-  width: 100%;
+  width: auto;
   border: 0;
-  border-radius: 10px;
-  padding: 12px 14px;
+  border-radius: 8px;
+  padding: 8px 12px;
   background: transparent;
   color: var(--sidebar-text);
-  text-align: right;
+  text-align: center;
   font-weight: 700;
+  white-space: nowrap;
+  flex: 0 0 auto;
   transition: background 0.2s, color 0.2s;
 }
 
@@ -195,7 +199,7 @@ button {
   background: var(--sidebar-active);
   color: var(--sidebar-text-active);
   font-weight: 800;
-  box-shadow: inset -4px 0 0 var(--teal);
+  box-shadow: inset 0 -3px 0 var(--teal);
 }
 
 .sidebar-card {
@@ -3455,9 +3459,18 @@ body:not(.can-bulk-delete) .patient-bulk-col { display: none; }
 
 .day-schedule-grid {
   display: grid;
-  grid-template-columns: 82px repeat(var(--schedule-column-count), minmax(158px, 1fr));
-  min-width: max(760px, 100%);
+  grid-template-columns: 60px repeat(var(--schedule-column-count), minmax(0, 1fr));
+  min-width: 0;
 }
+
+/* Bookings screen = calendar rows only. The KPI cards and the inline new-booking
+   form are hidden; booking happens by clicking a slot or the «＋ حجز» button
+   (a full-screen overlay), and the grid fits the width — no left/right scroll. */
+.view[data-view="bookings"] .booking-kpis { display: none; }
+/* Keep the day-schedule grid (2nd panel); hide only the inline new-booking form. */
+.view[data-view="bookings"] .split-layout { grid-template-columns: 1fr; }
+.view[data-view="bookings"] .split-layout > article:first-child { display: none; }
+.view[data-view="bookings"] .day-schedule-scroll { max-height: calc(100vh - 230px); }
 
 .day-schedule-cell {
   min-width: 0;
@@ -7595,8 +7608,36 @@ html[dir="ltr"] label {
 .nav-group:not(.open) .nav-group-chevron { transform: rotate(-90deg); }
 .app-shell:not(.nav-collapsed) .nav-group:not(.open) > .nav-item { display: none; }
 .nav-group:not(:has(.nav-item:not([hidden]))) { display: none; }
-.nav-collapse-toggle { align-self: flex-start; width: 40px; height: 40px; display: grid; place-items: center; border: 0; border-radius: 10px; background: rgba(255,255,255,0.06); color: var(--sidebar-text); cursor: pointer; flex: 0 0 auto; }
+.nav-collapse-toggle { align-self: center; width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 10px; background: rgba(255,255,255,0.06); color: var(--sidebar-text); cursor: pointer; flex: 0 0 auto; }
 .nav-collapse-toggle:hover { background: var(--sidebar-hover); color: var(--sidebar-text-active); }
+
+/* ── Top-bar layout overrides ─────────────────────────────────────────────
+   Nav is now a horizontal top bar, so groups flow inline, every item is always
+   visible, and the old vertical slide-out/collapse behaviors are neutralized. */
+.app-shell { transition: none; }
+.side-nav .nav-group { display: contents; }
+.side-nav .nav-group-label { display: none; }
+.app-shell .nav-group:not(.open) > .nav-item { display: flex; }
+.side-nav .nav-item { gap: 8px; padding: 8px 11px; font-size: 13px; }
+.side-nav .nav-item .nav-label { white-space: nowrap; }
+.sidebar .brand { flex: 0 0 auto; }
+.sidebar .brand small { display: none; }
+/* No more off-canvas sliding — the bar is always in flow at the top. */
+.app-shell.nav-autohide,
+.app-shell.nav-collapsed,
+.app-shell.calendar-focus { grid-template-columns: none; }
+.app-shell.nav-autohide .sidebar,
+.app-shell.calendar-focus.sidebar-peek .sidebar,
+.app-shell.nav-autohide.sidebar-peek .sidebar { transform: none; }
+.app-shell.calendar-focus .sidebar { display: none; }
+.nav-collapsed .nav-label { display: inline; }
+/* Health widget collapses to a compact inline pill on the bar. */
+.sidebar .sidebar-card { flex: 0 0 auto; flex-direction: row; align-items: center; gap: 7px; padding: 5px 11px; background: rgba(255,255,255,0.06); border-radius: 999px; }
+.sidebar .sidebar-health-bar,
+.sidebar [data-health-note] { display: none; }
+.sidebar .sidebar-card-label { font-size: 11px; margin: 0; opacity: 0.7; }
+.sidebar .sidebar-card-value { font-size: 12px; }
+.sidebar .brand-logo-mark { width: 38px; height: 38px; }
 
 .app-shell.nav-collapsed { grid-template-columns: 78px minmax(0, 1fr); }
 .nav-collapsed .sidebar { padding: 20px 14px; }

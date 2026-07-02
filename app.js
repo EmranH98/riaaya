@@ -13231,6 +13231,13 @@ function openCategoryRowPrompt(category) {
   document.addEventListener("click", event => {
     if (event.target.closest("[data-slot-booking-close]") || event.target === modal) { close(); return; }
     if (event.target.closest(".day-schedule-booking")) return;
+    // «＋ حجز جديد» button opens the form blank at the first column / start of day.
+    if (event.target.closest("[data-new-booking]")) {
+      if (!canUseFeature("add_appointment")) return;
+      const firstColumn = bookingScheduleColumns()[0];
+      open(state.settings.activeDate, state.settings.workStart || "09:00", firstColumn?.id || "");
+      return;
+    }
     const slot = event.target.closest(".day-schedule-slot");
     if (slot && slot.dataset.dropSlot && slot.dataset.dropColumn) {
       if (!canUseFeature("add_appointment")) return;
@@ -13671,7 +13678,8 @@ document.addEventListener("click", event => {
   setNavAutohide(!document.querySelector(".app-shell")?.classList.contains("nav-autohide"));
 });
 // Sidebar hidden by default (autohide on) — only stay open if the user explicitly turned it off.
-try { setNavAutohide(localStorage.getItem("riaaya-nav-autohide") !== "0"); } catch { setNavAutohide(true); }
+// Top bar is always visible; autohide (a leftover of the vertical rail) stays off.
+try { setNavAutohide(localStorage.getItem("riaaya-nav-autohide") === "1"); } catch { setNavAutohide(false); }
 
 // Calendar: show/hide the management area (KPIs, legend, column controls). Hidden
 // by default; the toggle is data-sensitive so restricted staff only ever see the rows.
