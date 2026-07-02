@@ -7362,16 +7362,40 @@ function renderImportPreview() {
   }
 }
 
+let importAssignStaffId = "";
+
+function renderImportAssignStaff() {
+  const wrap = document.querySelector("[data-import-assign-wrap]");
+  const select = document.querySelector("[data-import-assign-staff]");
+  if (!wrap || !select) return;
+  // Only relevant for records that carry a provider (operations / bookings).
+  const relevant = importSession && (importSession.entity === "operations" || importSession.entity === "bookings");
+  wrap.hidden = !relevant;
+  if (!relevant) { importAssignStaffId = ""; return; }
+  const staff = (state.staff || []).filter(m => m.active !== false);
+  select.innerHTML = `<option value="">— حسب العمود المستورد —</option>`
+    + staff.map(m => `<option value="${m.id}"${m.id === importAssignStaffId ? " selected" : ""}>${esc(m.name)}${m.role ? " · " + roleLabel(m.role) : ""}</option>`).join("");
+}
+
 function renderImportWorkspace() {
   if (!els.importWorkspace) return;
   els.importWorkspace.hidden = !importSession;
   if (!importSession) return;
+  renderImportAssignStaff();
   renderImportMapping();
   renderImportPreview();
 }
 
+// Assign the whole imported batch to one existing employee (overrides the column).
+document.addEventListener("change", event => {
+  const select = event.target.closest("[data-import-assign-staff]");
+  if (!select) return;
+  importAssignStaffId = select.value;
+});
+
 function resetImportWorkspace() {
   importSession = null;
+  importAssignStaffId = "";
   els.importSourceForm?.reset();
   if (els.importWorkspace) els.importWorkspace.hidden = true;
   if (els.importMapping) els.importMapping.innerHTML = "";
@@ -7461,6 +7485,11 @@ function commitImportRecords() {
   if (!importSession || !canUseFeature("import_data")) return;
   _importFuzzyMatches = [];
   _importCreatedStaff = [];
+  // "Assign whole import to one employee": when set, every record's provider is
+  // this staff member (in their role slot), overriding the imported column.
+  const forcedStaff = getStaffMember(importAssignStaffId);
+  const rowDoctorId = record => forcedStaff && forcedStaff.role === "doctor" ? forcedStaff.id : importedStaffId(record.doctor, "doctor");
+  const rowSpecialistId = record => forcedStaff && forcedStaff.role && forcedStaff.role !== "doctor" ? forcedStaff.id : importedStaffId(record.specialist, "specialist");
   const rows = buildImportRows();
   const validRows = rows.filter(row => !row.errors.length && !row.duplicate);
   // Track every record this import creates so the whole batch can be undone later.
@@ -7505,8 +7534,8 @@ function commitImportRecords() {
         time: record.time,
         serviceId: service.id,
         service: service.name,
-        doctorId: importedStaffId(record.doctor, "doctor"),
-        specialistId: importedStaffId(record.specialist, "specialist"),
+        doctorId: rowDoctorId(record),
+        specialistId: rowSpecialistId(record),
         status: record.status || "scheduled",
         expectedAmount: record.expectedAmount,
         notes: record.notes
@@ -7525,8 +7554,8 @@ function commitImportRecords() {
         date: record.date,
         serviceId: service.id,
         service: service.name,
-        doctorId: importedStaffId(record.doctor, "doctor"),
-        specialistId: importedStaffId(record.specialist, "specialist"),
+        doctorId: rowDoctorId(record),
+        specialistId: rowSpecialistId(record),
         quantity: record.quantity,
         amount: record.amount,
         unitPrice: record.quantity ? record.amount / record.quantity : record.amount,
@@ -11837,33 +11866,25 @@ els.viewButtons.forEach(button => {
   const GROUPS_KEY = "riaaya-nav-groups";
   const navGroups = [...document.querySelectorAll(".side-nav .nav-group")];
   const groupKey = group => group.querySelector("[data-nav-group]")?.dataset.navGroup || "";
-  const openActiveGroup = () => {
-    document.querySelector(".side-nav .nav-item.active")?.closest(".nav-group")?.classList.add("open");
-  };
-  let savedGroups = {};
-  try { savedGroups = JSON.parse(localStorage.getItem(GROUPS_KEY) || "{}") || {}; } catch {}
-  navGroups.forEach(group => {
-    const key = groupKey(group);
-    if (key in savedGroups) group.classList.toggle("open", !!savedGroups[key]);
-  });
-  openActiveGroup();
-  const persistGroups = () => {
-    const map = {};
-    navGroups.forEach(group => { map[groupKey(group)] = group.classList.contains("open"); });
-    try { localStorage.setItem(GROUPS_KEY, JSON.stringify(map)); } catch {}
-  };
+  // Top-bar menus start closed and open on click (reliable — no hover race).
+  const closeAllGroups = () => navGroups.forEach(group => group.classList.remove("open"));
   document.querySelectorAll(".side-nav [data-nav-group]").forEach(button => {
-    button.addEventListener("click", () => {
-      button.closest(".nav-group")?.classList.toggle("open");
-      persistGroups();
+    button.addEventListener("click", event => {
+      event.stopPropagation();
+      const group = button.closest(".nav-group");
+      const wasOpen = group?.classList.contains("open");
+      closeAllGroups();                       // only one menu open at a time
+      if (group && !wasOpen) group.classList.add("open");
     });
   });
+  // Click anywhere outside an open menu closes it.
+  document.addEventListener("click", event => {
+    if (!event.target.closest(".side-nav .nav-group.open")) closeAllGroups();
+  });
   document.querySelectorAll(".side-nav .nav-item").forEach(item => {
-    // Selecting a top-bar menu item navigates and then closes the dropdown by
-    // releasing focus (the menu is shown via :hover / :focus-within).
+    // Selecting a menu item navigates and closes the open menu.
     item.addEventListener("click", () => {
-      if (item.closest(".nav-dropdown")) { if (typeof item.blur === "function") item.blur(); }
-      else item.closest(".nav-group")?.classList.add("open");
+      if (item.closest(".nav-dropdown")) { closeAllGroups(); if (typeof item.blur === "function") item.blur(); }
     });
   });
 

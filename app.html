@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260701l">
+  <link rel="stylesheet" href="app.css?v=20260701m">
 </head>
 <body>
 
@@ -2535,6 +2535,11 @@
           </form>
           <div class="import-workspace" data-import-workspace hidden>
             <div class="import-summary" data-import-summary></div>
+            <label class="import-assign-staff" data-import-assign-wrap hidden>
+              إسناد كل السجلات إلى موظف واحد (اختياري)
+              <select data-import-assign-staff><option value="">— حسب العمود المستورد —</option></select>
+              <small>عند الاختيار، تُنسب كل العمليات/الحجوزات المستوردة لهذا الموظف بدلاً من عمود الطبيب/الأخصائي.</small>
+            </label>
             <div class="import-mapping" data-import-mapping></div>
             <div class="table-wrap import-preview-wrap">
               <table>
@@ -3235,7 +3240,7 @@
       </form>
     </div>
   </div>
-  <script src="app.js?v=20260701l"></script>
+  <script src="app.js?v=20260701m"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>
