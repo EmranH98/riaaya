@@ -222,8 +222,15 @@ button {
 }
 
 .workspace {
-  padding: 28px;
+  padding: 16px;
   min-width: 0;
+}
+/* Reports run edge-to-edge and practical — no card inset, full workspace width. */
+.view[data-view="reports"] .full-report-panel {
+  border-radius: 10px;
+}
+.view[data-view="reports"].active {
+  margin: -4px;
 }
 
 .runtime-banner {
@@ -406,9 +413,9 @@ html[dir="rtl"] .eyebrow {
 .panel,
 .kpi {
   background: white;
-  border: 1px solid rgba(36,21,19,0.08);
-  border-radius: 24px;
-  box-shadow: 0 12px 32px rgba(36,21,19,0.04);
+  border: 1px solid rgba(36,21,19,0.12);
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(36,21,19,0.05);
 }
 
 .clinic-strip {
