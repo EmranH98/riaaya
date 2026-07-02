@@ -2418,6 +2418,8 @@ const els = {
   scheduleColumnForm: document.querySelector("[data-schedule-column-form]"),
   scheduleColumnList: document.querySelector("[data-schedule-column-list]"),
   scheduleSlotMinutes: document.querySelector("[data-schedule-slot-minutes]"),
+  workStartInput: document.querySelector("[data-work-start]"),
+  workEndInput: document.querySelector("[data-work-end]"),
   rulePersonSelect: document.querySelector("[data-rule-person-select]"),
   ruleServiceSelect: document.querySelector("[data-rule-service-select]"),
   inventorySupplierSelect: document.querySelector("[data-inventory-supplier-select]"),
@@ -4980,6 +4982,9 @@ function renderScheduleColumnControls() {
   if (els.scheduleSlotMinutes) {
     els.scheduleSlotMinutes.value = String(slotMinutes);
   }
+
+  if (els.workStartInput) els.workStartInput.value = state.settings.workStart || "08:00";
+  if (els.workEndInput) els.workEndInput.value = state.settings.workEnd || "18:00";
 
   if (els.bookingForm?.elements.time) {
     els.bookingForm.elements.time.step = String(slotMinutes * 60);
@@ -13182,6 +13187,30 @@ if (els.scheduleSlotMinutes) {
     renderBookingDayCalendar();
   });
 }
+
+// Working hours, editable straight from the calendar settings — the day grid runs
+// from workStart to workEnd, so extending workEnd past 18:00 opens later slots.
+function bindWorkHourInput(input, key, fallback) {
+  if (!input) return;
+  input.addEventListener("change", event => {
+    if (!canViewSensitive()) return;
+    const value = event.target.value;
+    if (!/^\d{2}:\d{2}$/.test(value)) { event.target.value = state.settings[key] || fallback; return; }
+    // Keep start < end so the grid never collapses.
+    if (key === "workStart" && minutesFromTime(value) >= minutesFromTime(state.settings.workEnd || "18:00")) {
+      alert("بداية الدوام يجب أن تكون قبل نهايته."); event.target.value = state.settings.workStart || fallback; return;
+    }
+    if (key === "workEnd" && minutesFromTime(value) <= minutesFromTime(state.settings.workStart || "08:00")) {
+      alert("نهاية الدوام يجب أن تكون بعد بدايته."); event.target.value = state.settings.workEnd || fallback; return;
+    }
+    state.settings[key] = value;
+    saveState();
+    renderScheduleColumnControls();
+    renderBookingDayCalendar();
+  });
+}
+bindWorkHourInput(els.workStartInput, "workStart", "08:00");
+bindWorkHourInput(els.workEndInput, "workEnd", "18:00");
 
 if (els.reportSelect) {
   els.reportSelect.addEventListener("change", () => {

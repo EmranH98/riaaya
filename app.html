@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260625b">
+  <link rel="stylesheet" href="app.css?v=20260701a">
 </head>
 <body>
 
@@ -1052,6 +1052,14 @@
                 <option value="45">45 دقيقة</option>
                 <option value="60">60 دقيقة</option>
               </select>
+            </label>
+            <label class="schedule-slot-control">
+              بداية الدوام
+              <input type="time" step="900" data-work-start>
+            </label>
+            <label class="schedule-slot-control">
+              نهاية الدوام
+              <input type="time" step="900" data-work-end>
             </label>
             <div class="schedule-column-list" data-schedule-column-list></div>
           </div>
@@ -3198,7 +3206,7 @@
       </form>
     </div>
   </div>
-  <script src="app.js?v=20260625b"></script>
+  <script src="app.js?v=20260701a"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>
