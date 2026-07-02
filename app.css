@@ -3498,6 +3498,9 @@ body.calendar-page [data-booking-list] { display: none; }
    and the nav bar slides back on any scroll-up. */
 body.calendar-page .view[data-view="bookings"] .day-schedule-scroll { max-height: none; overflow: visible; }
 body.calendar-page .booking-day-calendar { overflow: visible; }
+/* The nav bar is sticky (z-index 90). Pin the calendar's own sticky column
+   headers just BELOW it so returning-on-scroll-up never covers the grid. */
+body.calendar-page .day-schedule-header-cell { top: 54px; }
 
 .day-schedule-cell {
   min-width: 0;
