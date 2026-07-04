@@ -7616,3 +7616,7 @@ button.highway-step:hover .highway-node { border-color: var(--teal); }
   max-height: 50dvh;
   overflow-y: auto;
 }
+
+/* Column editor: dedicated-provider select */
+.column-provider-field { display: grid; gap: 6px; font-weight: 700; font-size: var(--text-md); }
+.column-provider-field select { width: 100%; }

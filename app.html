@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260704c">
+  <link rel="stylesheet" href="app.css?v=20260704d">
 </head>
 <body>
 
@@ -3101,8 +3101,9 @@
           <select name="time" data-slot-booking-time required></select>
         </label>
         <label>
-          الطبيب (اختياري)
-          <select name="doctorId" data-slot-booking-doctor></select>
+          المنفّذ — طبيب أو أخصائي
+          <select name="providerId" data-slot-booking-provider></select>
+          <span class="expected-ref" data-slot-booking-provider-note hidden></span>
         </label>
         <div class="slot-booking-actions">
           <button class="primary-button" type="submit">تأكيد الحجز</button>
@@ -3265,7 +3266,7 @@
       </form>
     </div>
   </div>
-  <script src="app.js?v=20260704c"></script>
+  <script src="app.js?v=20260704d"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>
