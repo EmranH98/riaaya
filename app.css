@@ -7620,3 +7620,11 @@ button.highway-step:hover .highway-node { border-color: var(--teal); }
 /* Column editor: dedicated-provider select */
 .column-provider-field { display: grid; gap: 6px; font-weight: 700; font-size: var(--text-md); }
 .column-provider-field select { width: 100%; }
+
+/* Column editor: staff group headings */
+.column-staff-group {
+  margin: 4px 0 0;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--ink-soft);
+}

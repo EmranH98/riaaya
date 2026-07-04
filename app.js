@@ -2004,14 +2004,19 @@ function normalizeScheduleColumn(column = {}, index = 0) {
   const categories = Array.isArray(column.categories)
     ? [...new Set(column.categories.filter(Boolean))]
     : (column.category ? [column.category] : []);
+  // Assigned team: bookings in this column are limited to these staff members
+  // (doctors or specialists). One person → auto-assigned and locked; several →
+  // pick among them only; none → free choice of the whole staff.
+  const staffIds = Array.isArray(column.staffIds)
+    ? [...new Set(column.staffIds.map(value => String(value || "").trim()).filter(Boolean))]
+    : (String(column.staffId || "").trim() ? [String(column.staffId).trim()] : []);
   return {
     id,
     label,
     categories,
     category: categories[0] || "",
-    // Dedicated provider: bookings in this column are always assigned to this
-    // staff member (doctor or specialist) and the picker locks to them.
-    staffId: String(column.staffId || "").trim(),
+    staffIds,
+    staffId: staffIds[0] || "",
     active: column.active !== false
   };
 }
@@ -5180,8 +5185,8 @@ function renderScheduleColumnControls() {
     // appear when booking a slot in that column (empty = all services).
     els.scheduleColumnList.innerHTML = columns.map(column => {
       const cats = (column.categories || []).filter(Boolean);
-      const provider = column.staffId ? getStaffMember(column.staffId) : null;
-      const catLabel = [cats.length ? cats.join("، ") : "كل الخدمات", provider ? `👤 ${provider.name}` : ""].filter(Boolean).join(" · ");
+      const teamNames = (column.staffIds || []).map(id => getStaffMember(id)?.name).filter(Boolean);
+      const catLabel = [cats.length ? cats.join("، ") : "كل الخدمات", teamNames.length ? `👤 ${teamNames.join("، ")}` : ""].filter(Boolean).join(" · ");
       return `
       <span class="schedule-column-pill">
         ${canViewSensitive()
@@ -5215,23 +5220,20 @@ function openColumnCategoryEditor(columnId) {
   const selected = new Set((column.categories || []).filter(Boolean));
   const doctors = (state.staff || []).filter(member => member.role === "doctor" && member.active !== false);
   const specialists = (state.staff || []).filter(member => member.role === "specialist" && member.active !== false);
-  const providerOptions = `<option value="">— بدون تخصيص: اختيار حر عند الحجز</option>`
-    + (doctors.length ? `<optgroup label="الأطباء">${doctors.map(member => `<option value="${member.id}"${column.staffId === member.id ? " selected" : ""}>${esc(member.name)}</option>`).join("")}</optgroup>` : "")
-    + (specialists.length ? `<optgroup label="الأخصائيون">${specialists.map(member => `<option value="${member.id}"${column.staffId === member.id ? " selected" : ""}>${esc(member.name)}</option>`).join("")}</optgroup>` : "");
+  const assigned = new Set(Array.isArray(column.staffIds) ? column.staffIds : (column.staffId ? [column.staffId] : []));
+  const staffCheck = member => `<label class="inline-check"><input type="checkbox" data-column-staff-check value="${esc(member.id)}"${assigned.has(member.id) ? " checked" : ""}> ${esc(member.name)}</label>`;
   const modal = document.createElement("div");
   modal.className = "close-sheet-modal column-cats-modal";
   modal.innerHTML = `
     <div class="close-sheet-card" role="dialog" aria-modal="true" aria-label="إعدادات عمود التقويم">
       <h3>إعدادات عمود «${esc(column.label)}»</h3>
-      <label class="column-provider-field">
-        الموظف المسؤول عن هذا العمود
-        <select data-column-staff>${providerOptions}</select>
-      </label>
-      <p class="close-sheet-note">عند تخصيص طبيب أو أخصائي، كل حجز في هذا العمود يُسند إليه تلقائياً ولا يمكن اختيار غيره.</p>
+      <p class="close-sheet-note"><strong>فريق العمود:</strong> اختر من ينفّذ حجوزات هذا العمود. شخص واحد → يُسند تلقائياً ولا يمكن اختيار غيره؛ أكثر من شخص → يُختار من بينهم فقط عند الحجز؛ بدون تحديد → اختيار حر من كل الطاقم.</p>
+      ${doctors.length ? `<p class="column-staff-group">الأطباء</p><div class="column-cats-list">${doctors.map(staffCheck).join("")}</div>` : ""}
+      ${specialists.length ? `<p class="column-staff-group">الأخصائيون</p><div class="column-cats-list">${specialists.map(staffCheck).join("")}</div>` : ""}
       <p class="close-sheet-note"><strong>فئات الخدمات:</strong> اختر ما يظهر عند الحجز في هذا العمود. اترك الكل بدون تحديد ليعرض العمود كل الخدمات.</p>
       <div class="column-cats-list">
         ${cats.length ? cats.map(cat => `
-          <label class="inline-check"><input type="checkbox" value="${esc(cat)}"${selected.has(cat) ? " checked" : ""}> ${esc(cat)}</label>
+          <label class="inline-check"><input type="checkbox" data-column-cat-check value="${esc(cat)}"${selected.has(cat) ? " checked" : ""}> ${esc(cat)}</label>
         `).join("") : `<p class="close-sheet-note">لا توجد فئات بعد — أضف فئات الخدمات من شاشة «إضافة خدمة».</p>`}
       </div>
       <div class="close-sheet-actions">
@@ -5242,16 +5244,18 @@ function openColumnCategoryEditor(columnId) {
   modal.addEventListener("click", event => {
     if (event.target === modal || event.target.closest("[data-close-sheet-dismiss]")) { modal.remove(); return; }
     if (event.target.closest("[data-save-column-cats]")) {
-      const chosen = [...modal.querySelectorAll('input[type="checkbox"]:checked')].map(input => input.value);
+      const chosen = [...modal.querySelectorAll("[data-column-cat-check]:checked")].map(input => input.value);
+      const team = [...modal.querySelectorAll("[data-column-staff-check]:checked")].map(input => input.value);
       column.categories = chosen;
       column.category = chosen[0] || "";
-      column.staffId = modal.querySelector("[data-column-staff]")?.value || "";
+      column.staffIds = team;
+      column.staffId = team[0] || "";
       saveState();
       render();
       modal.remove();
-      const providerName = column.staffId ? getStaffMember(column.staffId)?.name : "";
+      const teamNames = team.map(id => getStaffMember(id)?.name).filter(Boolean);
       const catText = chosen.length ? `يعرض: ${chosen.join("، ")}` : "يعرض كل الخدمات";
-      showToast(`عمود «${column.label}» ${catText}${providerName ? ` — مخصص لـ ${providerName}` : ""}`, "success");
+      showToast(`عمود «${column.label}» ${catText}${teamNames.length ? ` — فريقه: ${teamNames.join("، ")}` : ""}`, "success");
     }
   });
   document.body.appendChild(modal);
@@ -8031,7 +8035,7 @@ function bookingScheduleColumns() {
       id: column.id,
       label: column.label,
       categories,
-      staffId: column.staffId || "",
+      staffIds: Array.isArray(column.staffIds) ? column.staffIds : (column.staffId ? [column.staffId] : []),
       role: categories.length
         ? categories.join("، ")
         : (currentLanguage() === "en" ? "Calendar column" : "عمود تقويم")
@@ -13527,23 +13531,33 @@ function openCategoryRowPrompt(category) {
     return rows.map(row => `<option value="${row.time}"${row.taken && row.time !== selected ? " disabled" : ""}${row.time === selected ? " selected" : ""}>${displayTime(row.time)}${row.taken ? " — محجوز" : ""}</option>`).join("");
   }
 
-  // The provider list offers doctors AND specialists. A column with a dedicated
-  // provider locks the picker to them — the booking is theirs by definition.
+  // The provider list offers doctors AND specialists. A column with an assigned
+  // team narrows the picker to that team; a single assignee locks it entirely.
   function fillProviders(column) {
     if (!providerSel) return;
-    const doctors = (state.staff || []).filter(member => member.role === "doctor" && member.active !== false);
-    const specialists = (state.staff || []).filter(member => member.role === "specialist" && member.active !== false);
-    const dedicated = column?.staffId ? getStaffMember(column.staffId) : null;
-    const options = `<option value="">—</option>`
+    const teamIds = new Set(Array.isArray(column?.staffIds) ? column.staffIds : []);
+    const pool = member => member.active !== false && (!teamIds.size || teamIds.has(member.id));
+    const doctors = (state.staff || []).filter(member => member.role === "doctor" && pool(member));
+    const specialists = (state.staff || []).filter(member => member.role === "specialist" && pool(member));
+    const teamMembers = [...doctors, ...specialists];
+    const single = teamIds.size === 1 ? teamMembers[0] : null;
+    const options = (teamIds.size ? "" : `<option value="">—</option>`)
       + (doctors.length ? `<optgroup label="الأطباء">${doctors.map(member => `<option value="${member.id}">${esc(member.name)}</option>`).join("")}</optgroup>` : "")
       + (specialists.length ? `<optgroup label="الأخصائيون">${specialists.map(member => `<option value="${member.id}">${esc(member.name)}</option>`).join("")}</optgroup>` : "");
     providerSel.innerHTML = options;
-    if (dedicated) {
-      providerSel.value = dedicated.id;
+    if (single) {
+      providerSel.value = single.id;
       providerSel.disabled = true;
       if (providerNote) {
         providerNote.hidden = false;
-        providerNote.textContent = `هذا العمود مخصص لـ «${dedicated.name}» — يُسند الحجز إليه تلقائياً.`;
+        providerNote.textContent = `هذا العمود مخصص لـ «${single.name}» — يُسند الحجز إليه تلقائياً.`;
+      }
+    } else if (teamIds.size) {
+      providerSel.disabled = false;
+      providerSel.value = teamMembers[0]?.id || "";
+      if (providerNote) {
+        providerNote.hidden = false;
+        providerNote.textContent = `فريق هذا العمود: ${teamMembers.map(member => member.name).join("، ")} — اختر من ينفّذ.`;
       }
     } else {
       providerSel.disabled = false;
@@ -13619,10 +13633,15 @@ function openCategoryRowPrompt(category) {
     }
     const patient = findOrCreatePatientByName(data.patient.trim(), (data.phone || "").trim());
     const service = getService(data.serviceId);
-    // A dedicated column provider always wins (a disabled select never submits
-    // its value); otherwise the freely chosen doctor/specialist applies.
+    // The column's team constrains the assignment: a single assignee always
+    // wins (a disabled select never submits); with a team, the chosen member
+    // must belong to it; unassigned columns take the free choice as-is.
     const column = bookingScheduleColumns().find(item => item.id === data.scheduleColumnId);
-    const provider = getStaffMember(column?.staffId || data.providerId || "");
+    const teamIds = Array.isArray(column?.staffIds) ? column.staffIds : [];
+    const providerId = teamIds.length === 1
+      ? teamIds[0]
+      : (teamIds.length ? (teamIds.includes(data.providerId) ? data.providerId : teamIds[0]) : (data.providerId || ""));
+    const provider = getStaffMember(providerId);
     state.bookings = state.bookings || [];
     state.bookings.push(normalizeBooking({
       date: data.date || state.settings.activeDate,
