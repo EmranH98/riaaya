@@ -13957,18 +13957,25 @@ try { setNavAutohide(localStorage.getItem("riaaya-nav-autohide") === "1"); } cat
 (function initSmartTopBar() {
   const bar = document.querySelector(".app-shell > .sidebar");
   if (!bar) return;
-  // Publish the bar's real height so sticky content (e.g. calendar column
-  // headers) can offset exactly below it — even when the bar wraps to 2 rows.
-  const syncHeight = () => document.documentElement.style.setProperty("--topbar-h", `${Math.round(bar.getBoundingClientRect().height)}px`);
+  // Publish the bar's EFFECTIVE height so sticky content (e.g. calendar column
+  // headers) offsets exactly below it — even when the bar wraps to 2 rows.
+  // While the bar is slid away (bar-hidden) the offset is 0, otherwise rows
+  // scroll visibly through the empty strip above the pinned headers.
+  const syncHeight = () => {
+    const height = bar.classList.contains("bar-hidden") ? 0 : Math.round(bar.getBoundingClientRect().height);
+    document.documentElement.style.setProperty("--topbar-h", `${height}px`);
+  };
   syncHeight();
   window.addEventListener("resize", syncHeight, { passive: true });
   if (window.ResizeObserver) new ResizeObserver(syncHeight).observe(bar);
   let lastY = window.scrollY;
   window.addEventListener("scroll", () => {
     const y = window.scrollY;
+    const wasHidden = bar.classList.contains("bar-hidden");
     if (y <= 8) bar.classList.remove("bar-hidden");            // at the top → always shown
     else if (y > lastY + 4 && y > 70) bar.classList.add("bar-hidden");  // going down → hide
     else if (y < lastY - 2) bar.classList.remove("bar-hidden");         // going up → show
+    if (bar.classList.contains("bar-hidden") !== wasHidden) syncHeight();
     lastY = y;
   }, { passive: true });
 })();

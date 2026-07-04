@@ -57,6 +57,7 @@
   --shadow-overlay: 0 4px 16px rgba(28,25,23,.12);
   --backdrop: rgba(28,25,23,.5);
   --z-nav: 100;
+  --z-subnav: 90; /* sticky bars that must stay UNDER the nav and its menus */
   --z-dropdown: 200;
   --z-overlay: 900;
   --z-modal: 1000;
@@ -5514,11 +5515,12 @@ html[dir="ltr"] label {
    UI POLISH PASS — topbar, banner, stat tiles, mobile
    ═══════════════════════════════════════════════════════════ */
 
-/* ── TOPBAR: sticky, clean, cream background ── */
+/* ── TOPBAR: sticky, clean, cream background — always UNDER the nav bar so
+   its dropdown menus paint over the topbar, never behind it ── */
 .topbar {
   position: sticky;
   top: 0;
-  z-index: var(--z-nav);
+  z-index: var(--z-subnav);
   background: var(--cream);
   padding: 10px 0 14px;
   border-bottom: 1px solid var(--border);
