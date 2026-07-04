@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { readdirSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
+import { ensureStateSnapshot, saveStateSnapshot } from "../lib/state-history.js";
 import {
   audit,
   CLINIC_MODULES,
@@ -737,9 +738,13 @@ function overrideClinicSettings(req, res, clinicId) {
     state.settings.clinicName = safeText(req.body.clinicName, 120);
   }
 
-  const newVersion = (Number(clinic.state_version) || 0) + 1;
+  const currentVersion = Number(clinic.state_version) || 0;
+  const newVersion = currentVersion + 1;
+  const serialized = JSON.stringify(state);
+  if (clinic.state_json) ensureStateSnapshot(clinicId, currentVersion, clinic.state_json);
   db.prepare("update clinics set state_json = ?, state_version = ?, updated_at = ? where id = ?")
-    .run(JSON.stringify(state), newVersion, nowIso(), clinicId);
+    .run(serialized, newVersion, nowIso(), clinicId);
+  saveStateSnapshot(clinicId, newVersion, serialized);
 
   audit({
     userId: auth.user.id,

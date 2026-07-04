@@ -3,6 +3,8 @@ import { audit, databasePath, db, defaultClinicModules, listClinicNotifications,
 import { requireSession } from "./auth.js";
 import { clientIp, encryptSecret, hashPassword, isValidEmail, normalizeEmail, safeText, validatePassword } from "../lib/security.js";
 import { storageReadiness } from "../lib/storage-policy.js";
+import { ensureStateSnapshot, getStateSnapshot, saveStateSnapshot } from "../lib/state-history.js";
+import { threeWayMergeState } from "../lib/state-merge.js";
 
 const USER_ROLES = new Set(["admin", "data_entry", "doctor", "specialist"]);
 const CALENDAR_SCOPES = new Set(["all", "today", "rolling", "working_days", "assigned"]);
@@ -158,7 +160,7 @@ function filterClinicState(rawState, user, accountRows, clinic) {
   return state;
 }
 
-function mergeScopedCollection(existing = [], incoming = [], isAllowed, { allowCreate = true, allowUpdate = true, allowDelete = true, preserveSensitive = false } = {}) {
+function mergeScopedCollection(existing = [], incoming = [], isAllowed, { allowCreate = true, allowUpdate = true, allowDelete = true, preserveSensitive = false, preservePrice = false } = {}) {
   const incomingMap = new Map(incoming.filter(item => item?.id).map(item => [item.id, item]));
   const existingMap = new Map(existing.filter(item => item?.id).map(item => [item.id, item]));
   const result = [];
@@ -177,7 +179,7 @@ function mergeScopedCollection(existing = [], incoming = [], isAllowed, { allowC
       result.push(record);
       return;
     }
-    result.push(preserveSensitive
+    let next = preserveSensitive
       ? {
           ...replacement,
           cost: record.cost,
@@ -185,7 +187,11 @@ function mergeScopedCollection(existing = [], incoming = [], isAllowed, { allowC
           profit: record.profit,
           payouts: record.payouts
         }
-      : replacement);
+      : replacement;
+    // Users who can't see prices submit entries without unitPrice; restore it
+    // from the stored record so their saves don't wipe it.
+    if (preservePrice) next = { ...next, unitPrice: record.unitPrice };
+    result.push(next);
   });
 
   if (allowCreate) {
@@ -233,7 +239,8 @@ function mergeClinicState(existing, incoming, user, clinic) {
         allowCreate: true,
         allowUpdate: true,
         allowDelete: can(user, "delete_treatments_medical"),
-        preserveSensitive: !user.canViewSensitive
+        preserveSensitive: !user.canViewSensitive,
+        preservePrice: !can(user, "access_price_medical") && user.role !== "admin"
       }
     );
   }
@@ -336,6 +343,10 @@ function getState(req, res) {
   const clinicRow = db.prepare("select state_json, state_version from clinics where id = ?").get(auth.user.clinicId);
   const rawState = parseJson(clinicRow?.state_json, null);
   const users = clinicUsers(auth.user.clinicId);
+  // Keep the version this client is about to edit from available as a merge base.
+  if (clinicRow?.state_json) {
+    ensureStateSnapshot(auth.user.clinicId, Number(clinicRow.state_version || 0), clinicRow.state_json);
+  }
   sendJson(res, 200, {
     ok: true,
     state: rawState ? filterClinicState(rawState, auth.user, users, auth.clinic) : null,
@@ -464,31 +475,64 @@ function saveState(req, res) {
   const clinicRow = db.prepare("select state_json, state_version from clinics where id = ?").get(auth.user.clinicId);
   const expectedVersion = Number(req.body?.stateVersion);
   const currentVersion = Number(clinicRow?.state_version || 0);
-  if (!Number.isInteger(expectedVersion) || expectedVersion !== currentVersion) {
+  if (!Number.isInteger(expectedVersion) || expectedVersion > currentVersion) {
     sendJson(res, 409, { error: "clinic_state_conflict", stateVersion: currentVersion });
     return;
   }
   const existing = parseJson(clinicRow?.state_json, {});
-  const merged = mergeClinicState(existing, incoming, auth.user, auth.clinic);
+  const users = clinicUsers(auth.user.clinicId);
+  let candidate = incoming;
+  let mergedFromVersion = null;
+  if (expectedVersion !== currentVersion) {
+    // The state moved on while this client was editing (another user, another
+    // tab, or a public booking). Recover the base they edited from and merge
+    // per record so neither side's work is discarded. Only when the base is
+    // beyond the retention window do we still reject with a 409.
+    const baseState = getStateSnapshot(auth.user.clinicId, expectedVersion);
+    if (!baseState) {
+      sendJson(res, 409, { error: "clinic_state_conflict", stateVersion: currentVersion });
+      return;
+    }
+    const baseView = filterClinicState(baseState, auth.user, users, auth.clinic);
+    candidate = threeWayMergeState(baseView, incoming, existing);
+    mergedFromVersion = expectedVersion;
+  }
+  const merged = mergeClinicState(existing, candidate, auth.user, auth.clinic);
   const serialized = JSON.stringify(merged);
   if (serialized.length > 4 * 1024 * 1024) {
     sendJson(res, 413, { error: "clinic_state_too_large" });
     return;
   }
   const nextVersion = currentVersion + 1;
+  if (clinicRow?.state_json) ensureStateSnapshot(auth.user.clinicId, currentVersion, clinicRow.state_json);
   db.prepare("update clinics set state_json = ?, state_version = ?, updated_at = ? where id = ?")
     .run(serialized, nextVersion, nowIso(), auth.user.clinicId);
+  saveStateSnapshot(auth.user.clinicId, nextVersion, serialized);
   audit({
     clinicId: auth.user.clinicId,
     userId: auth.user.id,
     action: "update",
     entity: "clinic_state",
     entityId: auth.user.clinicId,
-    metadata: { bytes: serialized.length },
+    metadata: mergedFromVersion === null
+      ? { bytes: serialized.length }
+      : { bytes: serialized.length, mergedFromVersion },
     ipAddress: clientIp(req),
     impersonatedBy: auth.session?.impersonatedBy || null
   });
-  sendJson(res, 200, { ok: true, savedAt: nowIso(), stateVersion: nextVersion });
+  if (mergedFromVersion === null) {
+    sendJson(res, 200, { ok: true, savedAt: nowIso(), stateVersion: nextVersion });
+    return;
+  }
+  // Return the merged result so the client can adopt what other users saved.
+  sendJson(res, 200, {
+    ok: true,
+    savedAt: nowIso(),
+    stateVersion: nextVersion,
+    merged: true,
+    state: filterClinicState(merged, auth.user, users, auth.clinic),
+    accounts: users.map(userPayload)
+  });
 }
 
 function listUsers(req, res) {

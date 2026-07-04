@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { db, parseJson, publicLandingSettings } from "../lib/database.js";
+import { ensureStateSnapshot, saveStateSnapshot } from "../lib/state-history.js";
 
 function sendJson(res, statusCode, payload) {
   res.statusCode = statusCode;
@@ -104,7 +105,7 @@ function handleGetClinic(slug, res) {
 /* ── POST /api/public/clinic/:slug/booking ────────────────────────────── */
 async function handleCreateBooking(req, slug, res) {
   const row = db.prepare(
-    "select id, name, status, state_json from clinics where slug = ?"
+    "select id, name, status, state_json, state_version from clinics where slug = ?"
   ).get(slug);
 
   if (!row || row.status === "suspended" || row.status === "cancelled") {
@@ -147,7 +148,13 @@ async function handleCreateBooking(req, slug, res) {
   const reference   = "RIA-" + bookingId.slice(0, 6).toUpperCase();
   const now         = new Date().toISOString();
 
-  const state    = parseJson(row.state_json, {});
+  // Re-read the state now that the body has been awaited: a clinic save may
+  // have landed in the meantime, and writing from the earlier read would
+  // silently discard it. From here to the update there is no await.
+  const fresh = db.prepare(
+    "select state_json, state_version from clinics where id = ?"
+  ).get(row.id);
+  const state    = parseJson(fresh?.state_json, {});
   const bookings = Array.isArray(state.bookings) ? state.bookings : [];
   const candidate = { date, time, serviceId, service: serviceName };
 
@@ -164,9 +171,16 @@ async function handleCreateBooking(req, slug, res) {
   });
 
   state.bookings = bookings;
+  const currentVersion = Number(fresh?.state_version || 0);
+  const nextVersion = currentVersion + 1;
+  const serialized = JSON.stringify(state);
+  // Snapshot both sides of this write so logged-in clients editing against the
+  // pre-booking version can still merge instead of hitting a conflict.
+  if (fresh?.state_json) ensureStateSnapshot(row.id, currentVersion, fresh.state_json);
   db.prepare(
-    "update clinics set state_json = ?, state_version = state_version + 1, updated_at = ? where id = ?"
-  ).run(JSON.stringify(state), now, row.id);
+    "update clinics set state_json = ?, state_version = ?, updated_at = ? where id = ?"
+  ).run(serialized, nextVersion, now, row.id);
+  saveStateSnapshot(row.id, nextVersion, serialized);
 
   sendJson(res, 201, { ok: true, reference, bookingId });
 }

@@ -2993,6 +2993,38 @@ async function waitForSaveIdle() {
   return !runtime.saveInFlight;
 }
 
+// Replace the local working copy with the server's merged result after a
+// concurrent-edit save. Runs only when no local edits are pending, so nothing
+// the user typed is thrown away — their edits are already inside the merge.
+function adoptServerState(result) {
+  runtime.stateVersion = Number(result.stateVersion || 0);
+  state = hydrateClinicState(result.state, runtime.session?.clinic || {}, result.accounts || result.state?.accounts || []);
+  const account = currentAccount();
+  if (!calendarDateAllowed(account, state.settings.activeDate)) {
+    state.settings.activeDate = nearestAllowedDate(account);
+  }
+  if (selectedPatientId && !(state.patients || []).some(patient => patient.id === selectedPatientId)) {
+    selectedPatientId = state.patients?.[0]?.id || "";
+  }
+  render();
+}
+
+// A merged response means another user (or tab, or an online booking) saved
+// while we were editing; the server folded both sides together.
+function applySaveResult(result) {
+  if (result.merged && result.state) {
+    if (!runtime.savePending) {
+      adoptServerState(result);
+    }
+    // With edits already pending, keep the local state AND the old base
+    // version: the next flush re-merges from the same base. Bumping the
+    // version here would overwrite what the other user saved.
+  } else {
+    runtime.stateVersion = Number(result.stateVersion ?? runtime.stateVersion);
+  }
+  setSaveIndicator("saved");
+}
+
 async function saveStateImmediately() {
   if (runtime.mode !== "live") {
     storageSet(STORAGE_KEY, JSON.stringify(state));
@@ -3014,13 +3046,12 @@ async function saveStateImmediately() {
     });
     const result = await response.json().catch(() => ({}));
     if (response.ok) {
-      runtime.stateVersion = Number(result.stateVersion ?? runtime.stateVersion);
-      setSaveIndicator("saved");
+      applySaveResult(result);
       return true;
     }
     if (response.status === 401) { location.href = "/login?expired=1"; return false; }
     if (response.status === 409) {
-      alert("تم تحديث بيانات العيادة من مستخدم آخر. سنعيد تحميل أحدث نسخة لمنع فقدان البيانات.");
+      alert("تعذّر دمج التغييرات مع أحدث نسخة من بيانات العيادة. سنعيد تحميل أحدث نسخة.");
       location.reload();
     }
     setSaveIndicator("error");
@@ -3068,21 +3099,14 @@ async function flushLiveState() {
     });
     const result = await response.json().catch(() => ({}));
     if (response.ok) {
-      runtime.stateVersion = Number(result.stateVersion ?? runtime.stateVersion);
-      runtime.conflictRetries = 0;
-      setSaveIndicator("saved");
+      applySaveResult(result);
     } else if (response.status === 401) {
       location.href = "/login?expired=1";
       return;
-    } else if (response.status === 409 && Number.isInteger(result.stateVersion) && (runtime.conflictRetries || 0) < 4) {
-      // Version drift (another tab/owner, or an earlier failed save): adopt the
-      // server's version and retry so the edit is NOT silently discarded.
-      runtime.conflictRetries = (runtime.conflictRetries || 0) + 1;
-      runtime.stateVersion = Number(result.stateVersion);
-      runtime.savePending = true;
-      setSaveIndicator("saving");
     } else if (response.status === 409) {
-      alert("تعذّرت مزامنة بيانات العيادة بعد عدة محاولات. سنعيد تحميل أحدث نسخة.");
+      // Only reachable when our base version is too old for the server to
+      // merge (very stale tab, or a restored backup). Reload the latest.
+      alert("تعذّر دمج التغييرات مع أحدث نسخة من بيانات العيادة. سنعيد تحميل أحدث نسخة.");
       location.reload();
     } else {
       setSaveIndicator("error");
