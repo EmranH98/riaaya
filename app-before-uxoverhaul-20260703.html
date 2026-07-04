@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260704a">
+  <link rel="stylesheet" href="app.css?v=20260703a">
 </head>
 <body>
 
@@ -574,8 +574,7 @@
               <h2>لوحة الاستقبال</h2>
             </div>
             <div class="top-actions">
-              <button class="primary-button" type="button" data-open-operation-modal title="تسجيل عملية (F2)">＋ تسجيل عملية</button>
-              <button class="ghost-chip" type="button" data-new-booking title="حجز جديد (F4)">＋ حجز</button>
+              <button class="primary-button" type="button" data-open-operation-modal>＋ تسجيل عملية</button>
               <button class="ghost-chip" type="button" data-view-button="bookings">التقويم الكامل</button>
             </div>
           </div>
@@ -601,10 +600,6 @@
                 اسم المريض
                 <input name="patient" type="text" list="operation-patient-options" placeholder="ابحث بالاسم أو اكتب اسماً جديداً" required>
                 <datalist id="operation-patient-options" data-operation-patient-options></datalist>
-              </label>
-              <label>
-                رقم الهاتف
-                <input name="phone" type="tel" inputmode="tel" placeholder="رقم الهاتف (اختياري — للتذكير والمتابعة)">
               </label>
               <label>
                 الطبيب
@@ -1544,11 +1539,9 @@
               <thead>
                 <tr>
                   <th>المريض</th>
-                  <th>الهاتف</th>
                   <th>من العمليات</th>
                   <th>من الباقات</th>
                   <th>الإجمالي المستحق</th>
-                  <th>إجراءات</th>
                 </tr>
               </thead>
               <tbody data-collections-body></tbody>
@@ -2009,18 +2002,15 @@
             <form class="reconcile-form" data-reconcile-form>
               <label>
                 الكاش الموجود فعلياً
-                <input name="countedCash" type="number" min="0" step="0.01" required placeholder="عُدّ الدرج ثم أدخل المبلغ">
-                <span class="expected-ref">المتوقع: <strong data-expected-ref="cash">—</strong> <button class="text-button" type="button" data-copy-expected="countedCash">نسخ المتوقع</button></span>
+                <input name="countedCash" type="number" min="0" step="0.01" required>
               </label>
               <label>
                 مجموع الفيزا من الجهاز
-                <input name="countedCard" type="number" min="0" step="0.01" required placeholder="اقرأ تقرير الجهاز ثم أدخل المبلغ">
-                <span class="expected-ref">المتوقع: <strong data-expected-ref="card">—</strong> <button class="text-button" type="button" data-copy-expected="countedCard">نسخ المتوقع</button></span>
+                <input name="countedCard" type="number" min="0" step="0.01" required>
               </label>
               <label>
                 التحويلات المؤكدة
-                <input name="countedTransfer" type="number" min="0" step="0.01" required placeholder="راجع الحساب البنكي ثم أدخل المبلغ">
-                <span class="expected-ref">المتوقع: <strong data-expected-ref="transfer">—</strong> <button class="text-button" type="button" data-copy-expected="countedTransfer">نسخ المتوقع</button></span>
+                <input name="countedTransfer" type="number" min="0" step="0.01" required>
               </label>
               <label class="wide-field">
                 ملاحظة الإغلاق / سبب الفرق
@@ -2928,14 +2918,6 @@
         <button class="more-nav-close" type="button" aria-label="إغلاق">✕</button>
       </div>
       <div class="more-nav-grid">
-        <button class="more-nav-item" type="button" data-view-button="reception">
-          <span class="more-nav-icon">🩺</span>
-          <span class="more-nav-item-label">الاستقبال</span>
-        </button>
-        <button class="more-nav-item" type="button" data-view-button="collections">
-          <span class="more-nav-icon">💰</span>
-          <span class="more-nav-item-label">المبالغ المستحقة</span>
-        </button>
         <button class="more-nav-item" type="button" data-view-button="reports">
           <span class="more-nav-icon">📊</span>
           <span class="more-nav-item-label">التقارير</span>
@@ -3076,17 +3058,10 @@
       <h3 data-slot-booking-title>حجز موعد</h3>
       <form class="slot-booking-form" data-slot-booking-form>
         <input type="hidden" name="date">
-        <label data-slot-booking-column-row hidden>
-          عمود التقويم
-          <select name="scheduleColumnId" data-slot-booking-column></select>
-        </label>
+        <input type="hidden" name="scheduleColumnId">
         <label>
           المريض
           <input name="patient" type="text" list="operation-patient-options" placeholder="ابحث بالاسم أو اكتب اسماً جديداً" required>
-        </label>
-        <label>
-          رقم الهاتف
-          <input name="phone" type="tel" inputmode="tel" placeholder="رقم الهاتف (اختياري — للتذكير والمتابعة)">
         </label>
         <label>
           الفئة
@@ -3098,7 +3073,7 @@
         </label>
         <label>
           الوقت
-          <select name="time" data-slot-booking-time required></select>
+          <input name="time" type="time" required>
         </label>
         <label>
           الطبيب (اختياري)
@@ -3265,7 +3240,7 @@
       </form>
     </div>
   </div>
-  <script src="app.js?v=20260704a"></script>
+  <script src="app.js?v=20260703a"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>

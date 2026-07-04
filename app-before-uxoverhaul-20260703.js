@@ -1482,20 +1482,11 @@ function renderReception() {
       <td class="reception-actions">${actions}</td>
     </tr>`;
 
-  const noShows = bookings.filter(b => b.status === "no_show");
-  // No-shows stay visible (greyed, restorable) instead of vanishing — a
-  // mis-tap on «لم يحضر» is recoverable right where it happened.
-  const noShowRows = noShows.map(b => `
-    <tr class="reception-noshow-row">
-      <td class="reception-time">${displayTime(b.time)}</td>
-      <td><strong>${esc(b.patient)}</strong><small>${esc(serviceLabel(b))} · لم يحضر</small></td>
-      <td class="reception-actions"><button class="text-button" type="button" data-booking-status-id="${b.id}" data-booking-status="scheduled" title="إعادة إلى المواعيد">↩ إرجاع</button></td>
-    </tr>`).join("");
-  const upcomingRows = (upcoming.length ? upcoming.map(b => bookingRow(b, `
+  const upcomingRows = upcoming.length ? upcoming.map(b => bookingRow(b, `
       ${b.status === "scheduled" ? `<button class="text-button" type="button" data-booking-status-id="${b.id}" data-booking-status="confirmed">تأكيد</button>` : ""}
       <button class="dark-button" type="button" data-booking-status-id="${b.id}" data-booking-status="arrived">وصل</button>
       <button class="text-button danger" type="button" data-booking-status-id="${b.id}" data-booking-status="no_show">لم يحضر</button>
-    `)).join("") : (noShows.length ? "" : `<tr><td colspan="3" class="report-empty">لا مواعيد متبقية اليوم.</td></tr>`)) + noShowRows;
+    `)).join("") : `<tr><td colspan="3" class="report-empty">لا مواعيد متبقية اليوم.</td></tr>`;
 
   const arrivedRows = arrived.length ? arrived.map(b => bookingRow(b, `
       <button class="primary-button reception-op-btn" type="button" data-reception-to-op="${b.id}">تسجيل العملية</button>
@@ -1689,16 +1680,12 @@ function patientById(id) {
   return (state.patients || []).find(patient => patient.id === id) || null;
 }
 
-function findOrCreatePatientByName(name, phone = "") {
+function findOrCreatePatientByName(name) {
   const clean = String(name || "").trim();
   if (!clean) return null;
   const existing = (state.patients || []).find(patient => patientNameKey(patient.name) === patientNameKey(clean));
-  if (existing) {
-    // Backfill a missing phone; never overwrite one that is already on file.
-    if (!existing.phone && phone.trim()) existing.phone = phone.trim();
-    return existing;
-  }
-  const patient = normalizePatient({ name: clean, phone: phone.trim(), profileType: "patient" });
+  if (existing) return existing;
+  const patient = normalizePatient({ name: clean, profileType: "patient" });
   state.patients = state.patients || [];
   state.patients.push(patient);
   logEdit("إضافة ملف مريض", patient.name);
@@ -2686,8 +2673,7 @@ function allergySnippet(notes) {
 // ──────────────────────────────────────────────────────────────────────────
 
 // ─── Toast Notification ───────────────────────────────────────────────────
-const TOAST_DURATIONS = { success: 3000, partial: 4500, warn: 4500, error: 7000 };
-function showToast(message, type = "success", { actionLabel = "", onAction = null } = {}) {
+function showToast(message, type = "success") {
   const existing = document.querySelector(".app-toast");
   if (existing) existing.remove();
 
@@ -2695,56 +2681,23 @@ function showToast(message, type = "success", { actionLabel = "", onAction = nul
   toast.className = `app-toast app-toast--${type}`;
   toast.setAttribute("role", "status");
   toast.setAttribute("aria-live", "polite");
-  const text = document.createElement("span");
-  text.textContent = message;
-  toast.appendChild(text);
-
-  const dismiss = () => {
-    toast.classList.remove("app-toast--visible");
-    toast.addEventListener("transitionend", () => toast.remove(), { once: true });
-    setTimeout(() => toast.remove(), 400);
-  };
-
-  if (actionLabel && typeof onAction === "function") {
-    const action = document.createElement("button");
-    action.type = "button";
-    action.className = "app-toast-action";
-    action.textContent = actionLabel;
-    action.addEventListener("click", event => {
-      event.stopPropagation();
-      dismiss();
-      onAction();
-    }, { once: true });
-    toast.appendChild(action);
-  }
-  // The whole toast dismisses on tap — no hunting for a tiny ×.
-  toast.addEventListener("click", dismiss);
+  toast.textContent = message;
   document.body.appendChild(toast);
 
   requestAnimationFrame(() => {
     requestAnimationFrame(() => toast.classList.add("app-toast--visible"));
   });
 
-  setTimeout(dismiss, TOAST_DURATIONS[type] || 3000);
+  setTimeout(() => {
+    toast.classList.remove("app-toast--visible");
+    toast.addEventListener("transitionend", () => toast.remove(), { once: true });
+  }, 3000);
 }
 // ──────────────────────────────────────────────────────────────────────────
 
-// Empty states teach the next action instead of dead-ending: text plus a real
-// button that jumps to the view where that action happens. [data-jump] is
-// handled by the delegated click handler, so injected buttons just work.
-function emptyState(text, { label = "", view = "", action = "" } = {}) {
-  const attr = action ? esc(action) : (view ? `data-jump="${esc(view)}"` : "");
-  const button = label && attr
-    ? ` <button class="ghost-button empty-state-action" type="button" ${attr}>${esc(label)}</button>`
-    : "";
-  return `<div class="empty-state">${esc(text)}${button}</div>`;
-}
-
-// ─── Confirmation modal ───────────────────────────────────────────────────
+// ─── Safe-delete confirmation modal ───────────────────────────────────────
 // Returns a Promise<boolean>.  Replaces window.confirm() everywhere.
-// Defaults are NEUTRAL — destructive callers must pass their own title/label
-// so "delete" wording never appears on non-destructive confirmations.
-function showConfirm(message, { title = "تأكيد", icon = "⚠️", okLabel = "متابعة", okClass = "primary-button", okOnly = false } = {}) {
+function showConfirm(message, { title = "تأكيد الحذف", icon = "⚠️", okLabel = "تأكيد الحذف", okClass = "danger-button" } = {}) {
   return new Promise(resolve => {
     const modal  = document.getElementById("confirm-modal");
     const titleEl = document.getElementById("confirm-modal-title");
@@ -2759,7 +2712,6 @@ function showConfirm(message, { title = "تأكيد", icon = "⚠️", okLabel =
     iconEl.textContent  = icon;
     okBtn.textContent   = okLabel;
     okBtn.className     = okClass;
-    cancelBtn.hidden    = okOnly;
 
     modal.removeAttribute("hidden");
 
@@ -2797,17 +2749,10 @@ function setSaveIndicator(state) {
     el.textContent = "✓ محفوظ";
     _saveIndicatorTimer = setTimeout(() => el.setAttribute("hidden", ""), 2500);
   } else if (state === "error") {
-    // A failed save must never disappear on its own — it stays until a save
-    // succeeds, and it offers the retry right where the eye already is.
-    el.innerHTML = `⚠ لم تُحفظ آخر التغييرات — <button type="button" data-retry-save>أعد المحاولة</button>`;
+    el.textContent = "⚠ فشل الحفظ";
+    _saveIndicatorTimer = setTimeout(() => el.setAttribute("hidden", ""), 5000);
   }
 }
-document.addEventListener("click", event => {
-  if (!event.target.closest("[data-retry-save]")) return;
-  runtime.savePending = true;
-  setSaveIndicator("saving");
-  flushLiveState();
-});
 
 // ─── Change-password modal ────────────────────────────────────────────────
 (function initChangePassword() {
@@ -2976,8 +2921,7 @@ function submitFollowup() {
 
   const split = readFollowupSplit();
   if (split.total <= 0) {
-    showToast("يرجى إدخال مبلغ التحصيل على طريقة دفع واحدة على الأقل.", "warn");
-    document.querySelector('[data-followup-split="cash"]')?.focus();
+    alert("يرجى إدخال مبلغ التحصيل على طريقة دفع واحدة على الأقل.");
     return;
   }
 
@@ -2985,8 +2929,7 @@ function submitFollowup() {
   const remaining = Math.max(net - paidAmount(entry), 0);
   // Don't silently overshoot the balance — ask the user to correct it.
   if (remaining > 0 && split.total > remaining + 0.01) {
-    showToast(`إجمالي التحصيل (${money(split.total)}) أكبر من المتبقي (${money(remaining)}). عدّل المبالغ.`, "warn");
-    document.querySelector('[data-followup-split="cash"]')?.focus();
+    alert(`إجمالي التحصيل (${money(split.total)}) أكبر من المتبقي (${money(remaining)}). عدّل المبالغ.`);
     return;
   }
 
@@ -3108,10 +3051,8 @@ async function saveStateImmediately() {
     }
     if (response.status === 401) { location.href = "/login?expired=1"; return false; }
     if (response.status === 409) {
-      showConfirm("وصلت نسخة أحدث من بيانات العيادة من جهاز آخر. سنحدّث الشاشة الآن — عملك المحفوظ بأمان.", {
-        title: "تحديث البيانات", icon: "🔄", okLabel: "تحديث الآن", okOnly: true
-      }).then(() => location.reload());
-      return false;
+      alert("تعذّر دمج التغييرات مع أحدث نسخة من بيانات العيادة. سنعيد تحميل أحدث نسخة.");
+      location.reload();
     }
     setSaveIndicator("error");
     throw new Error(result.error || "save_failed");
@@ -3165,10 +3106,8 @@ async function flushLiveState() {
     } else if (response.status === 409) {
       // Only reachable when our base version is too old for the server to
       // merge (very stale tab, or a restored backup). Reload the latest.
-      showConfirm("وصلت نسخة أحدث من بيانات العيادة من جهاز آخر. سنحدّث الشاشة الآن — عملك المحفوظ بأمان.", {
-        title: "تحديث البيانات", icon: "🔄", okLabel: "تحديث الآن", okOnly: true
-      }).then(() => location.reload());
-      return;
+      alert("تعذّر دمج التغييرات مع أحدث نسخة من بيانات العيادة. سنعيد تحميل أحدث نسخة.");
+      location.reload();
     } else {
       setSaveIndicator("error");
       showToast(`تعذّر حفظ التغييرات: ${result.error || "خطأ " + response.status}. أعد المحاولة.`, "error");
@@ -3193,7 +3132,7 @@ function nearestAllowedDate(account) {
   return today;
 }
 
-const BRAND_VARS = ["--teal", "--teal-light", "--teal-dark", "--teal-pale", "--status-done", "--status-done-pale", "--status-done-ink", "--sidebar-bg", "--sidebar-text", "--sidebar-text-active", "--sidebar-active", "--sidebar-hover"];
+const BRAND_VARS = ["--teal", "--teal-light", "--teal-dark", "--teal-pale", "--status-done", "--status-done-pale", "--sidebar-bg", "--sidebar-text", "--sidebar-text-active", "--sidebar-active", "--sidebar-hover"];
 // Derive the whole palette — including the sidebar background — from one brand
 // color so an owner-set clinic color re-skins the entire app (sidebar included).
 // An optional explicit sidebar color overrides; either way it's forced dark
@@ -3212,15 +3151,6 @@ function applyBrandColor(hex, sidebarHex) {
   root.style.setProperty("--teal-pale", toHex(towardWhite(rgb, 0.88)));
   root.style.setProperty("--status-done", hex);
   root.style.setProperty("--status-done-pale", toHex(towardWhite(rgb, 0.88)));
-  // Contrast floor: a light clinic brand makes brand-on-pale chips unreadable.
-  // Darken the chip TEXT color (not the brand itself) until it clears WCAG 4.5.
-  const channelLum = value => { const s = value / 255; return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4); };
-  const relLum = arr => 0.2126 * channelLum(arr[0]) + 0.7152 * channelLum(arr[1]) + 0.0722 * channelLum(arr[2]);
-  const contrast = (a, b) => (Math.max(relLum(a), relLum(b)) + 0.05) / (Math.min(relLum(a), relLum(b)) + 0.05);
-  const pale = towardWhite(rgb, 0.88);
-  let ink = rgb;
-  for (let attempt = 0; attempt < 8 && contrast(ink, pale) < 4.5; attempt += 1) ink = darken(ink, 0.15);
-  root.style.setProperty("--status-done-ink", toHex(ink));
   // Sidebar background: explicit color if given, else a dark shade of the brand.
   let side = sidebarHex && /^#[0-9a-fA-F]{6}$/.test(sidebarHex) ? parse(sidebarHex) : darken(rgb, 0.55);
   const lum = 0.299 * side[0] + 0.587 * side[1] + 0.114 * side[2];
@@ -3774,16 +3704,11 @@ function bookingStatusLabel(status) {
 }
 
 function statusClass(status) {
-  // Old class names kept as aliases for one release; the chip--* modifiers are
-  // the unified status language every chip shares.
-  if (["completed", "received", "paid", "approved"].includes(status)) return "good chip--done";
-  if (status === "confirmed") return "good chip--confirmed";
-  if (status === "arrived") return "good chip--arrived";
-  if (["cancelled", "no_show"].includes(status)) return "bad chip--cancelled";
-  if (status === "partial_payment") return "partial chip--pending";
-  if (status === "pending_confirmation") return "pending-online chip--confirmed";
-  if (status === "scheduled") return "warn chip--neutral";
-  return "warn chip--pending";
+  if (["completed", "confirmed", "arrived", "received", "paid", "approved"].includes(status)) return "good";
+  if (["cancelled", "no_show"].includes(status)) return "bad";
+  if (status === "partial_payment") return "partial";
+  if (status === "pending_confirmation") return "pending-online";
+  return "warn";
 }
 
 function salaryStatusLabel(status) {
@@ -5344,15 +5269,13 @@ function renderDayHighway() {
     ? recos.some(record => record.date === date)
     : Boolean(recos && typeof recos === "object" && recos[date]);
   const steps = [
-    { ic: "calendar", label: "موعد", sub: "حجز وتأكيد الموعد", done: bookingsToday.length > 0, view: "bookings" },
-    { ic: "user", label: "وصول المريض", sub: "تسجيل الوصول", done: arrived, view: "reception" },
-    { ic: "receipt", label: "الخدمة / العملية", sub: "تقديم الخدمة أو العملية", done: entriesToday.length > 0, view: "entries" },
-    { ic: "cash", label: "الدفع", sub: "تحصيل المبلغ", done: paidToday > 0, view: canViewSensitive() ? "collections" : "entries" },
-    { ic: "check", label: "الإغلاق", sub: "إغلاق الملف والمطابقة", done: closedToday, view: "reconcile" }
+    { ic: "calendar", label: "موعد", sub: "حجز وتأكيد الموعد", done: bookingsToday.length > 0 },
+    { ic: "user", label: "وصول المريض", sub: "تسجيل الوصول", done: arrived },
+    { ic: "receipt", label: "الخدمة / العملية", sub: "تقديم الخدمة أو العملية", done: entriesToday.length > 0 },
+    { ic: "cash", label: "الدفع", sub: "تحصيل المبلغ", done: paidToday > 0 },
+    { ic: "check", label: "الإغلاق", sub: "إغلاق الملف والمطابقة", done: closedToday }
   ];
   const doneCount = steps.filter(step => step.done).length;
-  // Each step is a real jump into the screen where that step happens — the
-  // checklist doubles as navigation, not just decoration.
   host.innerHTML = `
     <div class="highway-head">
       <div><h3>سير العمل اليومي</h3><p>تابع سير العمل وأكمل كل خطوة بسلاسة</p></div>
@@ -5360,12 +5283,12 @@ function renderDayHighway() {
     </div>
     <div class="highway-road">
       ${steps.map(step => `
-        <button class="highway-step ${step.done ? "done" : ""}" type="button" data-jump="${step.view}">
+        <div class="highway-step ${step.done ? "done" : ""}">
           <div class="highway-node"><svg class="nav-ic" aria-hidden="true"><use href="#ic-${step.ic}"/></svg></div>
           <strong>${step.label}</strong>
           <small>${step.sub}</small>
           <span class="highway-check" aria-hidden="true">${step.done ? "✓" : ""}</span>
-        </button>
+        </div>
       `).join("")}
     </div>`;
 }
@@ -5374,7 +5297,7 @@ function renderDashboardSchedule() {
   if (!els.dashboardSchedule) return;
   const bookings = activeBookings().slice(0, 6);
   if (!bookings.length) {
-    els.dashboardSchedule.innerHTML = emptyState("لا حجوزات لهذا اليوم بعد.", { label: "أضف أول حجز", view: "bookings" });
+    els.dashboardSchedule.innerHTML = `<div class="empty-state">لا توجد حجوزات في تاريخ العمل المحدد.</div>`;
     return;
   }
   els.dashboardSchedule.innerHTML = bookings.map(booking => {
@@ -5513,9 +5436,7 @@ function operationalNotifications() {
       severity: "warning",
       title: `${partialPayments.length} ${partialPayments.length === 1 ? "مريض" : "مرضى"} بحساب غير مكتمل`,
       body: names.join("، ") + (partialPayments.length > 4 ? ` وآخرون…` : ""),
-      // The dues worklist is the actionable destination — but only for
-      // accounts allowed to see money; others keep their own records view.
-      view: canViewSensitive() ? "collections" : "entries"
+      view: "entries"
     });
   }
   if (pendingPayments.length) {
@@ -6005,7 +5926,7 @@ function renderEntryTable(entries) {
         <td>${esc([doctor?.name, specialist?.name].filter(Boolean).join(" / ") || "بانتظار التعيين")}</td>
         <td><span class="pill">${entryPaymentLabel(entry)}</span></td>
         <td><span class="status-pill ${statusClass(entry.status)}">${entryStatusLabel(entry.status)}</span></td>
-        ${showSensitive ? `<td class="cell-num">${money(paidAmount(entry))}</td>` : ""}
+        ${showSensitive ? `<td>${money(paidAmount(entry))}</td>` : ""}
         ${showSensitive ? `<td><span class="formula-pill">${payoutText}</span></td>` : ""}
         <td><div class="row-actions">
           ${entry.status === "partial_payment" ? `<button class="text-button followup-button" type="button" data-followup-entry="${entry.id}">تكملة الدفع</button>` : ""}
@@ -6089,9 +6010,7 @@ function renderPatientDirectory() {
 
   document.body.classList.toggle("can-bulk-delete", canUseFeature("delete_patient"));
   if (!pagination.items.length) {
-    els.patientTable.innerHTML = (state.patients || []).length
-      ? `<tr><td colspan="8">لا توجد ملفات مطابقة للبحث.</td></tr>`
-      : `<tr><td colspan="8">${emptyState("لم يُسجّل أي مريض بعد. أول عملية تُنشئ ملف المريض تلقائياً.", { label: "تسجيل عملية", action: "data-open-operation-modal" })}</td></tr>`;
+    els.patientTable.innerHTML = `<tr><td colspan="8">لا توجد ملفات مطابقة للبحث.</td></tr>`;
     syncPatientBulkBar();
     return;
   }
@@ -6140,7 +6059,7 @@ document.addEventListener("click", async event => {
   if (!canUseFeature("delete_patient")) return;
   const ids = [...document.querySelectorAll(".patient-check:checked")].map(cb => cb.value);
   if (!ids.length) return;
-  if (!await showConfirm(`سيتم حذف ${ids.length} ملفاً. تبقى العمليات والحجوزات محفوظة بدون رابط الملف. هل تريد المتابعة؟`, { title: "تأكيد الحذف", okLabel: "تأكيد الحذف", okClass: "danger-button" })) return;
+  if (!await showConfirm(`سيتم حذف ${ids.length} ملفاً. تبقى العمليات والحجوزات محفوظة بدون رابط الملف. هل تريد المتابعة؟`)) return;
   const idSet = new Set(ids);
   const removed = (state.patients || []).filter(patient => idSet.has(patient.id));
   state.patients = (state.patients || []).filter(patient => !idSet.has(patient.id));
@@ -6318,7 +6237,7 @@ function renderPatients() {
 
 function renderStaffList() {
   if (!state.staff.length) {
-    els.staffList.innerHTML = emptyState("أضف أعضاء الفريق ونسبهم لبدء حساب المستحقات.", { label: "إضافة موظف", view: "staff" });
+    els.staffList.innerHTML = `<div class="empty-state">أضف أعضاء الفريق ونسبهم لبدء حساب المستحقات.</div>`;
     return;
   }
 
@@ -6433,7 +6352,7 @@ function renderServiceBrowse() {
 function renderServiceList() {
   if (!els.serviceList) return;
   if (!state.services.length) {
-    els.serviceList.innerHTML = emptyState("أضف الخدمات حتى تظهر في نموذج العمليات.", { label: "إضافة خدمة", view: "service-admin" });
+    els.serviceList.innerHTML = `<div class="empty-state">أضف الخدمات حتى تظهر في نموذج العمليات.</div>`;
     return;
   }
 
@@ -6606,29 +6525,21 @@ function renderReferralSummary() {
 
 function outstandingByPatient() {
   const map = new Map();
-  const bump = (patientId, name, field, amount, entry) => {
+  const bump = (patientId, name, field, amount) => {
     if (amount <= 0.009) return;
     const key = patientId || `name:${name}`;
-    const row = map.get(key) || { patientId, name, operations: 0, packages: 0, openEntries: [] };
+    const row = map.get(key) || { patientId, name, operations: 0, packages: 0 };
     row[field] += amount;
     if (!row.name && name) row.name = name;
-    if (entry) row.openEntries.push({ id: entry.id, date: entry.date || "" });
     map.set(key, row);
   };
   (state.entries || []).forEach(entry => {
     const due = netAmount(entry) - paidAmount(entry);
     const field = entry.packageId ? "packages" : "operations";
-    bump(entry.patientId, entry.patient, field, due, entry);
+    bump(entry.patientId, entry.patient, field, due);
   });
   return [...map.values()]
-    .map(row => ({
-      ...row,
-      // Oldest open balance first, so «تحصيل» lands on the longest-owed visit.
-      entryIds: row.openEntries
-        .sort((a, b) => String(a.date).localeCompare(String(b.date)))
-        .map(item => item.id),
-      total: row.operations + row.packages
-    }))
+    .map(row => ({ ...row, total: row.operations + row.packages }))
     .filter(row => row.total > 0.009)
     .sort((a, b) => b.total - a.total);
 }
@@ -6728,10 +6639,6 @@ function renderAuditReport(items) {
 }
 
 function renderDashboardZones() {
-  // A live clinic with real records must not offer one-tap fake data.
-  document.querySelectorAll("[data-seed-test-data]").forEach(button => {
-    button.hidden = runtime.mode === "live" && (state.entries || []).length > 0;
-  });
   const activePackages = (state.patientPackages || []).filter(pkg => packageComputedStatus(pkg) === "active");
   const remainingSessions = activePackages.reduce((sum, pkg) => sum + packageRemaining(pkg), 0);
   const kpiEl = document.querySelector('[data-dashboard-kpi="activePackages"]');
@@ -6742,11 +6649,8 @@ function renderDashboardZones() {
   const outEl = document.querySelector("[data-dashboard-outstanding]");
   if (outEl) {
     const rows = outstandingByPatient().slice(0, 5);
-    const sensitive = canViewSensitive();
     outEl.innerHTML = rows.length
-      ? rows.map(row => sensitive
-          ? `<button class="dash-row dash-row-link" type="button" data-jump="collections" title="فتح قائمة المستحقات"><span>${esc(row.name || "—")}</span><span class="dash-due">${money(row.total)}</span></button>`
-          : `<div class="dash-row"><span>${esc(row.name || "—")}</span><span class="dash-due">—</span></div>`).join("")
+      ? rows.map(row => `<div class="dash-row"><span>${row.name || "—"}</span><span class="dash-due">${canViewSensitive() ? money(row.total) : "—"}</span></div>`).join("")
       : `<div class="empty-state">لا مستحقات — كل الحسابات مسددة.</div>`;
   }
 
@@ -6768,38 +6672,23 @@ function renderDashboardZones() {
 function renderCollections() {
   if (!els.collectionsBody) return;
   if (!canViewSensitive()) {
-    els.collectionsBody.innerHTML = `<tr><td colspan="6">المبالغ المستحقة مخفية لهذا الحساب.</td></tr>`;
+    els.collectionsBody.innerHTML = `<tr><td colspan="4">المبالغ المستحقة مخفية لهذا الحساب.</td></tr>`;
     if (els.collectionsTotal) els.collectionsTotal.textContent = "—";
     return;
   }
   const rows = outstandingByPatient();
   const total = rows.reduce((sum, row) => sum + row.total, 0);
   if (els.collectionsTotal) els.collectionsTotal.textContent = money(total);
-  const canSeePhone = canUseFeature("see_mobile");
   els.collectionsBody.innerHTML = rows.length ? rows.map(row => {
     const patient = row.patientId ? patientById(row.patientId) : null;
-    const name = patient ? patient.name : (row.name || "—");
-    const phone = patient?.phone || "";
-    const waNumber = canSeePhone ? phoneDigits(phone) : "";
-    const reminder = `مرحباً ${name}، نذكّركم بلطف بوجود مبلغ متبقٍ ${money(row.total)} لدى العيادة. نسعد بخدمتكم في أي وقت.`;
-    const waCell = waNumber
-      ? `<a class="text-button whatsapp-action" href="https://wa.me/${waNumber}?text=${esc(encodeURIComponent(reminder))}" target="_blank" rel="noreferrer">💬 واتساب</a>`
-      : (patient ? `<button class="text-button" type="button" data-open-patient="${patient.id}">لا رقم — أضِفه من الملف</button>` : "");
-    const collect = row.entryIds.length === 1 || (row.entryIds.length > 1 && !patient)
-      ? `<button class="dark-button" type="button" data-followup-entry="${row.entryIds[0]}">تحصيل</button>`
-      : (row.entryIds.length > 1
-        ? `<button class="dark-button" type="button" data-open-patient="${patient.id}">تحصيل (${row.entryIds.length})</button>`
-        : "");
     return `
       <tr>
-        <td>${patient ? `<button class="table-link" type="button" data-open-patient="${patient.id}">${esc(name)}</button>` : esc(name)}</td>
-        <td class="cell-phone">${canSeePhone && phone ? esc(phone) : "—"}</td>
-        <td class="cell-num">${row.operations > 0.009 ? money(row.operations) : "—"}</td>
-        <td class="cell-num">${row.packages > 0.009 ? money(row.packages) : "—"}</td>
-        <td class="cell-num"><strong>${money(row.total)}</strong></td>
-        <td class="reception-actions">${waCell} ${collect}</td>
+        <td>${esc(patient ? patient.name : (row.name || "—"))}</td>
+        <td>${row.operations > 0.009 ? money(row.operations) : "—"}</td>
+        <td>${row.packages > 0.009 ? money(row.packages) : "—"}</td>
+        <td><strong>${money(row.total)}</strong></td>
       </tr>`;
-  }).join("") : `<tr><td colspan="6">لا توجد مبالغ مستحقة — كل العمليات والباقات مدفوعة بالكامل. 🎉</td></tr>`;
+  }).join("") : `<tr><td colspan="4">لا توجد مبالغ مستحقة — كل العمليات والباقات مدفوعة بالكامل. 🎉</td></tr>`;
 }
 
 function renderRuleList() {
@@ -7783,7 +7672,7 @@ async function deleteImportBatch(importId) {
   const patientSet = new Set(record.patientIds || []);
   const total = entrySet.size + bookingSet.size + expenseSet.size + patientSet.size;
   const label = IMPORT_SCHEMAS[record.entity]?.label || record.entity;
-  if (!await showConfirm(`سيتم حذف ${total} سجلاً أُنشئ من هذا الاستيراد (${label} · ${esc(record.fileName)}).\nلا يمكن التراجع. هل تريد المتابعة؟`, { title: "تأكيد الحذف", okLabel: "تأكيد الحذف", okClass: "danger-button" })) return;
+  if (!await showConfirm(`سيتم حذف ${total} سجلاً أُنشئ من هذا الاستيراد (${label} · ${esc(record.fileName)}).\nلا يمكن التراجع. هل تريد المتابعة؟`)) return;
   state.entries = (state.entries || []).filter(item => !entrySet.has(item.id));
   state.bookings = (state.bookings || []).filter(item => !bookingSet.has(item.id));
   state.expenses = (state.expenses || []).filter(item => !expenseSet.has(item.id));
@@ -8108,7 +7997,7 @@ function renderBookingDayCalendar() {
     ? `<div class="day-schedule-empty">${isEnglish ? "No calendar columns are available for this account." : "لا توجد أعمدة تقويم متاحة لهذا الحساب."}</div>`
     : bookings.length
     ? ""
-    : `<div class="day-schedule-empty">${isEnglish ? "The day is empty — click any slot in the grid to book, or" : "اليوم فارغ — اضغط أي خانة في الجدول لحجز موعد، أو"} <button class="ghost-button empty-state-action" type="button" data-new-booking>${isEnglish ? "New booking" : "حجز جديد"}</button></div>`;
+    : `<div class="day-schedule-empty">${isEnglish ? "No bookings are scheduled for this day yet." : "لا توجد حجوزات مجدولة لهذا اليوم بعد."}</div>`;
 
   const titleHtml = `
     <div class="day-schedule-title">
@@ -8204,12 +8093,6 @@ function renderBookingList() {
     const phone = booking.phone || patient?.phone || "";
     const canCopyReminder = canUseFeature("see_mobile") && phone;
     const canSendSms     = canUseFeature("see_mobile") && phone && canUseFeature("send_sms_campaigns");
-    // One tap opens WhatsApp with the reminder already written — no copy/paste.
-    const waNumber = phoneDigits(phone);
-    const reminderMsg = `السلام عليكم ${booking.patient}،\n\nنذكّركم بموعدكم في ${state.settings?.clinicName || "العيادة"}\nالتاريخ: ${displayDate(booking.date)}\nالوقت: ${displayTime(booking.time)}\nالخدمة: ${serviceLabel(booking)}\n\nنتمنى لكم دوام الصحة والعافية 🌿\n\nللاستفسار أو التعديل على الموعد يُرجى التواصل معنا.`;
-    const waReminder = canCopyReminder && waNumber
-      ? `<a class="text-button whatsapp-action" href="https://wa.me/${waNumber}?text=${esc(encodeURIComponent(reminderMsg))}" target="_blank" rel="noreferrer" title="فتح واتساب برسالة التذكير">💬 واتساب</a>`
-      : (canCopyReminder ? `<button class="text-button whatsapp-copy-btn" type="button" data-copy-reminder="${booking.id}" title="نسخ رسالة تذكير واتساب">📋 واتساب</button>` : "");
     return `
       <div class="staff-card booking-card">
         ${genderAvatar(patient || booking, 42)}
@@ -8222,7 +8105,7 @@ function renderBookingList() {
         <div class="row-actions">
           <span class="status-pill ${statusClass(booking.status)}">${bookingStatusLabel(booking.status)}</span>
           ${nextAction}
-          ${waReminder}
+          ${canCopyReminder ? `<button class="text-button whatsapp-copy-btn" type="button" data-copy-reminder="${booking.id}" title="نسخ رسالة تذكير واتساب">📋 واتساب</button>` : ""}
           ${canSendSms ? `<button class="text-button sms-send-btn" type="button" data-send-sms="${booking.id}" title="إرسال SMS تذكير">📱 SMS</button>` : ""}
           ${canConvert ? `<button class="text-button" type="button" data-booking-to-entry="${booking.id}">تسجيل كعملية</button>` : ""}
           ${canUseFeature("delete_appointment") ? `<button class="icon-button danger" type="button" data-delete-booking="${booking.id}">حذف</button>` : ""}
@@ -10866,7 +10749,7 @@ function applyPriceFieldVisibility() {
   });
 }
 
-function openOperationModal({ returnView = "", patientName = "", serviceId = "", category = "", bookingId = "", doctorId = "", specialistId = "" } = {}) {
+function openOperationModal({ returnView = "", patientName = "", serviceId = "", category = "", bookingId = "" } = {}) {
   if (!canView("entries")) return;
   // Leaving focus mode first — otherwise focus-mode CSS hides the entries view the
   // operation modal lives in, so the form would open invisible.
@@ -10888,24 +10771,11 @@ function openOperationModal({ returnView = "", patientName = "", serviceId = "",
       els.operationCategorySelect.dispatchEvent(new Event("change", { bubbles: true }));
     }
     if (serviceId && els.serviceSelect) els.serviceSelect.value = serviceId;
-    // Carry the booking's provider into the visit so commissions are counted
-    // without re-selecting the doctor at the desk.
-    if (doctorId && els.doctorSelect) {
-      els.doctorSelect.value = doctorId;
-      els.doctorSelect.dispatchEvent(new Event("change", { bubbles: true }));
-    }
-    if (specialistId && els.specialistSelect) els.specialistSelect.value = specialistId;
     const bookingField = els.entryForm.querySelector('input[name="bookingId"]');
     if (bookingField) bookingField.value = bookingId || "";
   }
   window.setTimeout(() => {
-    const form = els.entryForm;
-    if (!form) return;
-    const patientInput = form.querySelector('input[name="patient"]');
-    const target = patientInput && !patientInput.value.trim()
-      ? patientInput
-      : (els.doctorSelect && !els.doctorSelect.value ? els.doctorSelect : patientInput);
-    target?.focus({ preventScroll: true });
+    els.entryForm?.querySelector('input[name="patient"]')?.focus({ preventScroll: true });
   }, 120);
 }
 
@@ -10959,15 +10829,11 @@ function updateEntryPreview() {
   const payoutTotal = previewEntries
     .flatMap(entryPayouts)
     .reduce((sum, row) => sum + row.payout, 0);
-  const previewStatus = data.statusExtra || data.status || "completed";
-  const missingProvider = previewStatus === "completed" && !doctorId && !specialistId;
-  if (missingProvider) els.entryPreview.classList.add("warning");
   els.entryPreview.innerHTML = `
     <span>${lines.length} ${lines.length === 1 ? "عملية" : "عمليات"}</span>
     <span>الإجمالي <strong>${money(net)}</strong></span>
     <span>المدفوع <strong>${money(paid)}</strong>${unpaid ? ` | المتبقي ${money(unpaid)}` : ""}</span>
     ${overpaid ? `<span>تنبيه: المدفوع أعلى من الإجمالي بـ <strong>${money(paid - net)}</strong></span>` : ""}
-    ${missingProvider ? `<span>لن تُحتسب النسب — اختر الطبيب</span>` : ""}
     <span>مستحقات الفريق <strong>${money(payoutTotal)}</strong></span>
   `;
 }
@@ -11022,23 +10888,10 @@ function renderReconciliation(totals, reconciliation, diffs) {
   ];
   const history = reconciliationRecordsForDate(state.settings.activeDate);
 
-  // Blind count: the counter types what is actually in the drawer. The
-  // expected figure sits BESIDE the field as reference — copying it in is a
-  // deliberate act, so a zero-diff «مطابق» actually means something.
-  if (!els.reconcileForm.contains(document.activeElement)) {
-    els.reconcileForm.elements.countedCash.value = "";
-    els.reconcileForm.elements.countedCard.value = "";
-    els.reconcileForm.elements.countedTransfer.value = "";
-    if (els.reconcileForm.elements.note) els.reconcileForm.elements.note.value = "";
-  }
-  const expectedRefs = { cash: totals.cash, card: totals.card, transfer: totals.transfer };
-  els.reconcileForm.querySelectorAll("[data-expected-ref]").forEach(el => {
-    el.textContent = money(expectedRefs[el.dataset.expectedRef] || 0);
-  });
-  els.reconcileForm.querySelectorAll("[data-copy-expected]").forEach(button => {
-    const key = { countedCash: "cash", countedCard: "card", countedTransfer: "transfer" }[button.dataset.copyExpected];
-    button.dataset.value = String(expectedRefs[key] ?? "");
-  });
+  els.reconcileForm.elements.countedCash.value = totals.cash;
+  els.reconcileForm.elements.countedCard.value = totals.card;
+  els.reconcileForm.elements.countedTransfer.value = totals.transfer;
+  if (els.reconcileForm.elements.note) els.reconcileForm.elements.note.value = "";
 
   const latestCards = rows.map(([label, expected, counted, diff]) => {
     const hasDiff = Math.abs(numberValue(diff)) >= 0.01;
@@ -11056,9 +10909,9 @@ function renderReconciliation(totals, reconciliation, diffs) {
     <tr>
       <td>${displayClockMinute(record.createdAt)}</td>
       <td><span class="status-pill ${reconciliationStatusClass(record.status)}">${reconciliationStatusLabel(record.status)}</span></td>
-      <td class="cell-num">${money(record.totalExpected)}</td>
-      <td class="cell-num">${money(record.totalCounted)}</td>
-      <td class="cell-num"><strong>${money(record.totalDiff)}</strong></td>
+      <td>${money(record.totalExpected)}</td>
+      <td>${money(record.totalCounted)}</td>
+      <td><strong>${money(record.totalDiff)}</strong></td>
       <td>${record.createdBy || "-"}</td>
       <td>${record.note || "-"}</td>
     </tr>
@@ -12066,20 +11919,10 @@ els.viewButtons.forEach(button => {
   const navItems = () => [...document.querySelectorAll(".side-nav [data-view-button]")]
     .filter(btn => !btn.hidden)
     .map(btn => ({ view: btn.dataset.viewButton, label: (btn.querySelector(".nav-label")?.textContent || btn.textContent).trim() }));
-  // Actions, not just navigation: the palette can start the two most common
-  // jobs directly, with their function-key shortcuts shown for learning.
-  const quickActions = () => [
-    ...(canView("entries") ? [{ label: "تسجيل عملية — F2", run: () => openOperationModal({}) }] : []),
-    ...(canUseFeature("add_appointment") ? [{ label: "حجز جديد — F4", run: () => window.RiaayaQuickBook?.() }] : []),
-    ...(canViewSensitive() ? [{ label: "المبالغ المستحقة — F8", run: () => setView("collections") }] : [])
-  ];
   function render(filter) {
     if (!list) return;
     const q = (filter || "").trim();
-    const matched = [
-      ...quickActions().filter(it => !q || it.label.includes(q)),
-      ...navItems().filter(it => !q || it.label.includes(q))
-    ];
+    const matched = navItems().filter(it => !q || it.label.includes(q));
     list.innerHTML = "";
     activeIndex = 0;
     if (!matched.length) {
@@ -12094,12 +11937,7 @@ els.viewButtons.forEach(button => {
       el.type = "button";
       el.className = "cmdk-item" + (i === 0 ? " cmdk-active" : "");
       el.textContent = it.label;
-      el.addEventListener("click", () => {
-        closeCmdk();
-        if (it.run) { it.run(); return; }
-        setView(it.view);
-        // The menu group highlight follows via the .nav-group:has(.active) CSS.
-      });
+      el.addEventListener("click", () => { setView(it.view); openActiveGroup(); closeCmdk(); });
       list.appendChild(el);
     });
   }
@@ -12132,18 +11970,6 @@ els.viewButtons.forEach(button => {
       overlay && overlay.hidden ? openCmdk() : closeCmdk();
     } else if (event.key === "Escape" && overlay && !overlay.hidden) {
       closeCmdk();
-    } else if (event.key === "F2" || event.key === "F4" || event.key === "F8") {
-      // Function keys work from anywhere except inside a form or open dialog.
-      const target = event.target;
-      const typing = target && (target.matches?.("input, textarea, select") || target.isContentEditable);
-      const dialogOpen = document.body.classList.contains("operation-modal-open")
-        || document.querySelector("[data-slot-booking-modal]:not([hidden])")
-        || document.querySelector("#confirm-modal:not([hidden])")
-        || (overlay && !overlay.hidden);
-      if (typing || dialogOpen) return;
-      if (event.key === "F2" && canView("entries")) { event.preventDefault(); openOperationModal({}); }
-      else if (event.key === "F4") { event.preventDefault(); window.RiaayaQuickBook?.(); }
-      else if (event.key === "F8" && canViewSensitive()) { event.preventDefault(); setView("collections"); }
     }
   });
 })();
@@ -13269,21 +13095,18 @@ if (els.bookingForm) {
     const service = getService(data.serviceId);
     const account = currentAccount();
     if (!scheduleColumnAllowedForAccount(data.scheduleColumnId, account)) {
-      showToast("هذا الحساب لا يملك صلاحية الحجز في عمود التقويم المختار.", "warn");
+      alert("هذا الحساب لا يملك صلاحية الحجز في عمود التقويم المختار.");
       renderScheduleColumnControls();
-      els.bookingForm.elements.scheduleColumnId?.focus();
       return;
     }
     if (!calendarDateAllowed(currentAccount(), data.date)) {
-      showToast("هذا التاريخ خارج نطاق التقويم المسموح لهذا الحساب.", "warn");
-      els.bookingForm.elements.date?.focus();
+      alert("هذا التاريخ خارج نطاق التقويم المسموح لهذا الحساب.");
       return;
     }
     const stepMinutes = scheduleSlotMinutes();
     if (!isTimeOnScheduleSlot(data.time, stepMinutes)) {
       const nearestSlot = scheduleSlotForTime(data.time, stepMinutes);
-      showToast(`اختر وقتاً على بداية خانة ${stepMinutes} دقيقة. مثال: ${displayTime(nearestSlot)} ثم ${displayTime(timeFromMinutes(minutesFromTime(nearestSlot) + stepMinutes))}.`, "warn");
-      els.bookingForm.elements.time?.focus();
+      alert(`اختر وقتاً على بداية خانة ${stepMinutes} دقيقة. مثال: ${displayTime(nearestSlot)} ثم ${displayTime(timeFromMinutes(minutesFromTime(nearestSlot) + stepMinutes))}.`);
       return;
     }
     const scopedMember = accountStaffScoped(account) ? getStaffMember(account.staffId) : null;
@@ -13309,8 +13132,7 @@ if (els.bookingForm) {
       : bookingSlotConflict(pendingBooking, pendingBooking.id);
     if (conflict) {
       const columnId = bookingScheduleColumnId(pendingBooking, bookingScheduleColumns());
-      showToast(scheduleConflictMessage({ first: conflict, second: pendingBooking, columnId, slot: scheduleSlotForBooking(conflict) }), "warn");
-      els.bookingForm.elements.time?.focus();
+      alert(scheduleConflictMessage({ first: conflict, second: pendingBooking, columnId, slot: scheduleSlotForBooking(conflict) }));
       return;
     }
     state.bookings.push(normalizeBooking({
@@ -13420,9 +13242,6 @@ function openCategoryRowPrompt(category) {
   const catSel = modal.querySelector("[data-slot-booking-category]");
   const doctorSel = modal.querySelector("[data-slot-booking-doctor]");
   const statusEl = modal.querySelector("[data-slot-booking-status]");
-  const columnSel = modal.querySelector("[data-slot-booking-column]");
-  const columnRow = modal.querySelector("[data-slot-booking-column-row]");
-  const timeSel = modal.querySelector("[data-slot-booking-time]");
 
   function close() { modal.hidden = true; form.reset(); if (statusEl) statusEl.textContent = ""; }
 
@@ -13438,26 +13257,7 @@ function openCategoryRowPrompt(category) {
   }
   if (catSel) catSel.addEventListener("change", () => fillServices(catSel.value));
 
-  // All bookable times for a column, taken slots disabled. With no requested
-  // time the first free slot is preselected, so F4 → name → confirm is enough.
-  function timeOptions(columnId, requestedTime) {
-    const step = scheduleSlotMinutes();
-    const start = minutesFromTime(state.settings.workStart || "08:00");
-    const end = minutesFromTime(state.settings.workEnd || "20:00");
-    const date = form.elements.date.value || state.settings.activeDate;
-    let selected = requestedTime || "";
-    const rows = [];
-    for (let minutes = start; minutes < end; minutes += step) {
-      const time = timeFromMinutes(minutes);
-      const probe = normalizeBooking({ id: "__slot_probe__", date, time, scheduleColumnId: columnId, status: "scheduled" }, state.services);
-      const taken = Boolean(bookingSlotConflict(probe, probe.id));
-      if (!selected && !taken) selected = time;
-      rows.push({ time, taken });
-    }
-    return rows.map(row => `<option value="${row.time}"${row.taken && row.time !== selected ? " disabled" : ""}${row.time === selected ? " selected" : ""}>${displayTime(row.time)}${row.taken ? " — محجوز" : ""}</option>`).join("");
-  }
-
-  function applyColumn(columnId, requestedTime = "") {
+  function open(date, time, columnId) {
     const column = bookingScheduleColumns().find(item => item.id === columnId);
     columnCategories = column?.categories || [];
     if (catSel) {
@@ -13471,42 +13271,24 @@ function openCategoryRowPrompt(category) {
       }
     }
     fillServices(catSel ? catSel.value : "");
-    if (timeSel) timeSel.innerHTML = timeOptions(columnId, requestedTime);
-    const date = form.elements.date.value || state.settings.activeDate;
-    titleEl.textContent = `${displayDate(date)}${column?.label ? ` · ${column.label}` : ""}`;
-  }
-
-  function open(date, time, columnId, { pickColumn = false } = {}) {
-    const columns = bookingScheduleColumns();
-    const column = columns.find(item => item.id === columnId) || columns[0];
-    form.elements.date.value = date;
-    if (columnSel) {
-      columnSel.innerHTML = columns.map(item => `<option value="${item.id}"${item.id === (column?.id || "") ? " selected" : ""}>${esc(item.label)}</option>`).join("");
-      if (columnRow) columnRow.hidden = !pickColumn || columns.length < 2;
-    }
     doctorSel.innerHTML = `<option value="">—</option>`
       + (state.staff || []).filter(member => member.role === "doctor").map(member => `<option value="${member.id}">${esc(member.name)}</option>`).join("");
-    applyColumn(column?.id || "", time);
+    form.elements.date.value = date;
+    form.elements.scheduleColumnId.value = columnId;
+    form.elements.time.value = time;
+    titleEl.textContent = `${displayDate(date)} · ${displayTime(time)} · ${column?.label || ""}`;
     modal.hidden = false;
     setTimeout(() => form.elements.patient.focus(), 30);
   }
 
-  columnSel?.addEventListener("change", () => applyColumn(columnSel.value));
-
-  // Generic entry point for the reception «＋ حجز» button and the F4 shortcut:
-  // no slot context needed — pick the column, land on the first free time.
-  window.RiaayaQuickBook = () => {
-    if (!canUseFeature("add_appointment")) return;
-    const firstColumn = bookingScheduleColumns()[0];
-    open(state.settings.activeDate, "", firstColumn?.id || "", { pickColumn: true });
-  };
-
   document.addEventListener("click", event => {
     if (event.target.closest("[data-slot-booking-close]") || event.target === modal) { close(); return; }
     if (event.target.closest(".day-schedule-booking")) return;
-    // «＋ حجز جديد» opens the form blank — column choosable, first free slot.
+    // «＋ حجز جديد» button opens the form blank at the first column / start of day.
     if (event.target.closest("[data-new-booking]")) {
-      window.RiaayaQuickBook();
+      if (!canUseFeature("add_appointment")) return;
+      const firstColumn = bookingScheduleColumns()[0];
+      open(state.settings.activeDate, state.settings.workStart || "09:00", firstColumn?.id || "");
       return;
     }
     const slot = event.target.closest(".day-schedule-slot");
@@ -13524,7 +13306,7 @@ function openCategoryRowPrompt(category) {
       if (statusEl) statusEl.textContent = "أدخل اسم المريض واختر الخدمة.";
       return;
     }
-    const patient = findOrCreatePatientByName(data.patient.trim(), (data.phone || "").trim());
+    const patient = findOrCreatePatientByName(data.patient.trim());
     const service = getService(data.serviceId);
     state.bookings = state.bookings || [];
     state.bookings.push(normalizeBooking({
@@ -13532,7 +13314,7 @@ function openCategoryRowPrompt(category) {
       time: data.time || "09:00",
       patientId: patient.id,
       patient: patient.name,
-      phone: (data.phone || "").trim() || patient.phone || "",
+      phone: patient.phone || "",
       serviceId: data.serviceId,
       service: service ? service.name : "خدمة",
       scheduleColumnId: data.scheduleColumnId,
@@ -14025,9 +13807,7 @@ document.addEventListener("click", event => {
     returnView: "reception",
     patientName: booking.patient,
     serviceId: booking.serviceId,
-    bookingId: booking.id,
-    doctorId: booking.doctorId || "",
-    specialistId: booking.specialistId || ""
+    bookingId: booking.id
   });
 });
 
@@ -14288,7 +14068,7 @@ els.entryForm.addEventListener("submit", event => {
   const scopedMember = accountStaffScoped(account) ? getStaffMember(account.staffId) : null;
   const doctorId = scopedMember?.role === "doctor" ? scopedMember.id : data.doctorId;
   const specialistId = scopedMember?.role === "specialist" ? scopedMember.id : data.specialistId;
-  const patient = ensurePatientFile(data.patient.trim(), (data.phone || "").trim());
+  const patient = ensurePatientFile(data.patient.trim());
   // statusExtra overrides the toggle status (for cancelled / pending_assignment / scheduled)
   const statusExtra = data.statusExtra;
   const baseStatus = data.status || "completed";
@@ -14403,20 +14183,6 @@ els.entryForm.addEventListener("submit", event => {
   saveState();
   render();
   closeOperationModal({ restoreView: returnView });
-  if (status === "pending_assignment" && !statusExtra) {
-    // Auto-demoted because no provider was chosen — say so instead of silently
-    // parking the visit where commissions never count it.
-    showToast("حُفظت بانتظار تعيين الطبيب — أكملها من العمليات", "warn");
-  }
-  const recos = state.reconciliations;
-  const dayAlreadyClosed = Array.isArray(recos)
-    ? recos.some(item => item.date === state.settings.activeDate)
-    : Boolean(recos && typeof recos === "object" && recos[state.settings.activeDate]);
-  if (dayAlreadyClosed) {
-    // Soft lock only — clinics legitimately backfill, but the closer must know
-    // the closing numbers just moved under them.
-    showToast("تنبيه: هذا اليوم مُغلق ومُطابق — العملية الجديدة ستغيّر أرقام الإغلاق.", "warn");
-  }
   if (receipt) openReceipt(receipt.id);
 });
 
@@ -15471,79 +15237,6 @@ if (els.importMapping) {
 document.querySelector("[data-reset-import]")?.addEventListener("click", resetImportWorkspace);
 els.commitImport?.addEventListener("click", commitImportRecords);
 
-els.reconcileForm.addEventListener("click", event => {
-  const button = event.target.closest("[data-copy-expected]");
-  if (!button) return;
-  const input = els.reconcileForm.elements[button.dataset.copyExpected];
-  if (input) {
-    input.value = button.dataset.value || "";
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-    input.focus();
-  }
-});
-
-// The close sheet: a readable end-of-day summary the counter can print and
-// clip to the drawer — visits, per-method totals with diffs, dues, expenses.
-function openCloseSheet(record) {
-  document.querySelector(".close-sheet-modal")?.remove();
-  const date = state.settings.activeDate;
-  const entriesToday = billableEntries(activeEntries());
-  const visits = new Set(entriesToday.map(entry => entry.visitId || entry.id)).size;
-  const revenue = entriesToday.reduce((sum, entry) => sum + paidAmount(entry), 0);
-  const outstanding = entriesToday.reduce((sum, entry) => sum + Math.max(netAmount(entry) - paidAmount(entry), 0), 0);
-  const expenses = expenseTotal(activeDateExpenses());
-  const perfect = Math.abs(numberValue(record.diffCash)) < 0.01
-    && Math.abs(numberValue(record.diffCard)) < 0.01
-    && Math.abs(numberValue(record.diffTransfer)) < 0.01;
-  const methodRow = (label, expected, counted, diff) => {
-    const hasDiff = Math.abs(numberValue(diff)) >= 0.01;
-    return `
-      <tr>
-        <td>${label}</td>
-        <td>${money(expected)}</td>
-        <td>${money(counted)}</td>
-        <td><span class="status-pill ${hasDiff ? "bad" : "good"}">${hasDiff ? `فرق ${money(diff)}` : "مطابق"}</span></td>
-      </tr>`;
-  };
-  const modal = document.createElement("div");
-  modal.className = "close-sheet-modal";
-  modal.innerHTML = `
-    <div class="close-sheet-card" role="dialog" aria-modal="true" aria-label="ملخص إغلاق اليوم">
-      <h3>إغلاق يوم ${esc(displayDate(date))}</h3>
-      <div class="close-sheet-kpis">
-        <div><span>الزيارات</span><strong>${visits}</strong></div>
-        <div><span>المحصّل</span><strong>${money(revenue)}</strong></div>
-        <div><span>مستحقات متبقية</span><strong>${money(outstanding)}</strong></div>
-        <div><span>مصروفات اليوم</span><strong>${money(expenses)}</strong></div>
-      </div>
-      <table class="close-sheet-table">
-        <thead><tr><th>الطريقة</th><th>المتوقع</th><th>الموجود</th><th>الحالة</th></tr></thead>
-        <tbody>
-          ${methodRow("الكاش", record.expectedCash, record.countedCash, record.diffCash)}
-          ${methodRow("الفيزا", record.expectedCard, record.countedCard, record.diffCard)}
-          ${methodRow("التحويل", record.expectedTransfer, record.countedTransfer, record.diffTransfer)}
-        </tbody>
-      </table>
-      ${record.note ? `<p class="close-sheet-note">ملاحظة: ${esc(record.note)}</p>` : ""}
-      <p class="close-sheet-line ${perfect ? "good" : "warn"}">${perfect ? "يوم مُغلق ومطابق. تصبحون على خير." : "يوم مُغلق مع فروقات — راجع الملاحظة والسجل."}</p>
-      <div class="close-sheet-actions">
-        <button class="ghost-button" type="button" data-print-close>🖨 طباعة الملخص</button>
-        <button class="primary-button" type="button" data-close-sheet-dismiss>تم</button>
-      </div>
-    </div>`;
-  modal.addEventListener("click", event => {
-    if (event.target === modal || event.target.closest("[data-close-sheet-dismiss]")) { modal.remove(); return; }
-    if (event.target.closest("[data-print-close]")) {
-      document.body.classList.add("printing-close-summary");
-      const cleanup = () => document.body.classList.remove("printing-close-summary");
-      window.addEventListener("afterprint", cleanup, { once: true });
-      window.print();
-      setTimeout(cleanup, 2000);
-    }
-  });
-  document.body.appendChild(modal);
-}
-
 els.reconcileForm.addEventListener("submit", event => {
   event.preventDefault();
   if (!canViewSensitive()) return;
@@ -15554,7 +15247,6 @@ els.reconcileForm.addEventListener("submit", event => {
   state.reconciliations[state.settings.activeDate] = record;
   saveState();
   render();
-  openCloseSheet(record);
 });
 
 document.addEventListener("click", async event => {
@@ -15933,7 +15625,7 @@ document.addEventListener("click", async event => {
 
   if (deleteExpenseId) {
     if (!canUseFeature("delete_expense")) return;
-    if (!await showConfirm("هل تريد حذف هذا المصروف؟", { title: "تأكيد الحذف", okLabel: "تأكيد الحذف", okClass: "danger-button" })) return;
+    if (!await showConfirm("هل تريد حذف هذا المصروف؟")) return;
     const removedExpense = (state.expenses || []).find(expense => expense.id === deleteExpenseId);
     if (removedExpense) logEdit("حذف مصروف", `${expenseGroupName(removedExpense) || ""} · ${money(removedExpense.amount)}`, { type: "expense", record: removedExpense });
     state.expenses = (state.expenses || []).filter(expense => expense.id !== deleteExpenseId);
@@ -15997,7 +15689,7 @@ document.addEventListener("click", async event => {
 
   if (deletePatientId) {
     if (!canUseFeature("delete_patient")) return;
-    if (!await showConfirm("هل تريد حذف ملف المريض أو الزائر؟ ستبقى العمليات والحجوزات محفوظة بدون رابط الملف.", { title: "تأكيد الحذف", okLabel: "تأكيد الحذف", okClass: "danger-button" })) return;
+    if (!await showConfirm("هل تريد حذف ملف المريض أو الزائر؟ ستبقى العمليات والحجوزات محفوظة بدون رابط الملف.")) return;
     const removedPatient = state.patients.find(patient => patient.id === deletePatientId);
     if (removedPatient) logEdit("حذف ملف مريض", `${removedPatient.name}${removedPatient.patientNumber ? " · #" + removedPatient.patientNumber : ""}`, { type: "patient", record: removedPatient });
     state.patients = state.patients.filter(patient => patient.id !== deletePatientId);
@@ -16063,7 +15755,7 @@ document.addEventListener("click", async event => {
     const isUsed = state.entries.some(entry => (
       entry.doctorId === deleteStaffId || entry.specialistId === deleteStaffId
     ));
-    if (isUsed && !await showConfirm("هذا الموظف مرتبط بعمليات سابقة. هل تريد حذفه؟", { title: "تأكيد الحذف", okLabel: "تأكيد الحذف", okClass: "danger-button" })) return;
+    if (isUsed && !await showConfirm("هذا الموظف مرتبط بعمليات سابقة. هل تريد حذفه؟")) return;
     const removedStaff = state.staff.find(member => member.id === deleteStaffId);
     if (removedStaff) logEdit("حذف موظف", `${removedStaff.name} · ${roleLabel(removedStaff.role)}`, { type: "staff", record: removedStaff });
     state.staff = state.staff.filter(member => member.id !== deleteStaffId);
@@ -16074,7 +15766,7 @@ document.addEventListener("click", async event => {
   if (deleteServiceId) {
     if (!canViewSensitive()) return;
     const isUsed = state.entries.some(entry => entry.serviceId === deleteServiceId);
-    if (isUsed && !await showConfirm("هذه الخدمة مرتبطة بعمليات سابقة. هل تريد حذفها؟", { title: "تأكيد الحذف", okLabel: "تأكيد الحذف", okClass: "danger-button" })) return;
+    if (isUsed && !await showConfirm("هذه الخدمة مرتبطة بعمليات سابقة. هل تريد حذفها؟")) return;
     const removedService = state.services.find(service => service.id === deleteServiceId);
     if (removedService) logEdit("حذف خدمة", `${removedService.name}${removedService.category ? " · " + removedService.category : ""}`, { type: "service", record: removedService });
     state.services = state.services.filter(service => service.id !== deleteServiceId);
@@ -16093,7 +15785,7 @@ document.addEventListener("click", async event => {
   if (deleteSupplierId) {
     const isUsed = state.inventory.some(item => item.supplierId === deleteSupplierId)
       || state.purchaseOrders.some(order => order.supplierId === deleteSupplierId);
-    if (isUsed && !await showConfirm("هذا المورد مرتبط بأصناف أو طلبات. هل تريد حذفه؟", { title: "تأكيد الحذف", okLabel: "تأكيد الحذف", okClass: "danger-button" })) return;
+    if (isUsed && !await showConfirm("هذا المورد مرتبط بأصناف أو طلبات. هل تريد حذفه؟")) return;
     const removedSupplier = state.suppliers.find(supplier => supplier.id === deleteSupplierId);
     if (removedSupplier) logEdit("حذف مورد", removedSupplier.name, { type: "supplier", record: removedSupplier });
     state.suppliers = state.suppliers.filter(supplier => supplier.id !== deleteSupplierId);
@@ -16106,7 +15798,7 @@ document.addEventListener("click", async event => {
 
   if (deleteInventoryId) {
     const isUsed = state.purchaseOrders.some(order => order.itemId === deleteInventoryId);
-    if (isUsed && !await showConfirm("هذا الصنف مرتبط بسجل طلبات. هل تريد حذفه من قائمة المخزون؟", { title: "تأكيد الحذف", okLabel: "تأكيد الحذف", okClass: "danger-button" })) return;
+    if (isUsed && !await showConfirm("هذا الصنف مرتبط بسجل طلبات. هل تريد حذفه من قائمة المخزون؟")) return;
     const removedItem = state.inventory.find(item => item.id === deleteInventoryId);
     if (removedItem) logEdit("حذف صنف مخزون", `${removedItem.name} · ${numberValue(removedItem.quantity)} ${removedItem.unit}`, { type: "inventory", record: removedItem });
     state.inventory = state.inventory.filter(item => item.id !== deleteInventoryId);
@@ -16115,7 +15807,7 @@ document.addEventListener("click", async event => {
   }
 
   if (deleteOrderId) {
-    if (!await showConfirm("هل تريد حذف سجل الطلب؟ لن يتم تعديل كمية المخزون تلقائياً.", { title: "تأكيد الحذف", okLabel: "تأكيد الحذف", okClass: "danger-button" })) return;
+    if (!await showConfirm("هل تريد حذف سجل الطلب؟ لن يتم تعديل كمية المخزون تلقائياً.")) return;
     state.purchaseOrders = state.purchaseOrders.filter(order => order.id !== deleteOrderId);
     saveState();
     render();
@@ -16123,7 +15815,7 @@ document.addEventListener("click", async event => {
 
   if (deleteBookingId) {
     if (!canUseFeature("delete_appointment")) return;
-    if (!await showConfirm("هل تريد حذف هذا الحجز؟", { title: "تأكيد الحذف", okLabel: "تأكيد الحذف", okClass: "danger-button" })) return;
+    if (!await showConfirm("هل تريد حذف هذا الحجز؟")) return;
     const removedBooking = state.bookings.find(booking => booking.id === deleteBookingId);
     if (removedBooking) logEdit("حذف حجز", `${removedBooking.patient || ""} · ${displayDate(removedBooking.date)} ${removedBooking.time ? displayTime(removedBooking.time) : ""}`, { type: "booking", record: removedBooking });
     state.bookings = state.bookings.filter(booking => booking.id !== deleteBookingId);
@@ -16136,26 +15828,10 @@ document.addEventListener("click", async event => {
     const booking = state.bookings.find(item => item.id === bookingStatusId);
     if (!booking) return;
     const newStatus = event.target.dataset.bookingStatus || booking.status;
-    const prevStatus = booking.status;
-    if (newStatus !== prevStatus) logEdit("تغيير حالة حجز", `${booking.patient || ""} · ${bookingStatusLabel(prevStatus)} ← ${bookingStatusLabel(newStatus)}`);
+    if (newStatus !== booking.status) logEdit("تغيير حالة حجز", `${booking.patient || ""} · ${bookingStatusLabel(booking.status)} ← ${bookingStatusLabel(newStatus)}`);
     booking.status = newStatus;
     saveState();
     render();
-    if (newStatus !== prevStatus) {
-      // One-tap transitions stay fast BECAUSE they are reversible: a mis-tap
-      // on «لم يحضر» for someone in the waiting room is one tap to undo.
-      showToast(`تم التحديث: ${bookingStatusLabel(newStatus)}`, "success", {
-        actionLabel: "تراجع",
-        onAction: () => {
-          const target = state.bookings.find(item => item.id === bookingStatusId);
-          if (!target) return;
-          logEdit("تراجع عن تغيير حالة حجز", `${target.patient || ""} · ${bookingStatusLabel(target.status)} ← ${bookingStatusLabel(prevStatus)}`);
-          target.status = prevStatus;
-          saveState();
-          render();
-        }
-      });
-    }
   }
 
   if (bookingToEntryId) {
@@ -16198,7 +15874,7 @@ document.addEventListener("click", async event => {
 
   if (deleteAccountId) {
     if (!canManagePermissions() || deleteAccountId === "account-admin" || deleteAccountId === state.currentAccountId) return;
-    if (!await showConfirm("هل تريد حذف هذا المستخدم نهائياً؟", { title: "حذف المستخدم", okLabel: "حذف نهائي", okClass: "danger-button" })) return;
+    if (!await showConfirm("هل تريد حذف هذا المستخدم نهائياً؟", { title: "حذف المستخدم", okLabel: "حذف نهائي" })) return;
     if (runtime.mode === "live") {
       const response = await fetch(`/api/clinic-users/${encodeURIComponent(deleteAccountId)}`, {
         method: "DELETE",
@@ -16235,7 +15911,7 @@ document.addEventListener("click", async event => {
 
   if (deletePermissionId) {
     if (!canManagePermissions()) return;
-    if (!await showConfirm("هل تريد حذف هذه الصلاحية من المستخدمين المرتبطين بها؟", { title: "حذف الصلاحية", okLabel: "حذف", okClass: "danger-button" })) return;
+    if (!await showConfirm("هل تريد حذف هذه الصلاحية من المستخدمين المرتبطين بها؟", { title: "حذف الصلاحية" })) return;
     const updatedAccounts = state.accounts.map(account => {
       if (account.role === "admin") return account;
       return normalizeAccount({
@@ -16322,7 +15998,7 @@ document.addEventListener("keydown", event => {
 
 document.querySelector("[data-clear-entries]").addEventListener("click", async () => {
   if (!canViewSensitive()) return;
-  if (!await showConfirm("سيتم مسح سجل التاريخ المحدد فقط. هل أنت متأكد؟", { title: "مسح سجل اليوم", okLabel: "مسح السجل", okClass: "danger-button" })) return;
+  if (!await showConfirm("سيتم مسح سجل التاريخ المحدد فقط. هل أنت متأكد؟", { title: "مسح سجل اليوم", okLabel: "مسح السجل" })) return;
   state.entries = state.entries.filter(entry => entry.date !== state.settings.activeDate);
   delete state.reconciliations[state.settings.activeDate];
   state.reconciliationHistory = (state.reconciliationHistory || []).filter(record => record.date !== state.settings.activeDate);
@@ -16455,7 +16131,7 @@ async function restoreClinicJson(file) {
   const summary = backupRestoreSummary(nextState);
   const confirmed = await showConfirm(
     `سيتم استبدال بيانات العيادة الحالية ببيانات هذه النسخة.\n${summary}\nقبل المتابعة، تأكد أنك نزلت نسخة JSON من الوضع الحالي.`,
-    { title: "استرجاع نسخة احتياطية", icon: "♻️", okLabel: "استرجاع الآن", okClass: "danger-button" }
+    { title: "استرجاع نسخة احتياطية", icon: "♻️", okLabel: "استرجاع الآن" }
   );
   if (!confirmed) return;
 
@@ -16905,7 +16581,7 @@ document.querySelector("[data-restore-clinic-json]")?.addEventListener("change",
 });
 
 document.querySelector("[data-clear-leads]").addEventListener("click", async () => {
-  if (!await showConfirm("هل تريد مسح طلبات التجربة المحفوظة على هذا الجهاز؟", { title: "مسح طلبات التجربة", okLabel: "مسح الطلبات", okClass: "danger-button" })) return;
+  if (!await showConfirm("هل تريد مسح طلبات التجربة المحفوظة على هذا الجهاز؟", { title: "مسح طلبات التجربة", okLabel: "مسح الطلبات" })) return;
   storageRemove(LEADS_KEY);
   render();
 });
