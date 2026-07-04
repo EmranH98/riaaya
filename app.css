@@ -7628,3 +7628,117 @@ button.highway-step:hover .highway-node { border-color: var(--teal); }
   font-weight: 700;
   color: var(--ink-soft);
 }
+
+/* Shortcuts help sheet */
+.shortcut-key { width: 130px; }
+.shortcut-key kbd {
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2px 8px;
+  direction: ltr;
+  unicode-bidi: isolate;
+  display: inline-block;
+}
+.shortcuts-tips { margin: 0; padding-inline-start: 18px; display: grid; gap: 6px; font-size: var(--text-md); color: var(--ink-mid); }
+
+/* Column pills read as editable controls, not labels */
+.schedule-column-pill {
+  border: 1px solid var(--line);
+  background: var(--white);
+  padding: 6px 10px;
+  border-radius: var(--radius);
+}
+.schedule-column-pill:has(.schedule-column-edit):hover { border-color: var(--teal); }
+
+/* First-run setup checklist */
+.setup-checklist-card {
+  background: var(--white);
+  border: 1px solid var(--teal);
+  border-inline-start: 4px solid var(--teal);
+  padding: 16px 18px;
+  margin-bottom: 16px;
+  display: grid;
+  gap: 12px;
+}
+.setup-checklist-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.setup-checklist-head h3 { margin: 0; font-size: var(--text-lg); }
+.setup-checklist-meta { display: flex; align-items: center; gap: 10px; }
+.setup-progress-label { font-weight: 800; font-size: var(--text-lg); font-variant-numeric: tabular-nums; color: var(--teal-dark); }
+.setup-progress { height: 6px; background: var(--surface); border: 1px solid var(--line); }
+.setup-progress-fill { height: 100%; background: var(--teal); transition: width 0.3s ease; }
+.setup-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px; }
+.setup-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid var(--line);
+  background: var(--white);
+  padding: 10px 12px;
+  font: inherit;
+  cursor: pointer;
+  text-align: start;
+  border-radius: var(--radius);
+}
+.setup-step:hover { border-color: var(--teal); }
+.setup-step.done { opacity: 0.6; }
+.setup-step-check {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  font-size: var(--text-sm);
+  font-weight: 800;
+  color: var(--ink-soft);
+  background: var(--surface);
+}
+.setup-step.done .setup-step-check { background: var(--status-done); border-color: var(--status-done); color: var(--white); }
+.setup-step-copy { display: grid; gap: 2px; }
+.setup-step-copy strong { font-size: var(--text-md); color: var(--ink); }
+.setup-step-copy small { font-size: var(--text-xs); color: var(--ink-soft); line-height: 1.5; }
+
+/* Recall worklist */
+.recall-panel { border-inline-start: 4px solid var(--gold); }
+.recall-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--gold-pale);
+  color: var(--status-arrived);
+  font-size: var(--text-md);
+  font-weight: 800;
+  vertical-align: middle;
+}
+.panel-sub { margin: 4px 0 0; font-size: var(--text-sm); color: var(--ink-soft); }
+.recall-days { color: var(--ink-soft); }
+.recall-days.overdue { color: var(--status-arrived); font-weight: 700; }
+
+/* Mobile day list: replaces the calendar grid on phones (grid machinery untouched) */
+.mobile-day-list { display: none; }
+@media (max-width: 620px) {
+  .view[data-view="bookings"] .booking-day-calendar,
+  .view[data-view="bookings"] .day-schedule-scroll { display: none; }
+  .mobile-day-list { display: grid; gap: 8px; padding: 4px 0 12px; }
+  .mobile-day-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 4px 2px; }
+  .mobile-day-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid var(--line);
+    background: var(--white);
+    padding: 10px 12px;
+  }
+  .mobile-day-time { font-weight: 800; font-variant-numeric: tabular-nums; flex: 0 0 auto; }
+  .mobile-day-copy { flex: 1; min-width: 0; display: grid; gap: 1px; }
+  .mobile-day-copy strong { font-size: var(--text-md); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mobile-day-copy small { color: var(--ink-soft); font-size: var(--text-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}

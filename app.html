@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260704e">
+  <link rel="stylesheet" href="app.css?v=20260704f">
 </head>
 <body>
 
@@ -340,6 +340,8 @@
             <button class="text-button" type="button" data-jump="reconcile">فتح المطابقة</button>
           </div>
         </section>
+
+        <section class="setup-checklist-card" data-setup-checklist hidden></section>
 
         <section class="day-highway-card" data-day-highway></section>
 
@@ -1176,6 +1178,7 @@
               </div>
               <button class="text-button" type="button" data-jump="reports">تقرير الحجوزات</button>
             </div>
+            <div class="mobile-day-list" data-mobile-day-list></div>
             <div class="booking-day-calendar" data-booking-day-calendar></div>
             <div class="staff-list" data-booking-list></div>
           </article>
@@ -1403,6 +1406,7 @@
       </section>
 
       <section class="view" data-view="packages">
+        <article class="panel recall-panel" data-package-recall hidden></article>
         <div class="split-layout">
           <article class="panel">
             <div class="panel-header">
@@ -3266,7 +3270,7 @@
       </form>
     </div>
   </div>
-  <script src="app.js?v=20260704e"></script>
+  <script src="app.js?v=20260704f"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>

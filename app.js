@@ -2740,6 +2740,15 @@ function showToast(message, type = "success", { actionLabel = "", onAction = nul
 // Empty states teach the next action instead of dead-ending: text plus a real
 // button that jumps to the view where that action happens. [data-jump] is
 // handled by the delegated click handler, so injected buttons just work.
+// Arabic count agreement: 1 → singular phrase, 2 → dual phrase, 3-10 → number
+// + plural, 11+ → number + singular (تمييز). Keeps microcopy grammatical.
+function arCount(n, one, two, few) {
+  if (n === 1) return one;
+  if (n === 2) return two;
+  if (n >= 3 && n <= 10) return `${n} ${few}`;
+  return `${n} ${one}`;
+}
+
 function emptyState(text, { label = "", view = "", action = "" } = {}) {
   const attr = action ? esc(action) : (view ? `data-jump="${esc(view)}"` : "");
   const button = label && attr
@@ -5209,6 +5218,66 @@ function renderScheduleColumnControls() {
   }
 }
 
+// The help sheet: every power feature in one glanceable card, opened with «؟»
+// from anywhere or from the ⌘K palette — discoverability for what the UI
+// can't show inline.
+function openShortcutsHelp() {
+  // Clear any stacked sheet (close-sheet, column editor, older help) first.
+  document.querySelectorAll(".close-sheet-modal").forEach(el => el.remove());
+  const rows = [
+    ["F2", "تسجيل عملية جديدة"],
+    ["F4", "حجز جديد (أول خانة متاحة)"],
+    ["F8", "قائمة المبالغ المستحقة"],
+    ["⌘K / Ctrl+K", "تنقّل سريع + تنفيذ إجراءات + البحث عن مريض"],
+    ["Esc", "إغلاق أي نافذة"],
+    ["؟", "هذه القائمة"]
+  ];
+  const tips = [
+    "اضغط أي خانة فارغة في التقويم لحجز موعد فيها مباشرة.",
+    "اضغط اسم أي عمود في «الإعدادات» داخل التقويم لتحديد فريقه وفئات خدماته.",
+    "أزرار «وصل / لم يحضر» في الاستقبال قابلة للتراجع من التنبيه الذي يظهر.",
+    "اكتب اسم مريض في ⌘K للانتقال إلى ملفه فوراً."
+  ];
+  const modal = document.createElement("div");
+  modal.className = "close-sheet-modal shortcuts-modal";
+  modal.innerHTML = `
+    <div class="close-sheet-card" role="dialog" aria-modal="true" aria-label="الاختصارات والمهارات">
+      <h3>اختصارات تسرّع يومك</h3>
+      <table class="close-sheet-table">
+        <tbody>${rows.map(([key, label]) => `<tr><td class="shortcut-key"><kbd>${esc(key)}</kbd></td><td>${esc(label)}</td></tr>`).join("")}</tbody>
+      </table>
+      <p class="close-sheet-note"><strong>مهارات مخفية:</strong></p>
+      <ul class="shortcuts-tips">${tips.map(tip => `<li>${esc(tip)}</li>`).join("")}</ul>
+      <div class="close-sheet-actions">
+        <button class="primary-button" type="button" data-close-sheet-dismiss>فهمت</button>
+      </div>
+    </div>`;
+  // Esc closes THIS sheet only — capture phase, so it never falls through and
+  // closes the modal underneath (the sheet itself promises «Esc: إغلاق»).
+  const closeSheet = () => {
+    modal.remove();
+    document.removeEventListener("keydown", onEsc, true);
+  };
+  const onEsc = event => {
+    if (event.key !== "Escape") return;
+    event.preventDefault();
+    event.stopPropagation();
+    closeSheet();
+  };
+  document.addEventListener("keydown", onEsc, true);
+  modal.addEventListener("click", event => {
+    if (event.target === modal || event.target.closest("[data-close-sheet-dismiss]")) closeSheet();
+  });
+  document.body.appendChild(modal);
+}
+document.addEventListener("keydown", event => {
+  if (event.key !== "?" && event.key !== "؟") return;
+  const target = event.target;
+  if (target && (target.matches?.("input, textarea, select") || target.isContentEditable)) return;
+  event.preventDefault();
+  openShortcutsHelp();
+});
+
 // Edit which service categories a calendar column offers: booking a slot in
 // the column then only shows those categories' treatments. Empty = everything.
 function openColumnCategoryEditor(columnId) {
@@ -5403,6 +5472,189 @@ function renderBookingFunnel() {
 // The "highway": today's workflow as five stations on a road
 // (appointment → arrival → service → payment → closing), each marked done
 // based on the real state of the working day.
+// Phones get the day as a tappable list, not a 10-column grid: time-sorted
+// bookings with the same one-tap status actions as reception. Pure addition —
+// the grid and its scroll machinery are untouched; CSS swaps them by width.
+function renderMobileDayList() {
+  const host = document.querySelector("[data-mobile-day-list]");
+  if (!host) return;
+  const bookings = activeBookings()
+    .filter(booking => !["cancelled"].includes(booking.status))
+    .sort((a, b) => String(a.time).localeCompare(String(b.time)));
+  const canChange = canUseFeature("change_appointment_status");
+  host.innerHTML = `
+    <div class="mobile-day-head">
+      <strong>يوم ${esc(displayDate(state.settings.activeDate))}</strong>
+      ${canUseFeature("add_appointment") ? `<button class="primary-button" type="button" data-new-booking>＋ حجز</button>` : ""}
+    </div>
+    ${bookings.length ? bookings.map(booking => {
+      const team = [getStaffMember(booking.doctorId)?.name, getStaffMember(booking.specialistId)?.name].filter(Boolean).join(" / ");
+      return `
+      <div class="mobile-day-row">
+        <span class="mobile-day-time">${esc(displayTime(booking.time))}</span>
+        <span class="mobile-day-copy">
+          <strong>${esc(booking.patient)}</strong>
+          <small>${esc(serviceLabel(booking))}${team ? ` · ${esc(team)}` : ""}</small>
+        </span>
+        <span class="status-pill ${statusClass(booking.status)}">${esc(bookingStatusLabel(booking.status))}</span>
+        ${canChange && ["scheduled", "confirmed"].includes(booking.status)
+          ? `<button class="dark-button" type="button" data-booking-status-id="${esc(booking.id)}" data-booking-status="arrived">وصل</button>`
+          : ""}
+      </div>`;
+    }).join("") : emptyState("اليوم فارغ.", canUseFeature("add_appointment") ? { label: "＋ حجز", action: "data-new-booking" } : {})}
+  `;
+}
+
+// ── Session recall: the retention engine ───────────────────────────────────
+// Active packages with sessions left and NO upcoming booking are money already
+// paid, waiting for a reminder. Longest-idle first — those are closest to lapsing.
+// Memoized per render pass (it feeds the worklist AND the notification pipeline
+// several times per render) and built with single-pass indexes so cost stays
+// O(bookings + entries + packages) even for a mature clinic.
+let _recallCache = null;
+function invalidateRecallCache() { _recallCache = null; }
+function packageRecallWorklist() {
+  if (_recallCache) return _recallCache;
+  // `today` is the module-level Asia/Amman date — the same clock the rest of
+  // the app books against, so recall never flips at UTC midnight.
+  const upcomingPackageIds = new Set();
+  const upcomingPatientIds = new Set();
+  for (const booking of state.bookings || []) {
+    if (!["scheduled", "confirmed", "arrived"].includes(booking.status)) continue;
+    if (String(booking.date) < today) continue;
+    if (booking.packageId) upcomingPackageIds.add(booking.packageId);
+    if (booking.patientId) upcomingPatientIds.add(booking.patientId);
+  }
+  const lastEntryDate = new Map();
+  for (const entry of state.entries || []) {
+    if (!entry.packageId) continue;
+    const date = String(entry.date || "");
+    if (date > (lastEntryDate.get(entry.packageId) || "")) lastEntryDate.set(entry.packageId, date);
+  }
+  _recallCache = (state.patientPackages || [])
+    .filter(pkg => packageComputedStatus(pkg) === "active" && packageRemaining(pkg) > 0)
+    .map(pkg => {
+      const patient = patientById(pkg.patientId);
+      // ANY upcoming booking for the patient clears the row — including ones
+      // made from this worklist's own حجز button or the plain calendar.
+      const upcoming = upcomingPackageIds.has(pkg.id)
+        || (pkg.patientId && upcomingPatientIds.has(pkg.patientId));
+      const lastDate = lastEntryDate.get(pkg.id) || String(pkg.soldAt || "").slice(0, 10);
+      const daysSince = lastDate
+        ? Math.max(0, Math.floor((Date.now() - new Date(`${lastDate}T12:00:00`).getTime()) / 86400000))
+        : null;
+      return { pkg, patient, upcoming, lastDate, daysSince };
+    })
+    .filter(row => !row.upcoming)
+    .sort((a, b) => (b.daysSince ?? -1) - (a.daysSince ?? -1));
+  return _recallCache;
+}
+
+function renderPackageRecall() {
+  const host = document.querySelector("[data-package-recall]");
+  if (!host) return;
+  const rows = packageRecallWorklist();
+  if (!rows.length) {
+    host.hidden = true;
+    host.innerHTML = "";
+    return;
+  }
+  const canSeePhone = canUseFeature("see_mobile");
+  host.hidden = false;
+  host.innerHTML = `
+    <div class="panel-header">
+      <div>
+        <p class="eyebrow">محرك المتابعة</p>
+        <h2>جلسات مدفوعة بلا موعد قادم <span class="recall-count">${rows.length}</span></h2>
+        <p class="panel-sub">هؤلاء دفعوا باقاتهم وجلساتهم متبقية — رسالة واحدة تعيد ملء التقويم.</p>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="practical-table">
+        <thead><tr><th>المريض</th><th>الباقة</th><th>المتبقي</th><th>آخر جلسة</th><th>إجراءات</th></tr></thead>
+        <tbody>
+          ${rows.map(row => {
+            const name = row.patient?.name || "—";
+            const phone = canSeePhone ? (row.patient?.phone || "") : "";
+            const waNumber = phoneDigits(phone);
+            const reminder = `مرحباً ${name}، حان موعد جلستك القادمة من «${row.pkg.name}» — تبقّت لديك ${arCount(packageRemaining(row.pkg), "جلسة واحدة", "جلستان", "جلسات")}. يسعدنا تنسيق موعدك في الوقت الأنسب لك 🌿`;
+            return `
+            <tr>
+              <td>${row.patient ? `<button class="table-link" type="button" data-open-patient="${esc(row.patient.id)}">${esc(name)}</button>` : esc(name)}</td>
+              <td>${esc(row.pkg.name)}</td>
+              <td class="cell-num">${packageRemaining(row.pkg)} / ${row.pkg.totalSessions}</td>
+              <td>${row.lastDate ? `${esc(displayDate(row.lastDate))}${row.daysSince !== null ? ` <small class="recall-days${row.daysSince >= 30 ? " overdue" : ""}">منذ ${esc(arCount(row.daysSince, "يوم واحد", "يومين", "أيام"))}</small>` : ""}` : "—"}</td>
+              <td class="reception-actions">
+                ${waNumber ? `<a class="text-button whatsapp-action" href="https://wa.me/${waNumber}?text=${esc(encodeURIComponent(reminder))}" target="_blank" rel="noreferrer">💬 تذكير</a>` : ""}
+                ${row.patient && canUseFeature("add_appointment") ? `<button class="dark-button" type="button" data-recall-book="${esc(row.patient.name)}" data-recall-phone="${esc(phone)}" data-recall-package="${esc(row.pkg.id)}">حجز</button>` : ""}
+              </td>
+            </tr>`;
+          }).join("")}
+        </tbody>
+      </table>
+    </div>`;
+}
+document.addEventListener("click", event => {
+  const book = event.target.closest("[data-recall-book]");
+  if (!book) return;
+  window.RiaayaQuickBook?.({
+    patientName: book.dataset.recallBook || "",
+    phone: book.dataset.recallPhone || "",
+    packageId: book.dataset.recallPackage || ""
+  });
+});
+
+// First-run setup: the four things a new clinic must do, in order, each one a
+// jump to the right screen. Admin-only, live clinics only, disappears forever
+// once complete (or when dismissed).
+function renderSetupChecklist() {
+  const host = document.querySelector("[data-setup-checklist]");
+  if (!host) return;
+  const account = currentAccount();
+  const eligible = runtime.mode === "live" && account?.role === "admin" && !state.settings.setupChecklistDismissed;
+  const steps = [
+    { label: "أضف خدماتك وأسعارها", sub: "ما تقدمه العيادة يظهر في الحجز والعمليات", done: (state.services || []).length > 0, view: "service-admin" },
+    { label: "أضف فريقك ونسبهم", sub: "الأطباء والأخصائيون ومستحقاتهم", done: (state.staff || []).length > 0, view: "staff" },
+    { label: "جهّز أعمدة التقويم", sub: "افتح الحجوزات ثم «الإعدادات» — خصص لكل عمود فريقه وفئاته", done: (state.scheduleColumns || []).some(column => (column.staffIds || []).length || (column.categories || []).length), view: "bookings" },
+    { label: "سجّل أول حجز", sub: "اضغط أي خانة فارغة في التقويم أو F4", done: (state.bookings || []).length > 0, view: "bookings" },
+    { label: "سجّل أول عملية", sub: "زيارة مكتملة بدفعها — أساس التقارير والنسب", done: (state.entries || []).length > 0, view: "entries" },
+    { label: "أغلق أول يوم", sub: "عدّ الدرج وطابق الإغلاق — عادة النجاح اليومية", done: Array.isArray(state.reconciliations) ? state.reconciliations.length > 0 : Object.keys(state.reconciliations || {}).length > 0, view: "reconcile" }
+  ];
+  const doneCount = steps.filter(step => step.done).length;
+  if (!eligible || doneCount === steps.length) {
+    host.hidden = true;
+    host.innerHTML = "";
+    return;
+  }
+  host.hidden = false;
+  host.innerHTML = `
+    <div class="setup-checklist-head">
+      <div>
+        <p class="eyebrow">تجهيز العيادة</p>
+        <h3>${doneCount === 0 ? "أهلاً بك — لنجهّز عيادتك في دقائق" : `أحسنت — بقيت ${arCount(steps.length - doneCount, "خطوة واحدة", "خطوتان", "خطوات")}`}</h3>
+      </div>
+      <div class="setup-checklist-meta">
+        <span class="setup-progress-label">${doneCount}/${steps.length}</span>
+        <button class="text-button" type="button" data-dismiss-setup title="إخفاء هذه القائمة نهائياً">إخفاء</button>
+      </div>
+    </div>
+    <div class="setup-progress"><div class="setup-progress-fill" style="width:${Math.round((doneCount / steps.length) * 100)}%"></div></div>
+    <div class="setup-steps">
+      ${steps.map((step, index) => `
+        <button class="setup-step ${step.done ? "done" : ""}" type="button" data-jump="${step.view}" ${step.done ? "" : `data-setup-next="${index}"`}>
+          <span class="setup-step-check">${step.done ? "✓" : index + 1}</span>
+          <span class="setup-step-copy"><strong>${esc(step.label)}</strong><small>${esc(step.sub)}</small></span>
+        </button>
+      `).join("")}
+    </div>`;
+}
+document.addEventListener("click", event => {
+  if (!event.target.closest("[data-dismiss-setup]")) return;
+  state.settings.setupChecklistDismissed = true;
+  saveState();
+  renderSetupChecklist();
+});
+
 function renderDayHighway() {
   const host = document.querySelector("[data-day-highway]");
   if (!host) return;
@@ -5576,6 +5828,16 @@ function operationalNotifications() {
       title: `${noShows.length} لم يحضروا`,
       body: "أرسل متابعة أو اعرض موعداً بديلاً.",
       view: "communications"
+    });
+  }
+  const recallRows = canView("packages") ? packageRecallWorklist() : [];
+  if (recallRows.length) {
+    notifications.push({
+      id: "package-recall-due",
+      severity: "warning",
+      title: `${arCount(recallRows.length, "باقة نشطة واحدة", "باقتان نشطتان", "باقات نشطة")} بلا موعد قادم`,
+      body: "جلسات مدفوعة تنتظر التذكير — افتح قائمة المتابعة وأرسل رسالة.",
+      view: "packages"
     });
   }
   if (partialPayments.length) {
@@ -8135,12 +8397,20 @@ function renderBookingDayCalendar() {
     grouped.set(key, items);
   });
 
-  const headerCells = columns.map(column => `
-    <div class="day-schedule-cell day-schedule-header-cell">
-      <strong>${column.label}</strong>
-      <small>${column.role}</small>
+  // Header subtitle: the column's team beats its categories beats nothing —
+  // never the old "عمود تقويم" filler repeated across the row.
+  const headerCells = columns.map(column => {
+    const teamNames = (column.staffIds || []).map(id => getStaffMember(id)?.name).filter(Boolean);
+    const subtitle = teamNames.length
+      ? `👤 ${teamNames.join("، ")}`
+      : ((column.categories || []).filter(Boolean).join("، "));
+    return `
+    <div class="day-schedule-cell day-schedule-header-cell" title="${esc(column.label)}${subtitle ? ` — ${esc(subtitle)}` : ""}">
+      <strong>${esc(column.label)}</strong>
+      ${subtitle ? `<small>${esc(subtitle)}</small>` : ""}
     </div>
-  `).join("");
+  `;
+  }).join("");
 
   const bodyCells = slots.map(slot => {
     const slotCells = columns.map(column => {
@@ -12019,6 +12289,7 @@ document.addEventListener("click", event => {
 });
 
 function render() {
+  invalidateRecallCache();
   renderAccessControls();
   const entries = activeEntries();
   const totals = totalsFor(entries);
@@ -12057,6 +12328,9 @@ function render() {
   renderServiceBrowse();
   renderPackages();
   renderDashboardZones();
+  renderSetupChecklist();
+  renderPackageRecall();
+  renderMobileDayList();
   renderDayHighway();
   renderReferralSummary();
   renderGrowthCenter();
@@ -12144,12 +12418,35 @@ els.viewButtons.forEach(button => {
   const quickActions = () => [
     ...(canView("entries") ? [{ label: "تسجيل عملية — F2", run: () => openOperationModal({}) }] : []),
     ...(canUseFeature("add_appointment") ? [{ label: "حجز جديد — F4", run: () => window.RiaayaQuickBook?.() }] : []),
-    ...(canViewSensitive() ? [{ label: "المبالغ المستحقة — F8", run: () => setView("collections") }] : [])
+    ...(canViewSensitive() ? [{ label: "المبالغ المستحقة — F8", run: () => setView("collections") }] : []),
+    { label: "الاختصارات والمهارات — ؟", run: () => openShortcutsHelp() }
   ];
-  function render(filter) {
+  // Patient jump: two letters of a name are enough to land in the file.
+  // Names are normalized (hamza/taa-marbuta variants) like every other search.
+  const patientMatches = query => {
+    const q = normalizeSearchText(query || "");
+    if (!q || q.length < 2 || !canView("patients")) return [];
+    return (state.patients || [])
+      .filter(patient => normalizeSearchText(patient.name || "").includes(q))
+      .slice(0, 5)
+      .map(patient => ({
+        label: `👤 ${patient.name} — فتح الملف`,
+        run: () => {
+          // Mirror the [data-open-patient] flow: full-page file + real render.
+          selectedPatientId = patient.id;
+          setView("patients");
+          enterFocusMode("patients", { patientFocus: "file" });
+          renderPatients();
+        }
+      }));
+  };
+  // Named renderCmdkList — a local "render" here would shadow the global app
+  // renderer for every closure in this IIFE (a real bug we shipped once).
+  function renderCmdkList(filter) {
     if (!list) return;
     const q = (filter || "").trim();
     const matched = [
+      ...patientMatches(q),
       ...quickActions().filter(it => !q || it.label.includes(q)),
       ...navItems().filter(it => !q || it.label.includes(q))
     ];
@@ -12179,7 +12476,7 @@ els.viewButtons.forEach(button => {
   function openCmdk() {
     if (!overlay) return;
     overlay.hidden = false;
-    render("");
+    renderCmdkList("");
     if (input) { input.value = ""; setTimeout(() => input.focus(), 20); }
   }
   function closeCmdk() { if (overlay) overlay.hidden = true; }
@@ -12191,7 +12488,7 @@ els.viewButtons.forEach(button => {
     els[activeIndex]?.classList.add("cmdk-active");
     els[activeIndex]?.scrollIntoView({ block: "nearest" });
   }
-  input?.addEventListener("input", () => render(input.value));
+  input?.addEventListener("input", () => renderCmdkList(input.value));
   input?.addEventListener("keydown", event => {
     if (event.key === "ArrowDown") { event.preventDefault(); moveActive(1); }
     else if (event.key === "ArrowUp") { event.preventDefault(); moveActive(-1); }
@@ -13498,9 +13795,10 @@ function openCategoryRowPrompt(category) {
   const columnRow = modal.querySelector("[data-slot-booking-column-row]");
   const timeSel = modal.querySelector("[data-slot-booking-time]");
 
-  function close() { modal.hidden = true; form.reset(); if (statusEl) statusEl.textContent = ""; }
+  function close() { modal.hidden = true; form.reset(); pendingPackageId = ""; if (statusEl) statusEl.textContent = ""; }
 
   let columnCategories = [];
+  let pendingPackageId = "";
   function fillServices(category) {
     let services = activeServices();
     // When the column is tied to one or two categories, never show anything else.
@@ -13600,12 +13898,19 @@ function openCategoryRowPrompt(category) {
 
   columnSel?.addEventListener("change", () => applyColumn(columnSel.value));
 
-  // Generic entry point for the reception «＋ حجز» button and the F4 shortcut:
-  // no slot context needed — pick the column, land on the first free time.
-  window.RiaayaQuickBook = () => {
+  // Generic entry point for the reception «＋ حجز» button, the F4 shortcut and
+  // the recall worklist (which pre-fills the patient so booking is one confirm).
+  // A packageId links the booking to the package, so the recall list clears
+  // and the session counts against the package schedule.
+  window.RiaayaQuickBook = ({ patientName = "", phone = "", packageId = "" } = {}) => {
     if (!canUseFeature("add_appointment")) return;
     const firstColumn = bookingScheduleColumns()[0];
     open(state.settings.activeDate, "", firstColumn?.id || "", { pickColumn: true });
+    pendingPackageId = packageId;
+    if (patientName) {
+      form.elements.patient.value = patientName;
+      if (form.elements.phone && phone) form.elements.phone.value = phone;
+    }
   };
 
   document.addEventListener("click", event => {
@@ -13654,7 +13959,8 @@ function openCategoryRowPrompt(category) {
       scheduleColumnId: data.scheduleColumnId,
       doctorId: provider?.role === "doctor" ? provider.id : "",
       specialistId: provider?.role === "specialist" ? provider.id : "",
-      expectedAmount: service ? service.defaultPrice : 0,
+      packageId: pendingPackageId || "",
+      expectedAmount: pendingPackageId ? 0 : (service ? service.defaultPrice : 0),
       status: "scheduled"
     }, state.services));
     logEdit("حجز موعد", `${patient.name} · ${service ? service.name : "خدمة"} · ${data.date || state.settings.activeDate} ${data.time || "09:00"}`);
