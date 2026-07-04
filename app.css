@@ -7205,7 +7205,8 @@ html[dir="ltr"] label {
 .nav-group-label:hover { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.7); }
 .nav-group-chevron { width: 14px; height: 14px; flex: 0 0 auto; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; opacity: 0.7; transition: transform 0.18s; }
 .nav-group:not(.open) .nav-group-chevron { transform: rotate(-90deg); }
-.app-shell:not(.nav-collapsed) .nav-group:not(.open) > .nav-item { display: none; }
+/* Direct nav items (الملخص/dashboard) are always visible — only dropdown items
+   hide behind their group label. The old rule hid the dashboard entirely. */
 .nav-group:not(:has(.nav-item:not([hidden]))) { display: none; }
 
 /* ── Top-bar layout overrides ─────────────────────────────────────────────
@@ -7593,4 +7594,25 @@ button.highway-step:hover .highway-node { border-color: var(--teal); }
 .runtime-banner-actions .dark-button,
 .runtime-banner-actions .text-button {
   white-space: nowrap;
+}
+
+/* Calendar column pills: click a column to edit its service categories */
+.schedule-column-pill .schedule-column-edit {
+  border: 0;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+  display: grid;
+  gap: 1px;
+  padding: 0;
+  text-align: start;
+}
+.schedule-column-edit small { color: var(--ink-soft); font-size: var(--text-xs); }
+.schedule-column-edit:hover span { color: var(--teal-dark); text-decoration: underline; }
+.column-cats-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 8px;
+  max-height: 50dvh;
+  overflow-y: auto;
 }

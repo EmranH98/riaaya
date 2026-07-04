@@ -5173,12 +5173,19 @@ function renderScheduleColumnControls() {
   }
 
   if (els.scheduleColumnList) {
-    els.scheduleColumnList.innerHTML = columns.map(column => `
+    // Each pill opens the column's category editor: which service categories
+    // appear when booking a slot in that column (empty = all services).
+    els.scheduleColumnList.innerHTML = columns.map(column => {
+      const cats = (column.categories || []).filter(Boolean);
+      const catLabel = cats.length ? cats.join("، ") : "كل الخدمات";
+      return `
       <span class="schedule-column-pill">
-        <span>${column.label}</span>
-        ${canViewSensitive() && columns.length > 1 ? `<button class="icon-button danger" type="button" data-delete-schedule-column="${column.id}" aria-label="حذف العمود">×</button>` : ""}
-      </span>
-    `).join("");
+        ${canViewSensitive()
+          ? `<button class="schedule-column-edit" type="button" data-edit-schedule-column="${esc(column.id)}" title="تحديد فئات الخدمات التي تظهر عند الحجز في هذا العمود"><span>${esc(column.label)} ✎</span><small>${esc(catLabel)}</small></button>`
+          : `<span>${esc(column.label)}</span>`}
+        ${canViewSensitive() && columns.length > 1 ? `<button class="icon-button danger" type="button" data-delete-schedule-column="${esc(column.id)}" aria-label="حذف العمود">×</button>` : ""}
+      </span>`;
+    }).join("");
   }
 
   if (els.scheduleSlotMinutes) {
@@ -5192,6 +5199,52 @@ function renderScheduleColumnControls() {
     els.bookingForm.elements.time.step = String(slotMinutes * 60);
   }
 }
+
+// Edit which service categories a calendar column offers: booking a slot in
+// the column then only shows those categories' treatments. Empty = everything.
+function openColumnCategoryEditor(columnId) {
+  if (!canViewSensitive()) return;
+  const column = (state.scheduleColumns || []).find(item => item.id === columnId);
+  if (!column) return;
+  document.querySelector(".column-cats-modal")?.remove();
+  const cats = serviceCategories();
+  const selected = new Set((column.categories || []).filter(Boolean));
+  const modal = document.createElement("div");
+  modal.className = "close-sheet-modal column-cats-modal";
+  modal.innerHTML = `
+    <div class="close-sheet-card" role="dialog" aria-modal="true" aria-label="فئات عمود التقويم">
+      <h3>فئات عمود «${esc(column.label)}»</h3>
+      <p class="close-sheet-note">اختر فئات الخدمات التي تظهر عند الحجز في هذا العمود. اترك الكل بدون تحديد ليعرض العمود كل الخدمات.</p>
+      <div class="column-cats-list">
+        ${cats.length ? cats.map(cat => `
+          <label class="inline-check"><input type="checkbox" value="${esc(cat)}"${selected.has(cat) ? " checked" : ""}> ${esc(cat)}</label>
+        `).join("") : `<p class="close-sheet-note">لا توجد فئات بعد — أضف فئات الخدمات من شاشة «إضافة خدمة».</p>`}
+      </div>
+      <div class="close-sheet-actions">
+        <button class="primary-button" type="button" data-save-column-cats>حفظ</button>
+        <button class="ghost-button" type="button" data-close-sheet-dismiss>إلغاء</button>
+      </div>
+    </div>`;
+  modal.addEventListener("click", event => {
+    if (event.target === modal || event.target.closest("[data-close-sheet-dismiss]")) { modal.remove(); return; }
+    if (event.target.closest("[data-save-column-cats]")) {
+      const chosen = [...modal.querySelectorAll('input[type="checkbox"]:checked')].map(input => input.value);
+      column.categories = chosen;
+      column.category = chosen[0] || "";
+      saveState();
+      render();
+      modal.remove();
+      showToast(chosen.length
+        ? `عمود «${column.label}» يعرض الآن: ${chosen.join("، ")}`
+        : `عمود «${column.label}» يعرض كل الخدمات`, "success");
+    }
+  });
+  document.body.appendChild(modal);
+}
+document.addEventListener("click", event => {
+  const edit = event.target.closest("[data-edit-schedule-column]");
+  if (edit) openColumnCategoryEditor(edit.dataset.editScheduleColumn);
+});
 
 function renderKpis(entries, totals, diffs) {
   if (!canViewSensitive()) {
