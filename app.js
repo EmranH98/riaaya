@@ -489,6 +489,27 @@ const APP_TEXT_EN = {
   "إغلاق الشاشة الكاملة": "Close full screen",
   "ابحث بالاسم أو الهاتف…": "Search by name or phone…",
   "أضف مريضاً أولاً": "Add a patient first",
+  "الموظف": "Employee",
+  "قوالب جاهزة:": "Presets:",
+  "طبيب / أخصائي": "Doctor / Specialist",
+  "محاسبة": "Accounting",
+  "كل الصلاحيات": "All permissions",
+  "مسح الكل": "Clear all",
+  "حفظ الصلاحيات": "Save permissions",
+  "بحث في الصلاحيات": "Search permissions",
+  "هاتف، خصم، مواعيد، تقارير...": "Phone, discount, appointments, reports...",
+  "اختر الموظف، فعّل ما يحتاجه، واحفظ — كل صلاحية مكتوبة بلغة واضحة، والحسّاسة معلّمة بـ 💰.": "Pick the employee, enable what they need, and save — every permission is in plain language; sensitive ones are marked 💰.",
+  "تعديلات غير محفوظة — لا تنسَ الحفظ": "Unsaved changes — don't forget to save",
+  "تنظيم الكتالوج": "Organize the catalog",
+  "الفئات والفئات الفرعية": "Categories & subcategories",
+  "اسحب أي خدمة إلى فئة أو فئة فرعية أخرى — تماماً كما تسحب المواعيد في التقويم. اسحب عنوان فئة فرعية كاملاً لنقله إلى فئة أخرى.": "Drag any treatment into another category or subcategory — exactly like dragging appointments in the calendar. Drag a subcategory header to move it whole.",
+  "فئة جديدة…": "New category…",
+  "＋ إضافة فئة": "＋ Add category",
+  "بدون فئة": "No category",
+  "بدون فئة فرعية": "No subcategory",
+  "أفلت خدمة هنا": "Drop a treatment here",
+  "＋ فئة فرعية…": "＋ Subcategory…",
+  "مؤقتة — تثبت عند أول خدمة": "Temporary — becomes permanent with its first treatment",
   "📦 بيع باقة": "📦 Sell Package",
   "خيارات إضافية — إيصال، ملاحظات، حالة خاصة، حجز، بيع باقة": "More options — receipt, notes, special status, booking, package sale",
   "اكتب اسم الخدمة — السعر والفئة يُملآن تلقائياً": "Type the treatment name — price and category fill in automatically",
@@ -3274,17 +3295,110 @@ function accountDisplayName(account) {
 }
 
 function permissionCategoryLabel(category) {
-  const labels = {
-    patients: "Patients & Visitors",
-    medical: "Medical & Treatments",
+  const ar = {
+    patients: "الملفات والمرضى",
+    medical: "العمليات والجلسات",
+    calendar: "التقويم والمواعيد",
+    financial: "المال 💰",
+    reports: "التقارير",
+    inventory: "المخزون والمنتجات",
+    communication: "الرسائل والتواصل",
+    administration: "الإدارة"
+  };
+  const en = {
+    patients: "Files & Patients",
+    medical: "Operations & Sessions",
     calendar: "Calendar & Appointments",
-    financial: "Financial",
+    financial: "Financial 💰",
     reports: "Reports",
-    inventory: "Inventory",
-    communication: "SMS & Communication",
+    inventory: "Inventory & Products",
+    communication: "Messages & Communication",
     administration: "Administration"
   };
-  return labels[category] || category || "Other";
+  const labels = currentLanguage() === "en" ? en : ar;
+  return labels[category] || category || (currentLanguage() === "en" ? "Other" : "أخرى");
+}
+
+// Every permission in plain Arabic: what it is, and what it actually lets the
+// person DO — no technical wording. Keyed by feature id.
+const PERMISSION_AR = {
+  see_mobile: { label: "رؤية أرقام الهواتف", hint: "يظهر رقم هاتف المريض في الجداول والملفات — بدونها يظهر «مخفي»" },
+  access_financial: { label: "الوصول للأمور المالية", hint: "المفتاح الرئيسي للمبالغ: الأسعار، المدفوعات، الديون" },
+  access_medical: { label: "دخول سجل العمليات", hint: "يفتح صفحة العمليات ويشاهد الزيارات" },
+  access_price_medical: { label: "رؤية أسعار العمليات", hint: "تظهر قيمة كل عملية في السجل" },
+  edit_treatments_medical: { label: "تعديل الخدمات", hint: "تعديل أسماء وإعدادات الخدمات في الكتالوج" },
+  delete_treatments_medical: { label: "حذف عمليات وجلسات", hint: "حذف عملية من السجل أو التراجع عن جلسة باقة" },
+  appointments_report: { label: "تقرير المواعيد", hint: "يفتح تقرير الحجوزات والحضور" },
+  patients_page: { label: "دخول صفحة الملفات", hint: "يفتح قائمة المرضى والزوار" },
+  expenses_report: { label: "تقرير المصروفات", hint: "يشاهد تقرير المصروفات ومجاميعها" },
+  expenses_settings: { label: "إعدادات المصروفات", hint: "تعديل إعدادات صفحة المصروفات" },
+  access_expenses: { label: "دخول صفحة المصروفات", hint: "يفتح صفحة المصروفات" },
+  add_expense: { label: "إضافة مصروف", hint: "تسجيل مصروف جديد" },
+  edit_expense: { label: "تعديل مصروف", hint: "تعديل مصروف مسجّل" },
+  delete_expense: { label: "حذف مصروف", hint: "حذف مصروف من السجل" },
+  manage_expense_categories: { label: "إدارة فئات المصروفات", hint: "إضافة وإخفاء فئات المصروفات" },
+  import_data: { label: "استيراد بيانات", hint: "استيراد ملفات مرضى وحجوزات من ملفات خارجية" },
+  treatments_settings: { label: "إعدادات الخدمات", hint: "يفتح صفحة إعدادات كتالوج الخدمات" },
+  cancel_package_medical: { label: "إلغاء باقة", hint: "إلغاء باقة مباعة من سجل العمليات" },
+  calendar_page: { label: "دخول التقويم", hint: "يفتح تقويم المواعيد اليومي" },
+  complete_package_session: { label: "تسجيل جلسات الباقات", hint: "تسجيل جلسة باقة أو التراجع عنها" },
+  discount_medical: { label: "منح خصومات", hint: "تعبئة خانة الخصم عند تسجيل عملية" },
+  edit_price_medical: { label: "تعديل الأسعار", hint: "تغيير سعر الخدمة عن السعر المحدد في الكتالوج" },
+  mobile_calendar_print: { label: "الهواتف في طباعة التقويم", hint: "تظهر أرقام الهواتف عند طباعة جدول اليوم" },
+  delete_treatments_plan: { label: "حذف خطة علاجية", hint: "حذف خطط العلاج من سجل العمليات" },
+  complete_date_session: { label: "تعديل تاريخ الجلسة", hint: "اختيار تاريخ غير اليوم عند تسجيل جلسة" },
+  date_payment_financials: { label: "تعديل تاريخ الدفعة", hint: "تسجيل دفعة بتاريخ مختلف في مالية المريض" },
+  edit_patient_information: { label: "تعديل بيانات المريض", hint: "تعديل الاسم والهاتف والملاحظات في الملف" },
+  payment_before_month: { label: "دفعات قبل الشهر الحالي", hint: "تسجيل دفعة بتاريخ يسبق بداية الشهر" },
+  payment_in_past: { label: "دفعات بتاريخ سابق", hint: "تسجيل دفعة بتاريخ ماضٍ" },
+  change_calendar_date: { label: "تغيير يوم التقويم", hint: "التنقل بين الأيام في التقويم — بدونها يرى اليوم الحالي فقط" },
+  patient_number: { label: "رؤية رقم الملف", hint: "يظهر الرقم التسلسلي للملف في صفحة المرضى" },
+  cash_details_report: { label: "تقرير تفاصيل الكاش", hint: "يفتح تقرير الحركة النقدية التفصيلي" },
+  cash_details_past: { label: "كاش الأيام السابقة", hint: "يشاهد تقرير الكاش لأيام ماضية" },
+  medicine_radiology_lab: { label: "أدوية وأشعة ومختبر", hint: "إضافة أدوية وطلبات أشعة ومختبر في العمليات" },
+  sick_leave_reports: { label: "تقارير الإجازات المرضية", hint: "يفتح تقارير الإجازات المرضية" },
+  inventory: { label: "دخول المخزون", hint: "يفتح صفحة المخزون" },
+  material_consumable_inventory: { label: "المواد المستهلكة", hint: "يشاهد المواد المستهلكة في المخزون" },
+  consumable_price_inventory: { label: "أسعار المواد", hint: "تظهر تكلفة المواد في المخزون" },
+  sell_product: { label: "بيع المنتجات", hint: "بيع منتج وتسجيله على ملف المريض" },
+  manage_products: { label: "إدارة المنتجات", hint: "إضافة وتعديل المنتجات وأسعارها وعمولاتها" },
+  consumed_amount_required: { label: "إلزام كمية الاستهلاك", hint: "يُطلب منه إدخال الكمية المستهلكة عند التسجيل" },
+  material_remaining_report: { label: "تقرير المواد المتبقية", hint: "يشاهد أسماء المواد والكميات المتبقية" },
+  sms_report: { label: "تقرير الرسائل", hint: "يشاهد سجل الرسائل المرسلة" },
+  sms_groups: { label: "مجموعات الرسائل", hint: "إدارة مجموعات المراسلة" },
+  communications_hub: { label: "مركز التواصل", hint: "يفتح صفحة الرسائل والتذكيرات" },
+  send_role_digests: { label: "جدولة الملخصات اليومية", hint: "جدولة تقارير يومية تلقائية للفريق" },
+  send_sms_campaigns: { label: "حملات الرسائل", hint: "إنشاء حملات رسائل جماعية" },
+  manage_jofotara: { label: "إدارة فواتير JoFotara", hint: "إرسال وإدارة الفواتير الضريبية" },
+  view_receipts: { label: "عرض الإيصالات", hint: "يشاهد إيصالات الزيارات في الملفات والعمليات" },
+  issue_receipts: { label: "إصدار وطباعة إيصالات", hint: "إصدار إيصال عند تسجيل عملية وطباعته" },
+  add_patient: { label: "إضافة ملف مريض", hint: "فتح ملف جديد لمريض أو زائر" },
+  delete_patient: { label: "حذف ملف مريض", hint: "حذف ملف نهائياً — العمليات تبقى بلا رابط" },
+  patient_history: { label: "سجل عمليات المريض", hint: "يشاهد تاريخ العمليات داخل الملف" },
+  patient_bookings: { label: "سجل حجوزات المريض", hint: "يشاهد تاريخ الحجوزات داخل الملف" },
+  add_appointment: { label: "إضافة موعد", hint: "حجز موعد جديد في التقويم" },
+  edit_appointment: { label: "تعديل موعد", hint: "تغيير وقت أو تفاصيل موعد" },
+  delete_appointment: { label: "حذف موعد", hint: "إلغاء موعد من التقويم نهائياً" },
+  change_appointment_status: { label: "تغيير حالة الموعد", hint: "وصل / لم يحضر / تأكيد" },
+  print_calendar: { label: "طباعة التقويم", hint: "طباعة جدول اليوم" },
+  universal_reports: { label: "تقارير البحث الشامل", hint: "يفتح تقارير البحث الشامل" },
+  export_reports: { label: "تصدير التقارير", hint: "تنزيل التقارير كملفات CSV" },
+  print_reports: { label: "طباعة التقارير", hint: "طباعة أي تقرير" },
+  manage_staff: { label: "إدارة الفريق", hint: "إضافة وتعديل الأطباء والأخصائيين ونسبهم" },
+  manage_services: { label: "إدارة الخدمات والقواعد", hint: "تعديل الكتالوج والفئات وقواعد النسب" },
+  manage_suppliers: { label: "إدارة الموردين", hint: "إدارة الموردين وطلبات الشراء" },
+  manage_users: { label: "إدارة المستخدمين والصلاحيات", hint: "إنشاء الحسابات وتحديد صلاحيات الجميع" }
+};
+
+function permissionLabel(feature) {
+  // English UI keeps the original English catalog wording.
+  if (currentLanguage() === "en") return feature.label;
+  return PERMISSION_AR[feature.id]?.label || feature.label;
+}
+
+function permissionHint(feature) {
+  if (currentLanguage() === "en") return "";
+  return PERMISSION_AR[feature.id]?.hint || "";
 }
 
 function deriveAccessFromFeatures(role, features) {
@@ -6335,6 +6449,96 @@ function renderPermissionTable() {
   `).join("");
 }
 
+// ── Permissions, the clear way: pick the person, see everything they can do,
+// in Arabic, grouped — with one-click role presets and a live summary. ──────
+const permEditor = { accountId: "", query: "", draft: null };
+
+const PERMISSION_PRESETS = {
+  reception: ["see_mobile", "patients_page", "add_patient", "edit_patient_information", "patient_history", "patient_bookings", "calendar_page", "add_appointment", "edit_appointment", "change_appointment_status", "print_calendar", "access_medical", "complete_package_session", "view_receipts", "issue_receipts", "sell_product"],
+  provider: ["access_medical", "calendar_page", "patients_page", "patient_history", "patient_bookings", "appointments_report", "complete_package_session", "complete_date_session", "medicine_radiology_lab"],
+  finance: ["access_financial", "access_price_medical", "access_expenses", "add_expense", "edit_expense", "expenses_report", "manage_expense_categories", "cash_details_report", "universal_reports", "export_reports", "print_reports", "view_receipts", "issue_receipts", "manage_jofotara", "date_payment_financials", "discount_medical", "payment_in_past"]
+};
+
+function permEditorFeatures(category, query) {
+  return PERMISSION_FEATURES.filter(feature => feature.category === category)
+    .filter(feature => matchesSmartQuery([permissionLabel(feature), permissionHint(feature), feature.label], query));
+}
+
+function renderPermissionEditor() {
+  const editor = document.querySelector("[data-perm-editor]");
+  if (!editor) return;
+  const groupsEl = editor.querySelector("[data-perm-groups]");
+  const accountSel = editor.querySelector("[data-perm-account]");
+  const summaryEl = editor.querySelector("[data-perm-summary]");
+  if (!groupsEl || !accountSel) return;
+  if (!canManagePermissions()) {
+    groupsEl.innerHTML = `<div class="empty-state">هذا الحساب لا يملك صلاحية إدارة المستخدمين.</div>`;
+    if (summaryEl) summaryEl.textContent = "";
+    return;
+  }
+  // Non-admin managers can't edit their own permissions (the server refuses
+  // self-edits anyway) — don't offer a select option that can only fail.
+  const me = currentAccount();
+  const accounts = (state.accounts || []).filter(account => account.role !== "admin")
+    .filter(account => me?.role === "admin" || account.id !== me?.id);
+  if (!accounts.length) {
+    accountSel.innerHTML = "";
+    groupsEl.innerHTML = `<div class="empty-state">أضف مستخدماً أولاً من النموذج أعلاه — مدير النظام يملك كل الصلاحيات دائماً.</div>`;
+    if (summaryEl) summaryEl.textContent = "";
+    return;
+  }
+  if (!accounts.some(account => account.id === permEditor.accountId)) {
+    permEditor.accountId = accounts[0].id;
+    permEditor.draft = null;
+  }
+  accountSel.innerHTML = accounts.map(account => `<option value="${esc(account.id)}">${esc(accountDisplayName(account))} — ${esc(roleCodeLabel(account.role))}</option>`).join("");
+  accountSel.value = permEditor.accountId;
+  const account = accounts.find(item => item.id === permEditor.accountId);
+  if (!permEditor.draft) permEditor.draft = new Set(account?.permissionFeatures || []);
+  const draft = permEditor.draft;
+  const query = permEditor.query.trim();
+
+  const categories = uniqueValues(PERMISSION_FEATURES.map(feature => feature.category));
+  groupsEl.innerHTML = categories.map(category => {
+    const features = permEditorFeatures(category, query);
+    if (!features.length) return "";
+    const checkedCount = features.filter(feature => draft.has(feature.id)).length;
+    return `
+      <section class="perm-group">
+        <header class="perm-group-head">
+          <label class="perm-group-toggle">
+            <input type="checkbox" data-perm-group-toggle="${esc(category)}"${checkedCount === features.length ? " checked" : ""}>
+            <strong>${permissionCategoryLabel(category)}</strong>
+          </label>
+          <span class="perm-group-count">${checkedCount}/${features.length}</span>
+        </header>
+        <div class="perm-group-body">
+          ${features.map(feature => `
+            <label class="perm-item${feature.sensitive ? " perm-item--sensitive" : ""}">
+              <input type="checkbox" data-perm-feature="${esc(feature.id)}"${draft.has(feature.id) ? " checked" : ""}>
+              <span class="perm-item-text">
+                <strong>${esc(permissionLabel(feature))}${feature.sensitive ? " 💰" : ""}</strong>
+                ${permissionHint(feature) ? `<small>${esc(permissionHint(feature))}</small>` : ""}
+              </span>
+            </label>`).join("")}
+        </div>
+      </section>`;
+  }).join("") || `<div class="empty-state">لا صلاحيات تطابق البحث.</div>`;
+
+  groupsEl.querySelectorAll("[data-perm-group-toggle]").forEach(box => {
+    const features = permEditorFeatures(box.dataset.permGroupToggle, query);
+    const n = features.filter(feature => draft.has(feature.id)).length;
+    box.indeterminate = n > 0 && n < features.length;
+  });
+
+  if (summaryEl && account) {
+    const derived = deriveAccessFromFeatures(account.role, [...draft]);
+    const viewNames = (derived.allowedViews || []).map(view => VIEW_LABELS[view]).filter(Boolean);
+    const sensitiveCount = [...draft].map(featureById).filter(feature => feature?.sensitive).length;
+    summaryEl.innerHTML = `<strong>${esc(accountDisplayName(account))}</strong> — ${arCount(draft.size, "صلاحية", "صلاحيتان", "صلاحيات")} مفعّلة${sensitiveCount ? `، منها <strong>${sensitiveCount} حسّاسة 💰</strong>` : "، بدون صلاحيات حسّاسة"} · يفتح: ${viewNames.length ? esc(viewNames.join("، ")) : "—"}`;
+  }
+}
+
 function renderAccessControls() {
   if (els.languageSelect) {
     els.languageSelect.value = currentLanguage();
@@ -6389,11 +6593,103 @@ function renderAccessControls() {
   if (els.printSelectedReport) {
     els.printSelectedReport.hidden = !canUseFeature("print_reports");
   }
-  renderPermissionSelects();
-  renderPermissionCatalog();
   renderAccountList();
-  renderPermissionTable();
+  renderPermissionEditor();
 }
+
+// Unsaved edits = the draft differs from the account's saved feature set.
+function permEditorDirty() {
+  const account = (state.accounts || []).find(item => item.id === permEditor.accountId);
+  if (!account || !permEditor.draft) return false;
+  const saved = new Set(account.permissionFeatures || []);
+  return saved.size !== permEditor.draft.size || [...permEditor.draft].some(id => !saved.has(id));
+}
+
+// Permissions editor wiring — delegated on the static panel, bound once.
+(function initPermissionEditor() {
+  const editor = document.querySelector("[data-perm-editor]");
+  if (!editor) return;
+  const statusEl = () => editor.querySelector("[data-perm-status]");
+  const markDirty = () => { const el = statusEl(); if (el) el.textContent = permEditorDirty() ? "تعديلات غير محفوظة — لا تنسَ الحفظ" : ""; };
+  editor.addEventListener("change", async event => {
+    if (!canManagePermissions()) return;
+    const accountSel = event.target.closest("[data-perm-account]");
+    if (accountSel) {
+      if (permEditorDirty() && !await showConfirm("لديك تعديلات غير محفوظة على هذا الموظف — تجاهلها والانتقال؟", { title: "تعديلات غير محفوظة", okLabel: "تجاهل وانتقل" })) {
+        renderPermissionEditor();
+        return;
+      }
+      permEditor.accountId = accountSel.value;
+      permEditor.draft = null;
+      renderPermissionEditor();
+      markDirty();
+      return;
+    }
+    const featureBox = event.target.closest("[data-perm-feature]");
+    if (featureBox) {
+      if (featureBox.checked) permEditor.draft.add(featureBox.dataset.permFeature);
+      else permEditor.draft.delete(featureBox.dataset.permFeature);
+      renderPermissionEditor();
+      markDirty();
+      return;
+    }
+    const groupBox = event.target.closest("[data-perm-group-toggle]");
+    if (groupBox) {
+      const features = permEditorFeatures(groupBox.dataset.permGroupToggle, permEditor.query.trim());
+      features.forEach(feature => {
+        if (groupBox.checked) permEditor.draft.add(feature.id);
+        else permEditor.draft.delete(feature.id);
+      });
+      renderPermissionEditor();
+      markDirty();
+    }
+  });
+  editor.querySelector("[data-perm-search]")?.addEventListener("input", event => {
+    permEditor.query = event.target.value || "";
+    renderPermissionEditor();
+  });
+  editor.addEventListener("click", async event => {
+    if (!canManagePermissions()) return;
+    const preset = event.target.closest("[data-perm-preset]");
+    if (preset) {
+      const key = preset.dataset.permPreset;
+      if (key === "all") permEditor.draft = new Set(PERMISSION_FEATURES.map(feature => feature.id));
+      else if (key === "none") permEditor.draft = new Set();
+      else permEditor.draft = new Set(PERMISSION_PRESETS[key] || []);
+      renderPermissionEditor();
+      markDirty();
+      return;
+    }
+    if (event.target.closest("[data-perm-save]")) {
+      const account = (state.accounts || []).find(item => item.id === permEditor.accountId);
+      if (!account || !permEditor.draft) return;
+      // normalizeAccount recomputes the derived gates (allowedViews,
+      // canViewSensitive, canManagePermissions) — a revocation must bite NOW.
+      const updated = normalizeAccount({ ...account, permissionFeatures: [...permEditor.draft] });
+      try {
+        // Live mode: the users TABLE is the source of truth for accounts — the
+        // state blob drops them — and the server enforces anti-escalation
+        // (no self-edits, no granting features the grantor doesn't hold).
+        const saved = runtime.mode === "live" ? await persistClinicUser(updated) : updated;
+        state.accounts = (state.accounts || []).map(item => item.id === saved.id ? saved : item);
+        permEditor.draft = new Set(saved.permissionFeatures || []);
+        logEdit("تعديل صلاحيات", `${accountDisplayName(saved)} · ${(saved.permissionFeatures || []).length} صلاحية`);
+        saveState();
+        render();
+        const el = statusEl();
+        if (el) el.textContent = `✅ حُفظت صلاحيات ${accountDisplayName(saved)}.`;
+        showToast(`حُفظت صلاحيات ${accountDisplayName(saved)}`, "success");
+      } catch (error) {
+        const message = error?.message === "permission_escalation_denied"
+          ? "لا يمكن منح صلاحيات أعلى من صلاحياتك."
+          : "تعذّر حفظ الصلاحيات — تحقق من الاتصال وحاول مجدداً.";
+        const el = statusEl();
+        if (el) el.textContent = `⚠ ${message}`;
+        showToast(message, "error");
+      }
+    }
+  });
+})();
 
 function setView(viewName) {
   const targetView = canView(viewName) ? viewName : firstAllowedView();
@@ -8369,11 +8665,11 @@ function serviceTreeHtml(services) {
     const subs = [...subMap.entries()].filter(([sub]) => sub).sort((a, b) => a[0].localeCompare(b[0], "ar"));
     return `
       <details class="tree-cat" open>
-        <summary><span class="tree-cat-name">${cat}</span><span class="tree-count">${total}</span></summary>
+        <summary><span class="tree-cat-name">${esc(cat)}</span><span class="tree-count">${total}</span></summary>
         ${noSub.length ? `<div class="tree-services">${noSub.map(serviceRow).join("")}</div>` : ""}
         ${subs.map(([sub, list]) => `
           <details class="tree-sub" open>
-            <summary><span class="tree-sub-name">${sub}</span><span class="tree-count">${list.length}</span></summary>
+            <summary><span class="tree-sub-name">${esc(sub)}</span><span class="tree-count">${list.length}</span></summary>
             <div class="tree-services">${list.map(serviceRow).join("")}</div>
           </details>`).join("")}
       </details>`;
@@ -8391,7 +8687,7 @@ function renderServiceBrowse() {
   const subDatalist = document.getElementById("service-subcategories");
   if (subDatalist) {
     const subs = [...new Set((state.services || []).map(svc => svc.subcategory).filter(Boolean))].sort((a, b) => a.localeCompare(b, "ar"));
-    subDatalist.innerHTML = subs.map(sub => `<option value="${sub}"></option>`).join("");
+    subDatalist.innerHTML = subs.map(sub => `<option value="${esc(sub)}"></option>`).join("");
   }
   if (els.serviceBrowse) {
     const category = els.serviceBrowseCategory?.value || "";
@@ -8402,7 +8698,212 @@ function renderServiceBrowse() {
     );
     els.serviceBrowse.innerHTML = serviceTreeHtml(filtered);
   }
+  renderTaxonomyBoard();
 }
+
+// ── Taxonomy board: drag a service into a category or another subcategory,
+// exactly like dragging appointments between calendar rows. New (still-empty)
+// categories live in state.settings.extraServiceCategories until first use. ──
+// Session-local empty subcategory groups (become real when a service lands).
+const taxonomyDraftSubs = [];
+
+// A category no calendar column hosts can't be booked from the slot popup —
+// offer the same «اربطها بعمود» prompt the service form uses.
+function warnUnhostedCategory(category) {
+  if (!category || columnHostsCategory(category)) return;
+  openCategoryRowPrompt(category);
+}
+
+function renderTaxonomyBoard() {
+  const panel = document.querySelector("[data-taxonomy-panel]");
+  const board = document.querySelector("[data-taxonomy-board]");
+  if (!panel || !board) return;
+  const canOrganize = canUseFeature("manage_services");
+  panel.hidden = !canOrganize;
+  if (!canOrganize) return;
+  const services = state.services || [];
+  const extras = Array.isArray(state.settings.extraServiceCategories) ? state.settings.extraServiceCategories : [];
+  const categories = uniqueValues([...serviceCategories(), ...extras]);
+  const columns = [...categories.map(cat => ({ key: cat, label: cat })), { key: "", label: "بدون فئة" }];
+
+  board.innerHTML = columns.map(column => {
+    const inCategory = services.filter(svc => (svc.category || "") === column.key);
+    const realSubs = uniqueValues(inCategory.map(svc => svc.subcategory).filter(Boolean))
+      .sort((a, b) => a.localeCompare(b, "ar"));
+    const draftSubs = taxonomyDraftSubs
+      .filter(draft => draft.cat === column.key && !realSubs.includes(draft.sub))
+      .map(draft => draft.sub);
+    const subs = [...realSubs, ...draftSubs];
+    // The «بدون فئة فرعية» group always renders — it is the explicit target for
+    // clearing a subcategory; likewise «بدون فئة» stays visible to un-categorize.
+    const groups = [...subs.map(sub => ({ sub, list: inCategory.filter(svc => (svc.subcategory || "") === sub) })),
+      { sub: "", list: inCategory.filter(svc => !(svc.subcategory || "")) }];
+    const removable = column.key && !inCategory.length && extras.includes(column.key);
+    const card = svc => `<div class="tax-card" draggable="true" data-tax-service="${esc(svc.id)}">${esc(svc.name)}</div>`;
+    return `
+      <div class="tax-column" data-tax-drop-cat="${esc(column.key)}">
+        <header class="tax-column-head"><strong>${esc(column.label)}</strong>
+          <span>${removable ? `<button class="icon-button danger compact-delete" type="button" data-tax-remove-cat="${esc(column.key)}" title="إزالة الفئة الفارغة">×</button>` : `<span class="tree-count">${inCategory.length}</span>`}</span>
+        </header>
+        ${groups.map(group => `
+          <div class="tax-sub-group" data-tax-drop-cat="${esc(column.key)}" data-tax-drop-sub="${esc(group.sub)}">
+            ${group.sub
+              ? `<div class="tax-sub-head" draggable="true" data-tax-sub="${esc(group.sub)}" data-tax-sub-cat="${esc(column.key)}">⠿ ${esc(group.sub)} <span class="tree-count">${group.list.length}</span>${!group.list.length ? ` <small class="tax-draft-hint">مؤقتة — تثبت عند أول خدمة</small>` : ""}</div>`
+              : `<div class="tax-sub-head tax-sub-head--none">بدون فئة فرعية</div>`}
+            <div class="tax-sub-body">${group.list.map(card).join("") || `<div class="tax-empty-slot">أفلت خدمة هنا</div>`}</div>
+          </div>`).join("")}
+        <form class="tax-add-sub" data-tax-add-sub="${esc(column.key)}">
+          <input type="text" placeholder="＋ فئة فرعية…" autocomplete="off">
+        </form>
+      </div>`;
+  }).join("") || `<div class="empty-state">أضف خدمة أولاً — ثم نظّمها هنا بالسحب والإفلات.</div>`;
+}
+
+// Drag-drop wiring for the taxonomy board — delegation on the static container,
+// same pattern as the day calendar so it survives re-renders.
+(function initTaxonomyDragDrop() {
+  const board = document.querySelector("[data-taxonomy-board]");
+  const panel = document.querySelector("[data-taxonomy-panel]");
+  if (!board || !panel) return;
+  let dragging = null; // { type: "service"|"sub", id, sub, cat }
+  let lastOver = null;
+
+  const clearOver = () => { if (lastOver) { lastOver.classList.remove("drag-over"); lastOver = null; } };
+
+  board.addEventListener("dragstart", event => {
+    const subHead = event.target.closest("[data-tax-sub]");
+    const card = event.target.closest("[data-tax-service]");
+    if (subHead) dragging = { type: "sub", sub: subHead.dataset.taxSub, cat: subHead.dataset.taxSubCat };
+    else if (card) dragging = { type: "service", id: card.dataset.taxService };
+    else return;
+    event.dataTransfer.effectAllowed = "move";
+    // Custom type: dragover/drop only accept OUR drags — a stale `dragging`
+    // after a mid-drag re-render can never pair with a foreign drop.
+    event.dataTransfer.setData("application/x-riaaya-tax", "1");
+    event.dataTransfer.setData("text/plain", dragging.id || dragging.sub);
+    requestAnimationFrame(() => (subHead || card).classList.add("dragging"));
+  });
+
+  board.addEventListener("dragend", event => {
+    event.target.closest?.(".dragging")?.classList.remove("dragging");
+    board.querySelectorAll(".dragging").forEach(el => el.classList.remove("dragging"));
+    clearOver();
+    dragging = null;
+  });
+
+  board.addEventListener("dragover", event => {
+    if (!dragging || ![...(event.dataTransfer?.types || [])].includes("application/x-riaaya-tax")) return;
+    // A service prefers the subcategory group under the cursor; a subcategory
+    // header only targets whole columns.
+    const target = dragging.type === "service"
+      ? (event.target.closest("[data-tax-drop-sub]") || event.target.closest("[data-tax-drop-cat]"))
+      : event.target.closest(".tax-column[data-tax-drop-cat]");
+    if (!target) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    if (lastOver && lastOver !== target) lastOver.classList.remove("drag-over");
+    target.classList.add("drag-over");
+    lastOver = target;
+  });
+
+  board.addEventListener("dragleave", event => {
+    if (lastOver && !lastOver.contains(event.relatedTarget)) clearOver();
+  });
+
+  board.addEventListener("drop", event => {
+    if (!dragging || ![...(event.dataTransfer?.types || [])].includes("application/x-riaaya-tax")) return;
+    event.preventDefault();
+    clearOver();
+    if (dragging.type === "service") {
+      const subGroup = event.target.closest("[data-tax-drop-sub]");
+      const column = event.target.closest("[data-tax-drop-cat]");
+      if (!column) { dragging = null; return; }
+      const cat = (subGroup || column).dataset.taxDropCat || "";
+      const sub = subGroup ? (subGroup.dataset.taxDropSub || "") : "";
+      const svc = (state.services || []).find(item => item.id === dragging.id);
+      // A bare-column drop inside the SAME category is a misfire on the gaps,
+      // not an intent to clear the subcategory — the «بدون فئة فرعية» group is
+      // the explicit target for that.
+      if (svc && !subGroup && (svc.category || "") === cat) { dragging = null; return; }
+      if (svc && ((svc.category || "") !== cat || (svc.subcategory || "") !== sub)) {
+        svc.category = cat;
+        svc.subcategory = sub;
+        logEdit("نقل خدمة", `${svc.name} → ${cat || "بدون فئة"}${sub ? ` / ${sub}` : ""}`);
+        saveState();
+        render();
+        showToast(`نُقلت «${svc.name}» إلى ${cat || "بدون فئة"}${sub ? ` / ${sub}` : ""}`, "success");
+        warnUnhostedCategory(cat);
+      }
+    } else if (dragging.type === "sub") {
+      const column = event.target.closest(".tax-column[data-tax-drop-cat]");
+      if (!column) { dragging = null; return; }
+      const targetCat = column.dataset.taxDropCat || "";
+      const { sub, cat } = dragging;
+      if (targetCat !== cat) {
+        const moved = (state.services || []).filter(svc => (svc.category || "") === cat && (svc.subcategory || "") === sub);
+        if (!moved.length) {
+          // An empty (draft) group just relocates — nothing to save or log.
+          const draft = taxonomyDraftSubs.find(item => item.cat === cat && item.sub === sub);
+          if (draft) draft.cat = targetCat;
+          renderTaxonomyBoard();
+          dragging = null;
+          return;
+        }
+        moved.forEach(svc => { svc.category = targetCat; });
+        logEdit("نقل فئة فرعية", `${sub} (${moved.length}) → ${targetCat || "بدون فئة"}`);
+        saveState();
+        render();
+        showToast(`نُقلت «${sub}» بكامل خدماتها إلى ${targetCat || "بدون فئة"}`, "success");
+        warnUnhostedCategory(targetCat);
+      }
+    }
+    dragging = null;
+  });
+
+  // Remove an empty extra category (typos would otherwise be columns forever).
+  panel.addEventListener("click", event => {
+    const removeBtn = event.target.closest("[data-tax-remove-cat]");
+    if (!removeBtn) return;
+    const name = removeBtn.dataset.taxRemoveCat;
+    const stillUsed = (state.services || []).some(svc => (svc.category || "") === name);
+    if (stillUsed) return;
+    state.settings.extraServiceCategories = (state.settings.extraServiceCategories || []).filter(cat => cat !== name);
+    saveState();
+    renderTaxonomyBoard();
+  });
+
+  // New category / new subcategory forms.
+  panel.addEventListener("submit", event => {
+    const addCat = event.target.closest("[data-taxonomy-add-form]");
+    const addSub = event.target.closest("[data-tax-add-sub]");
+    if (!addCat && !addSub) return;
+    event.preventDefault();
+    if (addCat) {
+      const input = addCat.querySelector("[data-taxonomy-new-category]");
+      const name = (input?.value || "").trim();
+      if (!name) return;
+      const extras = Array.isArray(state.settings.extraServiceCategories) ? state.settings.extraServiceCategories : [];
+      if (!serviceCategories().includes(name) && !extras.includes(name)) {
+        state.settings.extraServiceCategories = [...extras, name];
+        saveState();
+        renderTaxonomyBoard();
+        showToast(`أُضيفت فئة «${name}» — اسحب الخدمات إليها`, "success");
+      }
+      input.value = "";
+    } else if (addSub) {
+      const input = addSub.querySelector("input");
+      const name = (input?.value || "").trim();
+      const cat = addSub.dataset.taxAddSub || "";
+      if (!name) return;
+      // A subcategory exists through its services — park a placeholder group by
+      // moving nothing; simplest honest behavior: remember it as a drop target.
+      if (!taxonomyDraftSubs.some(draft => draft.cat === cat && draft.sub === name)) {
+        taxonomyDraftSubs.push({ cat, sub: name });
+      }
+      renderTaxonomyBoard();
+    }
+  });
+})();
 
 function renderServiceList() {
   if (!els.serviceList) return;
@@ -14022,8 +14523,7 @@ function render() {
   renderStorageSafety();
   renderAlerts(entries, totals, diffs);
   renderAccountList();
-  renderPermissionSelects();
-  renderPermissionTable();
+  renderPermissionEditor();
   updateEntryPreview();
   renderPaymentQuickButtons();
   applyLanguage();

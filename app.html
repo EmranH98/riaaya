@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260705a">
+  <link rel="stylesheet" href="app.css?v=20260705b">
 </head>
 <body>
 
@@ -1385,6 +1385,21 @@
           </form>
           <div data-service-browse></div>
         </article>
+
+        <article class="panel taxonomy-panel" data-taxonomy-panel hidden>
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">تنظيم الكتالوج</p>
+              <h2>الفئات والفئات الفرعية</h2>
+              <p class="panel-sub">اسحب أي خدمة إلى فئة أو فئة فرعية أخرى — تماماً كما تسحب المواعيد في التقويم. اسحب عنوان فئة فرعية كاملاً لنقله إلى فئة أخرى.</p>
+            </div>
+            <form class="taxonomy-add-form" data-taxonomy-add-form>
+              <input type="text" data-taxonomy-new-category placeholder="فئة جديدة…" autocomplete="off">
+              <button class="dark-button" type="submit">＋ إضافة فئة</button>
+            </form>
+          </div>
+          <div class="taxonomy-board" data-taxonomy-board></div>
+        </article>
       </section>
 
       <section class="view" data-view="service-admin">
@@ -2510,45 +2525,34 @@
             <div>
               <p class="eyebrow">صلاحيات الميزات</p>
               <h2>الصلاحيات</h2>
+              <p class="panel-sub">اختر الموظف، فعّل ما يحتاجه، واحفظ — كل صلاحية مكتوبة بلغة واضحة، والحسّاسة معلّمة بـ 💰.</p>
             </div>
           </div>
-          <form class="permission-assignment-form" data-permission-form>
-            <label>
-              المستخدم
-              <select name="accountIds" data-permission-account-select multiple required></select>
-              <small>اضغط داخل القائمة لاختيار أكثر من مستخدم</small>
-            </label>
-            <label>
-              القسم
-              <select name="category" data-permission-category-select>
-                <option value="">— كل الأقسام —</option>
-              </select>
-            </label>
-            <label>
-              بحث في الصلاحيات
-              <input name="permissionQuery" type="search" data-permission-search placeholder="مريض، تقويم، مالية...">
-            </label>
-            <label>
-              الميزة
-              <select name="feature" data-permission-feature-select required></select>
-            </label>
-            <button class="primary-button form-submit" type="submit">حفظ</button>
-          </form>
-
-          <div class="permission-catalog" data-permission-catalog></div>
-
-          <div class="table-wrap practical-table-wrap">
-            <table class="practical-table permission-record-table">
-              <thead>
-                <tr>
-                  <th>المستخدم</th>
-                  <th>الميزة</th>
-                  <th>تعديل</th>
-                  <th>حذف</th>
-                </tr>
-              </thead>
-              <tbody data-permission-table></tbody>
-            </table>
+          <div class="perm-editor" data-perm-editor>
+            <div class="perm-editor-top">
+              <label>
+                الموظف
+                <select data-perm-account></select>
+              </label>
+              <label class="filter-search">
+                بحث في الصلاحيات
+                <input type="search" data-perm-search placeholder="هاتف، خصم، مواعيد، تقارير..." autocomplete="off">
+              </label>
+              <div class="perm-presets">
+                <span>قوالب جاهزة:</span>
+                <button class="ghost-chip" type="button" data-perm-preset="reception">استقبال</button>
+                <button class="ghost-chip" type="button" data-perm-preset="provider">طبيب / أخصائي</button>
+                <button class="ghost-chip" type="button" data-perm-preset="finance">محاسبة</button>
+                <button class="ghost-chip" type="button" data-perm-preset="all">كل الصلاحيات</button>
+                <button class="ghost-chip" type="button" data-perm-preset="none">مسح الكل</button>
+              </div>
+            </div>
+            <p class="perm-summary" data-perm-summary aria-live="polite"></p>
+            <div class="perm-groups" data-perm-groups></div>
+            <div class="perm-actions">
+              <button class="primary-button" type="button" data-perm-save>حفظ الصلاحيات</button>
+              <span class="form-status" data-perm-status aria-live="polite"></span>
+            </div>
           </div>
         </article>
       </section>
@@ -3348,7 +3352,7 @@
       </form>
     </div>
   </div>
-  <script src="app.js?v=20260705a"></script>
+  <script src="app.js?v=20260705b"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>

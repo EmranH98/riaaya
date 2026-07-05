@@ -275,6 +275,13 @@ function mergeClinicState(existing, incoming, user, clinic) {
       next.purchaseOrders = incoming.purchaseOrders || existing.purchaseOrders;
     }
   }
+  if (can(user, "manage_services")) {
+    // The services catalog + its category taxonomy (the drag-and-drop board).
+    next.services = incoming.services || existing.services;
+    if (incoming.settings && Array.isArray(incoming.settings.extraServiceCategories)) {
+      next.settings = { ...(next.settings || {}), extraServiceCategories: incoming.settings.extraServiceCategories };
+    }
+  }
   if (
     user.canViewSensitive
     && clinicModuleEnabled(clinic, "expenses")

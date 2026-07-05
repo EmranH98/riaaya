@@ -7915,6 +7915,52 @@ button.highway-step:hover .highway-node { border-color: var(--teal); }
 .pkg-file-payments[open] > summary { border-bottom: 1px solid var(--line); background: var(--teal-pale); }
 .pkg-file-payments-empty { margin: 0; padding: 10px 12px; color: var(--ink-soft); font-size: var(--text-sm); }
 
+/* ── Permissions editor: person-first, Arabic, grouped ─────────────────── */
+.perm-editor { display: grid; gap: 14px; }
+.perm-editor-top { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr); gap: 12px; align-items: end; }
+.perm-presets { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.perm-presets > span { font-weight: 700; color: var(--ink-soft); font-size: var(--text-sm); }
+.perm-summary { margin: 0; padding: 10px 14px; border: 1px solid var(--line); border-inline-start: 4px solid var(--teal); background: var(--teal-pale); font-size: var(--text-md); }
+.perm-groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; align-items: start; }
+.perm-group { border: 1px solid var(--line); background: var(--white); }
+.perm-group-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); background: var(--bg); }
+.perm-group-toggle { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.perm-group-count { font-size: var(--text-xs); font-weight: 700; color: var(--ink-soft); }
+.perm-group-body { display: grid; }
+.perm-item { display: flex; align-items: flex-start; gap: 10px; padding: 9px 12px; border-bottom: 1px solid var(--line); cursor: pointer; }
+.perm-item:last-child { border-bottom: 0; }
+.perm-item:hover { background: var(--bg); }
+.perm-item input { margin-top: 3px; }
+.perm-item-text { display: grid; gap: 2px; }
+.perm-item-text small { color: var(--ink-soft); }
+.perm-item--sensitive { border-inline-start: 3px solid var(--gold); }
+.perm-actions { display: flex; align-items: center; gap: 12px; }
+
+/* ── Taxonomy board: drag services between categories/subcategories ────── */
+.taxonomy-add-form { display: flex; gap: 8px; align-items: center; }
+.taxonomy-add-form input { min-width: 180px; }
+.taxonomy-board { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; align-items: start; }
+.tax-column { border: 1px solid var(--line); background: var(--bg); display: grid; gap: 8px; padding: 10px; }
+.tax-column.drag-over { outline: 2px solid var(--teal); outline-offset: -2px; background: var(--teal-pale); }
+.tax-column-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+.tax-sub-group { border: 1px dashed var(--line); background: var(--white); }
+.tax-sub-group.drag-over { border-style: solid; border-color: var(--teal); background: var(--teal-pale); }
+.tax-sub-head { display: flex; align-items: center; gap: 6px; padding: 7px 10px; font-weight: 700; font-size: var(--text-sm); border-bottom: 1px solid var(--line); cursor: grab; background: var(--bg); }
+.tax-sub-head--none { color: var(--ink-soft); cursor: default; font-weight: 600; }
+.tax-sub-body { display: grid; gap: 6px; padding: 8px; }
+.tax-card { border: 1px solid var(--line); background: var(--white); padding: 8px 10px; font-weight: 700; font-size: var(--text-sm); cursor: grab; }
+.tax-card:active, .tax-sub-head:active { cursor: grabbing; }
+.tax-card.dragging, .tax-sub-head.dragging { opacity: 0.45; }
+.tax-empty-slot { border: 1px dashed var(--line); color: var(--ink-soft); text-align: center; padding: 8px; font-size: var(--text-xs); }
+.tax-add-sub input { width: 100%; border: 1px dashed var(--line); background: transparent; padding: 7px 10px; font: inherit; font-size: var(--text-sm); }
+.tax-draft-hint { font-weight: 600; color: var(--ink-soft); }
+.tax-column-head .compact-delete { min-width: 24px; }
+
+@media (max-width: 620px) {
+  .perm-editor-top { grid-template-columns: 1fr; }
+  .taxonomy-board { grid-template-columns: 1fr; }
+}
+
 /* ════════════════════════════════════════════════════════════════════════
    Unified modal anatomy — ONE recipe for every popup layer.
    Overlay: fixed inset-0, var(--backdrop), var(--z-modal), no blur, scrolls.

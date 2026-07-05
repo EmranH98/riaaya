@@ -2,10 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "riaaya",
-      "runtimeExecutable": "node",
-      "runtimeArgs": ["server.mjs"],
-      "port": 4174
+      "name": "riaaya-static",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8631"],
+      "port": 8631
     }
   ]
 }
