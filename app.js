@@ -55,13 +55,18 @@ function storageRemove(key) {
   }
 }
 
-const jordanDateParts = new Intl.DateTimeFormat("en-US", {
-  timeZone: "Asia/Amman",
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit"
-}).formatToParts(new Date()).reduce((parts, part) => ({ ...parts, [part.type]: part.value }), {});
-const today = `${jordanDateParts.year}-${jordanDateParts.month}-${jordanDateParts.day}`;
+// Clinic-local (Asia/Amman) date at CALL time — for stamping events in tabs
+// that stay open across midnight. The module-level `today` below is load-time.
+function ammanToday() {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Amman",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(new Date()).reduce((acc, part) => ({ ...acc, [part.type]: part.value }), {});
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+const today = ammanToday();
 
 const VIEW_LABELS = {
   dashboard: "ملخص اليوم",
@@ -484,6 +489,14 @@ const APP_TEXT_EN = {
   "إغلاق الشاشة الكاملة": "Close full screen",
   "ابحث بالاسم أو الهاتف…": "Search by name or phone…",
   "أضف مريضاً أولاً": "Add a patient first",
+  "📦 بيع باقة": "📦 Sell Package",
+  "خيارات إضافية — إيصال، ملاحظات، حالة خاصة، حجز، بيع باقة": "More options — receipt, notes, special status, booking, package sale",
+  "اكتب اسم الخدمة — السعر والفئة يُملآن تلقائياً": "Type the treatment name — price and category fill in automatically",
+  "لا باقات لهذا الملف بعد — «بيع باقة» تبدأ من هنا.": "No packages on this file yet — start with \"Sell Package\".",
+  "لا دفعات بعد.": "No payments yet.",
+  "دفعات سابقة قبل تفعيل سجل الدفعات": "Earlier payments, before the payment log existed",
+  "العلاج": "Treatment",
+  "ملاحظة": "Note",
   "عرض كامل": "Full View",
   "إغلاق": "Close",
   "من": "From",
@@ -2922,7 +2935,10 @@ function sellPackage({ patientId, template, sessions, price, paid, soldByStaffId
     specialistId: seller && seller.role && seller.role !== "doctor" ? seller.id : "",
     packageId: pkg.id,
     status: "completed",
-    paymentBreakdown: { cash: paidAmount, card: 0, transfer: 0 }
+    paymentBreakdown: { cash: paidAmount, card: 0, transfer: 0 },
+    paymentLog: paidAmount > 0
+      ? [{ date: state.settings.activeDate, cash: paidAmount, card: 0, transfer: 0, amount: paidAmount, note: "دفعة عند الشراء" }]
+      : []
   }, state.services);
   state.entries = state.entries || [];
   state.entries.push(entry);
@@ -3022,8 +3038,16 @@ function openPackageSessionSheet(pkg, { bookingId = "" } = {}) {
         <button class="ghost-button" type="button" data-close-sheet-dismiss>إلغاء</button>
       </div>
     </div>`;
+  const closeSessionSheet = () => { modal.remove(); document.removeEventListener("keydown", onSessionEscape, true); };
+  const onSessionEscape = event => {
+    if (event.key !== "Escape") return;
+    event.preventDefault();
+    event.stopPropagation();
+    closeSessionSheet();
+  };
+  document.addEventListener("keydown", onSessionEscape, true);
   modal.addEventListener("click", event => {
-    if (event.target === modal || event.target.closest("[data-close-sheet-dismiss]")) { modal.remove(); return; }
+    if (event.target === modal || event.target.closest("[data-close-sheet-dismiss]")) { closeSessionSheet(); return; }
     if (event.target.closest("[data-session-save]")) {
       const providerId = modal.querySelector("[data-session-provider]")?.value || "";
       const provider = getStaffMember(providerId);
@@ -3034,7 +3058,7 @@ function openPackageSessionSheet(pkg, { bookingId = "" } = {}) {
         note: (modal.querySelector("[data-session-note]")?.value || "").trim()
       });
       if (booking) booking.status = "completed";
-      modal.remove();
+      closeSessionSheet();
       saveState();
       render();
       showToast(provider
@@ -3043,6 +3067,121 @@ function openPackageSessionSheet(pkg, { bookingId = "" } = {}) {
     }
   });
   document.body.appendChild(modal);
+}
+
+// Sell a package from anywhere — reception, the patient file — without leaving
+// the screen. Same sale path as the packages page (sellPackage), in a sheet.
+function openSellPackageSheet({ patientId = "" } = {}) {
+  if (!canView("packages")) { showToast("لا تملك صلاحية الباقات.", "error"); return; }
+  document.querySelector(".sell-package-sheet-modal")?.remove();
+  const templates = (state.packageTemplates || []).filter(t => t.active !== false);
+  if (!templates.length) { showToast("أضف قالب باقة أولاً من صفحة الباقات.", "warn"); return; }
+  const fixedPatient = patientId ? patientById(patientId) : null;
+  const canSeePhone = canUseFeature("see_mobile");
+  const showPrices = canViewSensitive();
+  const staffOptions = (state.staff || []).filter(member => member.active !== false);
+  const modal = document.createElement("div");
+  modal.className = "close-sheet-modal sell-package-sheet-modal";
+  modal.innerHTML = `
+    <div class="close-sheet-card" role="dialog" aria-modal="true" aria-label="بيع باقة">
+      <div class="rx-modal-head">
+        <h3>بيع باقة${fixedPatient ? ` — ${esc(fixedPatient.name)}` : ""}</h3>
+        <button class="icon-button rx-modal-close" type="button" data-close-sheet-dismiss aria-label="إغلاق">×</button>
+      </div>
+      ${fixedPatient ? "" : `
+      <label class="column-provider-field">
+        المريض
+        <input type="search" data-sell-patient-search placeholder="${canSeePhone ? "ابحث بالاسم أو الهاتف…" : "ابحث بالاسم…"}" autocomplete="off">
+        <select data-sell-patient></select>
+      </label>`}
+      <label class="column-provider-field">
+        الباقة
+        <select data-sell-template>
+          ${templates.map(t => `<option value="${esc(t.id)}">${esc(t.name)} — ${t.sessions} ${t.sessions === 1 ? "جلسة" : "جلسات"}${showPrices ? ` · ${money(t.price)}` : ""}</option>`).join("")}
+        </select>
+      </label>
+      ${showPrices ? `
+      <label class="column-provider-field">
+        السعر
+        <input type="number" min="0" step="0.01" data-sell-price value="${numberValue(templates[0].price)}">
+      </label>
+      <label class="column-provider-field">
+        المدفوع الآن
+        <input type="number" min="0" step="0.01" data-sell-paid placeholder="0">
+      </label>` : ""}
+      <label class="column-provider-field">
+        البائع (الموظف)
+        <select data-sell-staff>
+          <option value="">—</option>
+          ${staffOptions.map(member => `<option value="${esc(member.id)}">${esc(member.name)}</option>`).join("")}
+        </select>
+      </label>
+      <div class="close-sheet-actions">
+        <button class="primary-button" type="button" data-sell-save>بيع الباقة</button>
+        <button class="ghost-button" type="button" data-close-sheet-dismiss>إلغاء</button>
+      </div>
+    </div>`;
+  // Escape closes the sheet (capture phase, so focus-mode's own Escape handler
+  // underneath never fires while the sheet is open).
+  const closeSheet = () => { modal.remove(); document.removeEventListener("keydown", onSheetEscape, true); };
+  const onSheetEscape = event => {
+    if (event.key !== "Escape") return;
+    event.preventDefault();
+    event.stopPropagation();
+    closeSheet();
+  };
+  document.addEventListener("keydown", onSheetEscape, true);
+  const patientSelect = modal.querySelector("[data-sell-patient]");
+  const patientSearch = modal.querySelector("[data-sell-patient-search]");
+  const fillPatients = () => {
+    if (!patientSelect) return [];
+    const query = (patientSearch?.value || "").trim();
+    const matches = (state.patients || []).filter(p => matchesSmartQuery(canSeePhone ? [p.name, p.phone] : [p.name], query));
+    const previous = patientSelect.value;
+    patientSelect.innerHTML = `<option value="">${matches.length ? "اختر المريض" : (query ? "لا نتائج — عدّل البحث" : "أضف مريضاً أولاً")}</option>`
+      + matches.map(p => `<option value="${esc(p.id)}">${esc(p.name)}${canSeePhone && p.phone ? ` — ${esc(p.phone)}` : ""}</option>`).join("");
+    if (previous && matches.some(p => p.id === previous)) patientSelect.value = previous;
+    return matches;
+  };
+  fillPatients();
+  patientSearch?.addEventListener("input", () => {
+    const matches = fillPatients();
+    if (patientSearch.value.trim() && matches.length === 1) patientSelect.value = matches[0].id;
+  });
+  const templateSelect = modal.querySelector("[data-sell-template]");
+  const priceInput = modal.querySelector("[data-sell-price]");
+  templateSelect?.addEventListener("change", () => {
+    const t = templates.find(item => item.id === templateSelect.value);
+    if (t && priceInput) priceInput.value = numberValue(t.price);
+  });
+  modal.addEventListener("click", event => {
+    if (event.target === modal || event.target.closest("[data-close-sheet-dismiss]")) { closeSheet(); return; }
+    if (!event.target.closest("[data-sell-save]")) return;
+    const targetPatient = fixedPatient || patientById(patientSelect?.value || "");
+    if (!targetPatient) { showToast("اختر المريض أولاً.", "warn"); patientSearch?.focus(); return; }
+    const template = templates.find(item => item.id === templateSelect?.value) || templates[0];
+    const pkg = sellPackage({
+      patientId: targetPatient.id,
+      template,
+      sessions: template.sessions,
+      price: priceInput ? priceInput.value : template.price,
+      paid: numberValue(modal.querySelector("[data-sell-paid]")?.value),
+      soldByStaffId: modal.querySelector("[data-sell-staff]")?.value || ""
+    });
+    closeSheet();
+    saveState();
+    render();
+    if (!pkg) return;
+    const saleEntry = (state.entries || []).find(e => e.id === pkg.entryId);
+    const due = saleEntry ? Math.max(netAmount(saleEntry) - paidAmount(saleEntry), 0) : 0;
+    if (due > 0.009 && showPrices && saleEntry) {
+      showToast(`بيعت «${pkg.name}» لـ ${targetPatient.name} — متبقٍ ${money(due)}`, "warn", { actionLabel: "تحصيل الآن", onAction: () => openFollowupModal(saleEntry.id) });
+    } else {
+      showToast(`بيعت «${pkg.name}» لـ ${targetPatient.name}`, "success");
+    }
+  });
+  document.body.appendChild(modal);
+  (patientSearch || templateSelect)?.focus();
 }
 
 function patientById(id) {
@@ -3331,6 +3470,10 @@ function normalizeEntry(entry, services = seedServices) {
     doctorRate: asNumber(entry.doctorRate ?? entry.doctor_rate),
     doctorModel: entry.doctorModel || entry.doctor_model || "",
     // Which session of a package this visit is (1-based); 0 = not a session.
+    // NOTE: paymentLog ({date, cash, card, transfer, amount, note} per collection)
+    // passes through the ...entry spread untouched — do NOT default it to [] here:
+    // stamping every stored entry would mark them all "edited" in the three-way
+    // merge and let a stale save clobber concurrent collections.
     sessionIndex: Math.max(0, Math.round(asNumber(entry.sessionIndex)) || 0)
   };
 }
@@ -4373,7 +4516,8 @@ function submitFollowup() {
   }
 
   const note = (els.followupNote?.value || "").trim();
-  const date = new Date().toISOString().slice(0, 10);
+  // Clinic-local date, not UTC — a collection at 1am must not land on yesterday.
+  const date = ammanToday();
   const methodLabels = { cash: "كاش", card: "فيزا", transfer: "تحويل" };
 
   const breakdown = entryPaymentBreakdown(entry);
@@ -4383,6 +4527,10 @@ function submitFollowup() {
     transfer: numberValue(breakdown.transfer) + split.transfer
   };
   entry.paymentMethod = paymentMethodFromBreakdown(entry.paymentBreakdown, entry.paymentMethod);
+  // Payment history: each collection is its own line — the patient file shows
+  // when and how much was paid, payment by payment.
+  entry.paymentLog = [...(Array.isArray(entry.paymentLog) ? entry.paymentLog : []),
+    { date, cash: split.cash, card: split.card, transfer: split.transfer, amount: split.total, note }];
 
   const newPaid = paidAmount(entry);
   entry.status = newPaid >= net - 0.01 ? "completed" : "partial_payment";
@@ -6203,6 +6351,12 @@ function renderAccessControls() {
     setView(firstAllowedView());
   }
 
+  // The reception «بيع باقة» shortcut is a dead button without the packages
+  // view — hide it rather than let clicks silently do nothing.
+  document.querySelectorAll("[data-open-sell-package]").forEach(button => {
+    button.hidden = !canView("packages");
+  });
+
   els.viewButtons.forEach(button => {
     button.hidden = !canView(button.dataset.viewButton);
   });
@@ -7982,12 +8136,18 @@ function renderPatientFile() {
     : `<div class="empty-state">${canUseFeature("view_receipts") ? "لا توجد إيصالات لهذا الملف." : "لا توجد صلاحية لعرض الإيصالات."}</div>`;
 
   // Packages with a per-visit breakdown: every session shows its date,
-  // performer and status — plus the upcoming booked sessions.
+  // performer and status — plus the upcoming booked sessions, the purchase
+  // details, and every payment. Visible the moment a package is sold, and the
+  // section always renders so «بيع باقة» is one click from the file.
   const patientPkgs = (state.patientPackages || []).filter(pkg => pkg.patientId === patient.id);
-  const packageSection = canView("packages") && patientPkgs.length ? `
+  const methodNames = { cash: "كاش", card: "فيزا", transfer: "تحويل" };
+  const packageSection = canView("packages") ? `
     <div class="patient-history-section">
-      <h3>الباقات <span class="patient-ops-count">${patientPkgs.length}</span></h3>
-      ${patientPkgs.map(pkg => {
+      <div class="pkg-file-section-head">
+        <h3>الباقات <span class="patient-ops-count">${patientPkgs.length}</span></h3>
+        <button class="text-button" type="button" data-open-sell-package="${esc(patient.id)}">📦 بيع باقة</button>
+      </div>
+      ${patientPkgs.length ? patientPkgs.map(pkg => {
         const sessions = packageSessionEntries(pkg.id);
         const upcoming = (state.bookings || [])
           .filter(b => b.packageId === pkg.id && ["scheduled", "confirmed", "arrived"].includes(b.status))
@@ -7996,22 +8156,46 @@ function renderPatientFile() {
         // link survived reloads (session entries always carry sessionIndex > 0).
         const saleEntry = (state.entries || []).find(e => e.id === pkg.entryId)
           || (state.entries || []).find(e => e.packageId === pkg.id && !(e.sessionIndex > 0));
-        const due = saleEntry ? Math.max(netAmount(saleEntry) - paidAmount(saleEntry), 0) : 0;
+        const paidSoFar = saleEntry ? paidAmount(saleEntry) : 0;
+        const due = saleEntry ? Math.max(netAmount(saleEntry) - paidSoFar, 0) : 0;
         const statusKey = packageComputedStatus(pkg);
         const untracked = Math.max(0, (pkg.usedSessions || 0) - sessions.length);
+        const seller = getStaffMember(pkg.soldByStaffId);
+        const payments = saleEntry && Array.isArray(saleEntry.paymentLog) ? saleEntry.paymentLog : [];
+        // Payments recorded before the log existed must still be accounted for —
+        // the table's rows always reconcile with the paid total in the summary.
+        const logSum = payments.reduce((sum, p) => sum + numberValue(p.amount), 0);
+        const legacyGap = paidSoFar - logSum;
+        const legacyRow = legacyGap > 0.01
+          ? `<tr><td>—</td><td>${money(legacyGap)}</td><td>—</td><td>دفعات سابقة قبل تفعيل سجل الدفعات</td></tr>`
+          : "";
+        const paymentRows = showSensitivePf && saleEntry ? `
+          <details class="pkg-file-payments">
+            <summary>المدفوعات — ${money(paidSoFar)} من ${money(netAmount(saleEntry))}${due > 0.009 ? ` · متبقٍ ${money(due)}` : " · مدفوعة بالكامل"}</summary>
+            ${payments.length || legacyRow ? `
+            <table class="practical-table pkg-file-table">
+              <thead><tr><th>التاريخ</th><th>المبلغ</th><th>الطريقة</th><th>ملاحظة</th></tr></thead>
+              <tbody>
+                ${legacyRow}
+                ${payments.map(p => `<tr><td>${esc(displayDate(p.date))}</td><td>${money(numberValue(p.amount))}</td><td>${esc(PAYMENT_METHODS.filter(m => numberValue(p[m]) > 0.009).map(m => `${methodNames[m]} ${money(numberValue(p[m]))}`).join(" + ") || "—")}</td><td>${esc(p.note || "—")}</td></tr>`).join("")}
+              </tbody>
+            </table>` : `<p class="pkg-file-payments-empty">لا دفعات بعد.</p>`}
+          </details>` : "";
         return `
         <div class="pkg-file-card">
           <div class="pkg-file-head">
             <div>
               <strong>${esc(pkg.name)}</strong>
-              <small>${pkg.usedSessions}/${pkg.totalSessions} جلسة${canViewSensitive() ? ` · ${money(pkg.price)}${saleEntry ? (due > 0.009 ? ` — متبقٍ ${money(due)}` : " — مدفوعة بالكامل") : ""}` : ""}</small>
+              <small>${pkg.usedSessions}/${pkg.totalSessions} جلسة${showSensitivePf ? ` · ${money(pkg.price)}${saleEntry ? (due > 0.009 ? ` — متبقٍ ${money(due)}` : " — مدفوعة بالكامل") : ""}` : ""}</small>
+              <small class="pkg-file-meta">اشتُريت ${esc(displayDate(pkg.soldAt) || "—")}${seller ? ` · البائع ${esc(seller.name)}` : ""}${pkg.expiresAt ? ` · تنتهي ${esc(displayDate(pkg.expiresAt))}` : ""}</small>
             </div>
             <div class="pkg-file-actions">
               <span class="status-pill ${statusKey === "active" ? "chip--confirmed" : statusKey === "completed" ? "chip--done" : "chip--cancelled"}">${statusKey === "active" ? "نشطة" : statusKey === "completed" ? "مكتملة" : "منتهية"}</span>
-              ${due > 0.009 && canViewSensitive() && saleEntry ? `<button class="dark-button" type="button" data-followup-entry="${esc(saleEntry.id)}">تحصيل ${money(due)}</button>` : ""}
+              ${due > 0.009 && showSensitivePf && saleEntry ? `<button class="dark-button" type="button" data-followup-entry="${esc(saleEntry.id)}">تحصيل ${money(due)}</button>` : ""}
               ${packageRemaining(pkg) > 0 ? `<button class="text-button" type="button" data-package-use="${esc(pkg.id)}">تسجيل جلسة</button>` : ""}
             </div>
           </div>
+          ${paymentRows}
           <table class="practical-table pkg-file-table">
             <thead><tr><th>الجلسة</th><th>التاريخ</th><th>المنفّذ</th><th>الحالة</th></tr></thead>
             <tbody>
@@ -8022,7 +8206,7 @@ function renderPatientFile() {
             </tbody>
           </table>
         </div>`;
-      }).join("")}
+      }).join("") : `<div class="empty-state">لا باقات لهذا الملف بعد — «بيع باقة» تبدأ من هنا.</div>`}
     </div>` : "";
 
   const allergyAlert = hasAllergyKeywords(patient.notes)
@@ -12686,6 +12870,25 @@ function openOperationModal({ returnView = "", patientName = "", serviceId = "",
   if (els.entryForm) {
     const patientInput = els.entryForm.querySelector('input[name="patient"]');
     if (patientInput && patientName) patientInput.value = patientName;
+    // Known patient → a chip instead of name/phone inputs. The input keeps the
+    // value (submit reads it); the chip just removes the retyping noise.
+    const chip = els.entryForm.querySelector("[data-operation-patient-chip]");
+    const chipName = els.entryForm.querySelector("[data-operation-patient-chip-name]");
+    if (chip && chipName) {
+      if (patientName) {
+        chipName.textContent = patientName;
+        chip.hidden = false;
+        // Sync the hidden phone input to the known patient — a stale value from
+        // the previous visit must never ride into this one unseen.
+        const phoneInput = els.entryForm.querySelector('input[name="phone"]');
+        if (phoneInput) {
+          const known = (state.patients || []).find(p => patientNameKey(p.name) === patientNameKey(patientName));
+          phoneInput.value = known?.phone || "";
+        }
+      } else {
+        chip.hidden = true;
+      }
+    }
     if (category && els.operationCategorySelect) {
       els.operationCategorySelect.value = category;
       els.operationCategorySelect.dispatchEvent(new Event("change", { bubbles: true }));
@@ -16260,18 +16463,28 @@ els.serviceBrowseSearch?.addEventListener("input", renderServiceBrowse);
     const oldPaid = paidAmount(entry);
     const newPaid = Math.min(Math.max(numberValue(data.paid), 0), newNet);
     if (Math.abs(newPaid - oldPaid) >= 0.01) {
+      const oldBreakdown = entryPaymentBreakdown(entry);
       if (oldPaid > 0.01) {
         const factor = newPaid / oldPaid;
-        const b = entryPaymentBreakdown(entry);
         entry.paymentBreakdown = {
-          cash: numberValue(b.cash) * factor,
-          card: numberValue(b.card) * factor,
-          transfer: numberValue(b.transfer) * factor
+          cash: numberValue(oldBreakdown.cash) * factor,
+          card: numberValue(oldBreakdown.card) * factor,
+          transfer: numberValue(oldBreakdown.transfer) * factor
         };
       } else {
         entry.paymentBreakdown = { cash: newPaid, card: 0, transfer: 0 };
       }
       entry.paymentMethod = paymentMethodFromBreakdown(entry.paymentBreakdown, entry.paymentMethod);
+      // Keep the per-payment history in step with the manual correction, so the
+      // patient-file payments table always sums to the entry's paid total.
+      entry.paymentLog = [...(Array.isArray(entry.paymentLog) ? entry.paymentLog : []), {
+        date: state.settings.activeDate,
+        cash: numberValue(entry.paymentBreakdown.cash) - numberValue(oldBreakdown.cash),
+        card: numberValue(entry.paymentBreakdown.card) - numberValue(oldBreakdown.card),
+        transfer: numberValue(entry.paymentBreakdown.transfer) - numberValue(oldBreakdown.transfer),
+        amount: newPaid - oldPaid,
+        note: "تعديل يدوي للمدفوع"
+      }];
     }
     const hadProvider = !!(entry.doctorId || entry.specialistId);
     const wasPending = entry.status === "pending_assignment";
@@ -16461,7 +16674,10 @@ els.entryForm.addEventListener("submit", event => {
     status,
     bookingId: data.bookingId || "",
     createdAt,
-    notes: data.notes.trim()
+    notes: data.notes.trim(),
+    paymentLog: Object.values(linePayments).some(v => numberValue(v) > 0.009)
+      ? [{ date: state.settings.activeDate, ...Object.fromEntries(PAYMENT_METHODS.map(m => [m, numberValue(linePayments[m])])), amount: PAYMENT_METHODS.reduce((s, m) => s + numberValue(linePayments[m]), 0), note: "دفعة عند التسجيل" }]
+      : []
   }, state.services); });
   state.entries.push(...newEntries);
   newEntries.forEach(deductInventoryForEntry);
@@ -17018,6 +17234,18 @@ document.addEventListener("click", async event => {
   const restoreAudit = event.target.closest("[data-restore-audit]");
   if (restoreAudit) {
     if (canViewSensitive()) restoreAuditEntry(restoreAudit.dataset.restoreAudit);
+    return;
+  }
+  const patientChange = event.target.closest("[data-operation-patient-change]");
+  if (patientChange) {
+    const chip = els.entryForm?.querySelector("[data-operation-patient-chip]");
+    if (chip) chip.hidden = true;
+    els.entryForm?.querySelector('input[name="patient"]')?.focus();
+    return;
+  }
+  const sellSheetOpen = event.target.closest("[data-open-sell-package]");
+  if (sellSheetOpen) {
+    openSellPackageSheet({ patientId: sellSheetOpen.dataset.openSellPackage || "" });
     return;
   }
   const opToggle = event.target.closest("[data-toggle-operation]");

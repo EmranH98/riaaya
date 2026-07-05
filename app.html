@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260704i">
+  <link rel="stylesheet" href="app.css?v=20260705a">
 </head>
 <body>
 
@@ -578,6 +578,7 @@
             <div class="top-actions">
               <button class="primary-button" type="button" data-open-operation-modal title="تسجيل عملية (F2)">＋ تسجيل عملية</button>
               <button class="ghost-chip" type="button" data-new-booking title="حجز جديد (F4)">＋ حجز</button>
+              <button class="ghost-chip" type="button" data-open-sell-package>📦 بيع باقة</button>
               <button class="ghost-chip" type="button" data-view-button="bookings">التقويم الكامل</button>
             </div>
           </div>
@@ -596,170 +597,203 @@
               </div>
               <button class="icon-button rx-modal-close" type="button" data-close-operation-modal aria-label="إغلاق">×</button>
             </div>
-            <form class="entry-form operation-entry-form" data-entry-form>
+            <form class="entry-form operation-entry-form op-steps" data-entry-form>
               <input name="bookingId" type="hidden">
               <input name="doctorRate" type="hidden" value="">
-              <label class="operation-patient-field">
-                اسم المريض
-                <input name="patient" type="text" list="operation-patient-options" placeholder="ابحث بالاسم أو اكتب اسماً جديداً" required>
-                <datalist id="operation-patient-options" data-operation-patient-options></datalist>
-              </label>
-              <label>
-                رقم الهاتف
-                <input name="phone" type="tel" inputmode="tel" placeholder="رقم الهاتف (اختياري — للتذكير والمتابعة)">
-              </label>
-              <label>
-                الطبيب
-                <select name="doctorId" data-doctor-select></select>
-              </label>
               <!-- doctor rate override stored silently if needed via JS -->
               <input name="doctorRateOverride" type="hidden" value="">
               <input name="doctorModelOverride" type="hidden" value="">
-              <label>
-                الأخصائي
-                <select name="specialistId" data-specialist-select></select>
-              </label>
-              <!-- Payment status quick buttons -->
-              <div class="payment-status-row">
-                <strong>حالة الدفع</strong>
-                <div class="payment-status-toggle" data-payment-status-toggle>
-                  <button type="button" class="payment-status-btn active" data-pstatus="completed">مدفوع كاملاً</button>
-                  <button type="button" class="payment-status-btn" data-pstatus="partial_payment">دفع جزئي</button>
-                  <button type="button" class="payment-status-btn" data-pstatus="pending_payment">لم يُدفع بعد</button>
-                </div>
-              </div>
-              <label>
-                طريقة الدفع
-                <select name="paymentMethod" required>
-                  <option value="cash">كاش</option>
-                  <option value="card">فيزا</option>
-                  <option value="transfer">تحويل</option>
-                </select>
-              </label>
-              <div class="payment-split-panel" data-payment-split-panel>
-                <div class="payment-split-heading">
-                  <strong>الدفع</strong>
-                  <small>اكتب المبلغ الذي دفعه المريض الآن — المتبقي يُحسب تلقائياً.</small>
-                </div>
-                <div class="payment-paid-row">
-                  <label data-paid-amount-field>
-                    المدفوع الآن
-                    <input name="paidAmount" type="number" min="0" step="0.01" placeholder="0">
-                  </label>
-                  <label class="payment-remaining-field" data-remaining-field hidden>
-                    المتبقي على المريض
-                    <input name="remainingAmount" type="number" min="0" step="0.01" placeholder="0" data-remaining-input>
-                  </label>
-                </div>
-                <details class="payment-split-advanced">
-                  <summary>دفع بأكثر من طريقة؟ (اختياري)</summary>
-                  <div class="payment-split-grid">
-                    <label>كاش<input name="paidCash" type="number" min="0" step="0.01" placeholder="0"></label>
-                    <label>فيزا<input name="paidCard" type="number" min="0" step="0.01" placeholder="0"></label>
-                    <label>تحويل<input name="paidTransfer" type="number" min="0" step="0.01" placeholder="0"></label>
-                  </div>
-                  <small>إذا ملأت هذه الخانات، تُحسب بدلاً من خانة "المدفوع الآن".</small>
-                </details>
-              </div>
               <!-- status is written by the payment-status toggle, hidden here -->
               <input name="status" type="hidden" value="completed">
-              <label>
-                ملاحظات إضافية للحالة
-                <select name="statusExtra">
-                  <option value="">—</option>
-                  <option value="pending_assignment">بانتظار التعيين</option>
-                  <option value="scheduled">محجوزة</option>
-                  <option value="cancelled">ملغاة</option>
-                </select>
-              </label>
-              <div class="operation-schedule-panel" data-operation-schedule hidden>
-                <p class="schedule-panel-hint">ستُضاف هذه الزيارة إلى التقويم كحجز.</p>
-                <div class="operation-schedule-fields">
-                  <label>
-                    تاريخ الحجز
-                    <input name="scheduleDate" type="date">
-                  </label>
-                  <label>
-                    الوقت
-                    <input name="scheduleTime" type="time" value="09:00">
-                  </label>
-                  <label>
-                    العمود / الغرفة
-                    <select name="scheduleColumnId" data-operation-schedule-column></select>
-                  </label>
-                </div>
-              </div>
-              <label>
-                ملاحظات
-                <input name="notes" type="text" placeholder="اختياري">
-              </label>
               <!-- always individual — no need to ask every time -->
               <input name="buyerType" type="hidden" value="individual">
               <input name="buyerTaxNumber" type="hidden" value="">
               <input name="taxRate" type="hidden" value="0">
-              <div class="receipt-options">
-                <label class="permission-check inline-check">
-                  <input name="createReceipt" type="checkbox" checked>
-                  إصدار إيصال لهذه الزيارة
-                </label>
-                <label>
-                  رقم مرجع / ملاحظة الإيصال
-                  <input name="receiptReference" type="text" placeholder="اختياري">
-                </label>
-              </div>
-              <div class="operation-line-builder">
-                <label class="operation-service-search-field">
-                  ابحث عن الخدمة
-                  <input type="search" data-service-search placeholder="اكتب اسم الخدمة… (مثال: ليزر كامل)" autocomplete="off">
-                </label>
-                <div class="operation-line-composer">
-                  <label data-operation-category-field hidden>
-                    الفئة
-                    <select data-operation-category><option value="">كل الفئات</option></select>
-                  </label>
-                  <label data-operation-subcategory-field hidden>
-                    الفئة الفرعية
-                    <select data-operation-subcategory><option value="">الكل</option></select>
+
+              <section class="op-step">
+                <header class="op-step-head"><span class="op-step-num">١</span><h3>المريض</h3></header>
+                <div class="op-patient-chip" data-operation-patient-chip hidden>
+                  <span class="op-patient-chip-name" data-operation-patient-chip-name></span>
+                  <button type="button" class="text-button" data-operation-patient-change>تغيير</button>
+                </div>
+                <div class="op-step-grid op-grid-2" data-operation-patient-inputs>
+                  <label class="operation-patient-field">
+                    اسم المريض
+                    <input name="patient" type="text" list="operation-patient-options" placeholder="ابحث بالاسم أو اكتب اسماً جديداً" required>
+                    <datalist id="operation-patient-options" data-operation-patient-options></datalist>
                   </label>
                   <label>
+                    رقم الهاتف
+                    <input name="phone" type="tel" inputmode="tel" placeholder="اختياري — للتذكير والمتابعة">
+                  </label>
+                </div>
+              </section>
+
+              <section class="op-step">
+                <header class="op-step-head"><span class="op-step-num">٢</span><h3>العلاج</h3><small>اختر الفئة ثم الخدمة — أو ابحث مباشرة</small></header>
+                <div class="operation-line-builder">
+                  <div class="op-treatment-filters">
+                    <label data-operation-category-field hidden>
+                      الفئة
+                      <select data-operation-category><option value="">كل الفئات</option></select>
+                    </label>
+                    <label data-operation-subcategory-field hidden>
+                      الفئة الفرعية
+                      <select data-operation-subcategory><option value="">الكل</option></select>
+                    </label>
+                    <label class="operation-service-search-field">
+                      بحث سريع
+                      <input type="search" data-service-search placeholder="اكتب اسم الخدمة… (مثال: ليزر كامل)" autocomplete="off">
+                    </label>
+                  </div>
+                  <label class="op-treatment-service">
                     الخدمة
                     <select name="serviceId" data-service-select required></select>
                   </label>
-                  <label>
-                    الكمية
-                    <input name="quantity" type="number" min="1" step="1" value="1" required>
-                  </label>
-                  <label data-price-field>
-                    سعر الوحدة <small>اختياري — من إعداد الخدمة</small>
-                    <input name="amount" type="number" min="0" step="0.01" placeholder="0">
-                  </label>
-                  <label data-price-field>
-                    الخصم
-                    <input name="discount" type="number" min="0" step="0.01" value="0">
-                  </label>
-                  <label data-sensitive>
-                    التكلفة
-                    <input name="cost" type="number" min="0" step="0.01" value="0" data-cost-input>
-                  </label>
-                  <button class="dark-button add-operation-line" type="button" data-add-operation-line>إضافة للقائمة</button>
+                  <div class="operation-line-composer">
+                    <label>
+                      الكمية
+                      <input name="quantity" type="number" min="1" step="1" value="1" required>
+                    </label>
+                    <label data-price-field>
+                      سعر الوحدة <small>اختياري — من إعداد الخدمة</small>
+                      <input name="amount" type="number" min="0" step="0.01" placeholder="0">
+                    </label>
+                    <label data-price-field>
+                      الخصم
+                      <input name="discount" type="number" min="0" step="0.01" value="0">
+                    </label>
+                    <label data-sensitive>
+                      التكلفة
+                      <input name="cost" type="number" min="0" step="0.01" value="0" data-cost-input>
+                    </label>
+                    <button class="dark-button add-operation-line" type="button" data-add-operation-line>إضافة للقائمة</button>
+                  </div>
+                  <div class="operation-line-list" data-operation-lines></div>
                 </div>
-                <div class="operation-line-list" data-operation-lines></div>
-              </div>
-              <details class="operation-package-sell">
-                <summary>+ بيع باقة لهذا المريض (اختياري)</summary>
-                <div class="operation-package-sell-body">
+              </section>
+
+              <section class="op-step">
+                <header class="op-step-head"><span class="op-step-num">٣</span><h3>المنفّذ</h3></header>
+                <div class="op-step-grid op-grid-2">
                   <label>
-                    الباقة
-                    <select data-operation-package-template><option value="">اختر الباقة</option></select>
+                    الطبيب
+                    <select name="doctorId" data-doctor-select></select>
                   </label>
-                  <label data-sensitive>
-                    المدفوع الآن
-                    <input type="number" min="0" step="0.01" placeholder="0" data-operation-package-paid>
+                  <label>
+                    الأخصائي
+                    <select name="specialistId" data-specialist-select></select>
                   </label>
-                  <button class="text-button" type="button" data-operation-sell-package>بيع الباقة</button>
-                  <span class="form-status" data-operation-package-status aria-live="polite"></span>
+                </div>
+              </section>
+
+              <section class="op-step">
+                <header class="op-step-head"><span class="op-step-num">٤</span><h3>الدفع</h3></header>
+                <div class="op-step-grid op-grid-2">
+                  <!-- Payment status quick buttons -->
+                  <div class="payment-status-row">
+                    <strong>حالة الدفع</strong>
+                    <div class="payment-status-toggle" data-payment-status-toggle>
+                      <button type="button" class="payment-status-btn active" data-pstatus="completed">مدفوع كاملاً</button>
+                      <button type="button" class="payment-status-btn" data-pstatus="partial_payment">دفع جزئي</button>
+                      <button type="button" class="payment-status-btn" data-pstatus="pending_payment">لم يُدفع بعد</button>
+                    </div>
+                  </div>
+                  <label>
+                    طريقة الدفع
+                    <select name="paymentMethod" required>
+                      <option value="cash">كاش</option>
+                      <option value="card">فيزا</option>
+                      <option value="transfer">تحويل</option>
+                    </select>
+                  </label>
+                </div>
+                <div class="payment-split-panel" data-payment-split-panel>
+                  <div class="payment-paid-row">
+                    <label data-paid-amount-field>
+                      المدفوع الآن
+                      <input name="paidAmount" type="number" min="0" step="0.01" placeholder="0">
+                    </label>
+                    <label class="payment-remaining-field" data-remaining-field hidden>
+                      المتبقي على المريض
+                      <input name="remainingAmount" type="number" min="0" step="0.01" placeholder="0" data-remaining-input>
+                    </label>
+                  </div>
+                  <details class="payment-split-advanced">
+                    <summary>دفع بأكثر من طريقة؟ (اختياري)</summary>
+                    <div class="payment-split-grid">
+                      <label>كاش<input name="paidCash" type="number" min="0" step="0.01" placeholder="0"></label>
+                      <label>فيزا<input name="paidCard" type="number" min="0" step="0.01" placeholder="0"></label>
+                      <label>تحويل<input name="paidTransfer" type="number" min="0" step="0.01" placeholder="0"></label>
+                    </div>
+                    <small>إذا ملأت هذه الخانات، تُحسب بدلاً من خانة "المدفوع الآن".</small>
+                  </details>
+                </div>
+              </section>
+
+              <details class="op-extras">
+                <summary>خيارات إضافية — إيصال، ملاحظات، حالة خاصة، حجز، بيع باقة</summary>
+                <div class="op-extras-body">
+                  <div class="receipt-options">
+                    <label class="permission-check inline-check">
+                      <input name="createReceipt" type="checkbox" checked>
+                      إصدار إيصال لهذه الزيارة
+                    </label>
+                    <label>
+                      رقم مرجع / ملاحظة الإيصال
+                      <input name="receiptReference" type="text" placeholder="اختياري">
+                    </label>
+                  </div>
+                  <div class="op-step-grid op-grid-2">
+                    <label>
+                      ملاحظات
+                      <input name="notes" type="text" placeholder="اختياري">
+                    </label>
+                    <label>
+                      ملاحظات إضافية للحالة
+                      <select name="statusExtra">
+                        <option value="">—</option>
+                        <option value="pending_assignment">بانتظار التعيين</option>
+                        <option value="scheduled">محجوزة</option>
+                        <option value="cancelled">ملغاة</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div class="operation-schedule-panel" data-operation-schedule hidden>
+                    <p class="schedule-panel-hint">ستُضاف هذه الزيارة إلى التقويم كحجز.</p>
+                    <div class="operation-schedule-fields">
+                      <label>
+                        تاريخ الحجز
+                        <input name="scheduleDate" type="date">
+                      </label>
+                      <label>
+                        الوقت
+                        <input name="scheduleTime" type="time" value="09:00">
+                      </label>
+                      <label>
+                        العمود / الغرفة
+                        <select name="scheduleColumnId" data-operation-schedule-column></select>
+                      </label>
+                    </div>
+                  </div>
+                  <details class="operation-package-sell">
+                    <summary>+ بيع باقة لهذا المريض (اختياري)</summary>
+                    <div class="operation-package-sell-body">
+                      <label>
+                        الباقة
+                        <select data-operation-package-template><option value="">اختر الباقة</option></select>
+                      </label>
+                      <label data-sensitive>
+                        المدفوع الآن
+                        <input type="number" min="0" step="0.01" placeholder="0" data-operation-package-paid>
+                      </label>
+                      <button class="text-button" type="button" data-operation-sell-package>بيع الباقة</button>
+                      <span class="form-status" data-operation-package-status aria-live="polite"></span>
+                    </div>
+                  </details>
                 </div>
               </details>
+
               <div class="operation-checkout">
                 <div class="formula-preview" data-entry-preview data-sensitive>أضف خدمة واحدة أو أكثر إلى نفس الزيارة.</div>
                 <button class="primary-button form-submit" type="submit" data-entry-submit>حفظ الزيارة</button>
@@ -3314,7 +3348,7 @@
       </form>
     </div>
   </div>
-  <script src="app.js?v=20260704i"></script>
+  <script src="app.js?v=20260705a"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>

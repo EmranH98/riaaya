@@ -1634,6 +1634,153 @@ tbody tr:hover td {
   grid-column: span 2;
 }
 
+/* ── Stepped operation form: من؟ ماذا؟ من نفّذ؟ كم دفع؟ ──────────────────
+   One column of numbered sections instead of a 6-column field soup. */
+.operation-entry-form.op-steps {
+  grid-template-columns: 1fr;
+  gap: 14px;
+  align-items: stretch;
+}
+
+.op-steps .operation-patient-field {
+  grid-column: auto;
+}
+
+.op-step {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--line);
+  background: var(--white);
+  padding: 14px;
+}
+
+.op-step-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 9px;
+}
+
+.op-step-head h3 {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+
+.op-step-head small {
+  color: var(--ink-soft);
+  font-weight: 700;
+}
+
+.op-step-num {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  align-self: center;
+  border-radius: 2px;
+  background: var(--teal);
+  color: white;
+  font-weight: 700;
+  font-size: var(--text-sm);
+}
+
+.op-step-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.op-grid-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* Treatment step: the clinic's own taxonomy leads — category narrows to
+   subcategory narrows to service; the search box is the shortcut, not the map. */
+.op-treatment-filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  align-items: end;
+  margin-bottom: 10px;
+}
+
+.op-treatment-service {
+  display: grid;
+  gap: 5px;
+  margin-bottom: 10px;
+  font-weight: 800;
+}
+
+.op-treatment-service select {
+  min-height: 46px;
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+
+.op-steps .operation-line-composer {
+  grid-template-columns: repeat(4, minmax(90px, 1fr)) auto;
+}
+
+@media (max-width: 620px) {
+  .op-treatment-filters {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Known patient: a chip replaces the name/phone inputs — no retyping. */
+.op-patient-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-inline-start: 4px solid var(--teal);
+  background: var(--teal-pale);
+  padding: 10px 14px;
+}
+
+.op-patient-chip-name {
+  font-weight: 800;
+  font-size: var(--text-lg);
+  color: var(--teal-dark);
+}
+
+.op-steps .op-patient-chip:not([hidden]) ~ [data-operation-patient-inputs] {
+  display: none;
+}
+
+.op-extras {
+  border: 1px dashed var(--line);
+  background: var(--white);
+}
+
+.op-extras > summary {
+  padding: 12px 14px;
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.op-extras-body {
+  display: grid;
+  gap: 12px;
+  padding: 0 14px 14px;
+}
+
+.op-steps .operation-checkout {
+  position: sticky;
+  bottom: -1px;
+  background: var(--bg);
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 620px) {
+  .op-grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
 .payment-quick-row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -7761,6 +7908,12 @@ button.highway-step:hover .highway-node { border-color: var(--teal); }
 .pkg-file-head small { display: block; color: var(--ink-soft); font-size: var(--text-xs); margin-top: 2px; }
 .pkg-file-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .pkg-file-table { margin: 0; }
+.pkg-file-section-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.pkg-file-meta { color: var(--ink-soft); }
+.pkg-file-payments { border-bottom: 1px solid var(--line); }
+.pkg-file-payments > summary { padding: 9px 12px; cursor: pointer; font-weight: 700; font-size: var(--text-sm); color: var(--ink-mid); }
+.pkg-file-payments[open] > summary { border-bottom: 1px solid var(--line); background: var(--teal-pale); }
+.pkg-file-payments-empty { margin: 0; padding: 10px 12px; color: var(--ink-soft); font-size: var(--text-sm); }
 
 /* ════════════════════════════════════════════════════════════════════════
    Unified modal anatomy — ONE recipe for every popup layer.
