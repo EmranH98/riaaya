@@ -182,6 +182,11 @@ const DEFAULT_FEATURES_BY_ROLE = {
 };
 
 const APP_TEXT_EN = {
+  // ── Unified modals: live service search ──
+  "ابحث عن الخدمة": "Search for a service",
+  "ابحث عن الخدمة أو الباقة": "Search for a service or package",
+  "اكتب اسم الخدمة… (مثال: ليزر كامل)": "Type a service name… (e.g. full laser)",
+  "لا نتائج — عدّل البحث": "No results — adjust the search",
   // ── Phase 1: sidebar nav, groups, chrome, common buttons & headers ──
   "اليومي": "Daily",
   "المالية": "Finance",
@@ -2730,9 +2735,12 @@ function renderReception() {
       <button class="text-button danger" type="button" data-booking-status-id="${b.id}" data-booking-status="no_show">لم يحضر</button>
     `)).join("") : (noShows.length ? "" : `<tr><td colspan="3" class="report-empty">لا مواعيد متبقية اليوم.</td></tr>`)) + noShowRows;
 
-  const arrivedRows = arrived.length ? arrived.map(b => bookingRow(b, `
-      <button class="primary-button reception-op-btn" type="button" data-reception-to-op="${b.id}">تسجيل العملية</button>
-    `)).join("") : `<tr><td colspan="3" class="report-empty">لا يوجد مرضى في الانتظار.</td></tr>`;
+  const arrivedRows = arrived.length ? arrived.map(b => bookingRow(b, b.packageId
+    // Package sessions complete through the session sheet (provider + counter),
+    // never the paid-operation modal — the money already lives on the sale.
+    ? `<button class="primary-button reception-op-btn" type="button" data-package-session-done="${b.id}">تسجيل الجلسة</button>`
+    : `<button class="primary-button reception-op-btn" type="button" data-reception-to-op="${b.id}">تسجيل العملية</button>`
+  )).join("") : `<tr><td colspan="3" class="report-empty">لا يوجد مرضى في الانتظار.</td></tr>`;
 
   const entryRows = entries.length ? entries.map(e => {
     const net = netAmount(e), paid = paidAmount(e), rem = Math.max(net - paid, 0);
@@ -2836,6 +2844,8 @@ function normalizePatientPackage(pkg) {
     soldByStaffId: source.soldByStaffId || source.sold_by || "",
     soldAt: source.soldAt || source.sold_at || "",
     expiresAt: source.expiresAt || source.expires_at || "",
+    // The sale entry carries the money — losing this link makes dues invisible.
+    entryId: source.entryId || source.entry_id || "",
     status
   };
 }
@@ -2916,6 +2926,121 @@ function sellPackage({ patientId, template, sessions, price, paid, soldByStaffId
   state.entries.push(entry);
   pkg.entryId = entry.id;
   return pkg;
+}
+
+// ── Package sessions are REAL visits ────────────────────────────────────────
+// Every session creates an entry: provider attribution (commissions, reports),
+// a per-visit breakdown in the file, and an audit line. The money stays on the
+// sale entry — session entries carry amount 0 so nothing double-counts.
+function packageSessionEntries(pkgId) {
+  return (state.entries || [])
+    .filter(entry => entry.packageId === pkgId && entry.sessionIndex > 0)
+    .sort((a, b) => (a.sessionIndex || 0) - (b.sessionIndex || 0));
+}
+
+function recordPackageSession(pkg, { doctorId = "", specialistId = "", date = "", note = "" } = {}) {
+  if (!pkg || packageRemaining(pkg) <= 0) return null;
+  const patient = patientById(pkg.patientId);
+  const sessionIndex = (pkg.usedSessions || 0) + 1;
+  const sessionDate = date || state.settings.activeDate;
+  // Sale + first session on the same day is ONE physical visit — share the
+  // sale entry's visitId so visit KPIs don't count it twice.
+  const saleEntry = (state.entries || []).find(e => e.packageId === pkg.id && !(e.sessionIndex > 0));
+  const sameDayVisitId = saleEntry && saleEntry.date === sessionDate ? (saleEntry.visitId || saleEntry.id) : "";
+  const entry = normalizeEntry({
+    id: nextId("entry"),
+    visitNumber: nextVisitNumber(),
+    ...(sameDayVisitId ? { visitId: sameDayVisitId } : {}),
+    date: sessionDate,
+    patientId: pkg.patientId,
+    patient: patient ? patient.name : "مريض",
+    serviceId: pkg.serviceId || "",
+    service: `${pkg.name} — جلسة ${sessionIndex}/${pkg.totalSessions}`,
+    amount: 0,
+    quantity: 1,
+    cost: 0,
+    doctorId,
+    specialistId,
+    packageId: pkg.id,
+    sessionIndex,
+    status: doctorId || specialistId ? "completed" : "pending_assignment",
+    notes: note,
+    paymentBreakdown: { cash: 0, card: 0, transfer: 0 },
+    createdAt: new Date().toISOString()
+  }, state.services);
+  state.entries = state.entries || [];
+  state.entries.push(entry);
+  pkg.usedSessions = Math.min(pkg.totalSessions, sessionIndex);
+  if (packageRemaining(pkg) <= 0) pkg.status = "completed";
+  const providerName = getStaffMember(doctorId || specialistId)?.name || "بدون تعيين";
+  logEdit("تسجيل جلسة باقة", `${patient?.name || ""} · ${pkg.name} (${sessionIndex}/${pkg.totalSessions}) · ${providerName}`);
+  return entry;
+}
+
+// The session sheet: who performed THIS session (sessions 2 and 3 can be
+// different people), defaulting to whoever did the previous one.
+function openPackageSessionSheet(pkg, { bookingId = "" } = {}) {
+  if (!pkg || packageRemaining(pkg) <= 0) return;
+  document.querySelector(".session-sheet-modal")?.remove();
+  const patient = patientById(pkg.patientId);
+  const previous = packageSessionEntries(pkg.id).slice(-1)[0];
+  const booking = bookingId ? (state.bookings || []).find(item => item.id === bookingId) : null;
+  const defaultProvider = booking?.doctorId || booking?.specialistId
+    || previous?.doctorId || previous?.specialistId || "";
+  const doctors = (state.staff || []).filter(member => member.role === "doctor" && member.active !== false);
+  const specialists = (state.staff || []).filter(member => member.role === "specialist" && member.active !== false);
+  const sessionIndex = (pkg.usedSessions || 0) + 1;
+  const modal = document.createElement("div");
+  modal.className = "close-sheet-modal session-sheet-modal";
+  modal.innerHTML = `
+    <div class="close-sheet-card" role="dialog" aria-modal="true" aria-label="تسجيل جلسة">
+      <div class="rx-modal-head">
+        <h3>جلسة ${sessionIndex}/${pkg.totalSessions} — ${esc(pkg.name)}</h3>
+        <button class="icon-button rx-modal-close" type="button" data-close-sheet-dismiss aria-label="إغلاق">×</button>
+      </div>
+      <p class="close-sheet-note">${esc(patient?.name || "")} · تُسجَّل الجلسة كزيارة باسم المنفّذ وتظهر في التقارير وملف المريض.</p>
+      <label class="column-provider-field">
+        من نفّذ هذه الجلسة؟
+        <select data-session-provider>
+          <option value="">— بدون تعيين (أكملها لاحقاً)</option>
+          ${doctors.length ? `<optgroup label="الأطباء">${doctors.map(member => `<option value="${esc(member.id)}"${member.id === defaultProvider ? " selected" : ""}>${esc(member.name)}</option>`).join("")}</optgroup>` : ""}
+          ${specialists.length ? `<optgroup label="الأخصائيون">${specialists.map(member => `<option value="${esc(member.id)}"${member.id === defaultProvider ? " selected" : ""}>${esc(member.name)}</option>`).join("")}</optgroup>` : ""}
+        </select>
+      </label>
+      <label class="column-provider-field">
+        تاريخ الجلسة
+        <input type="date" data-session-date value="${esc(state.settings.activeDate)}">
+      </label>
+      <label class="column-provider-field">
+        ملاحظة (اختياري)
+        <input type="text" data-session-note placeholder="منطقة الجلسة، الجهاز، ملاحظات...">
+      </label>
+      <div class="close-sheet-actions">
+        <button class="primary-button" type="button" data-session-save>تسجيل الجلسة</button>
+        <button class="ghost-button" type="button" data-close-sheet-dismiss>إلغاء</button>
+      </div>
+    </div>`;
+  modal.addEventListener("click", event => {
+    if (event.target === modal || event.target.closest("[data-close-sheet-dismiss]")) { modal.remove(); return; }
+    if (event.target.closest("[data-session-save]")) {
+      const providerId = modal.querySelector("[data-session-provider]")?.value || "";
+      const provider = getStaffMember(providerId);
+      recordPackageSession(pkg, {
+        doctorId: provider?.role === "doctor" ? provider.id : "",
+        specialistId: provider?.role === "specialist" ? provider.id : "",
+        date: modal.querySelector("[data-session-date]")?.value || "",
+        note: (modal.querySelector("[data-session-note]")?.value || "").trim()
+      });
+      if (booking) booking.status = "completed";
+      modal.remove();
+      saveState();
+      render();
+      showToast(provider
+        ? `سُجّلت الجلسة ${sessionIndex}/${pkg.totalSessions} باسم ${provider.name}`
+        : `سُجّلت الجلسة — أكمل تعيين المنفّذ من العمليات`, provider ? "success" : "warn");
+    }
+  });
+  document.body.appendChild(modal);
 }
 
 function patientById(id) {
@@ -3184,7 +3309,9 @@ function normalizeEntry(entry, services = seedServices) {
     patientId: entry.patientId || entry.patient_id || "",
     patient: entry.patient || entry.customer || "مريض",
     serviceId: entry.serviceId || entry.service_id || service?.id || "",
-    service: service?.name || entry.service || "خدمة",
+    // Package rows carry a crafted label («باقة — جلسة ٢/٦») that must not be
+    // overwritten by the linked service's plain name.
+    service: (entry.packageId && entry.service) ? entry.service : (service?.name || entry.service || "خدمة"),
     doctorId,
     specialistId,
     quantity,
@@ -3200,7 +3327,9 @@ function normalizeEntry(entry, services = seedServices) {
     notes: entry.notes || entry.note || "",
     // doctorRate override: 0 means "use staff default". Positive value = per-visit override.
     doctorRate: asNumber(entry.doctorRate ?? entry.doctor_rate),
-    doctorModel: entry.doctorModel || entry.doctor_model || ""
+    doctorModel: entry.doctorModel || entry.doctor_model || "",
+    // Which session of a package this visit is (1-based); 0 = not a session.
+    sessionIndex: Math.max(0, Math.round(asNumber(entry.sessionIndex)) || 0)
   };
 }
 
@@ -3215,7 +3344,7 @@ function normalizeBooking(booking, services = seedServices) {
     patient: booking.patient || booking.customer || "مريض",
     phone: booking.phone || booking.mobile || "",
     serviceId: booking.serviceId || booking.service_id || service?.id || "",
-    service: service?.name || booking.service || "خدمة",
+    service: (booking.packageId && booking.service) ? booking.service : (service?.name || booking.service || "خدمة"),
     scheduleColumnId: booking.scheduleColumnId || booking.schedule_column_id || "",
     doctorId: booking.doctorId || booking.doctor_id || "",
     specialistId: booking.specialistId || booking.staff_id || "",
@@ -3754,6 +3883,7 @@ const els = {
   doctorSelect: document.querySelector("[data-doctor-select]"),
   specialistSelect: document.querySelector("[data-specialist-select]"),
   serviceSelect: document.querySelector("[data-service-select]"),
+  serviceSearch: document.querySelector("[data-service-search]"),
   operationSchedulePanel: document.querySelector("[data-operation-schedule]"),
   operationScheduleColumn: document.querySelector("[data-operation-schedule-column]"),
   operationCategorySelect: document.querySelector("[data-operation-category]"),
@@ -4895,6 +5025,32 @@ function matchesSmartQuery(values, query) {
   if (!normalizedQuery) return true;
   const haystack = normalizeSearchText(values.flat().filter(Boolean).join(" | "));
   return normalizedQuery.split(" ").every(token => haystack.includes(token));
+}
+
+// ── Operation modal: finding a treatment is typing, not scrolling ──────────
+// One source of truth for the service select: category + subcategory narrow
+// the list, and the live search box above them filters it further by name.
+function operationServiceMatches() {
+  const query = (els.serviceSearch?.value || "").trim();
+  const activeCategory = els.operationCategorySelect?.value || "";
+  const activeSub = els.operationSubcategorySelect?.value || "";
+  return activeServices().filter(service =>
+    (!activeCategory || (service.category || "") === activeCategory)
+    && (!activeSub || (service.subcategory || "") === activeSub)
+    && matchesSmartQuery([service.name, service.category, service.subcategory], query));
+}
+
+function renderOperationServiceOptions() {
+  if (!els.serviceSelect) return [];
+  const filtered = operationServiceMatches();
+  const previous = els.serviceSelect.value;
+  const query = (els.serviceSearch?.value || "").trim();
+  const activeCategory = els.operationCategorySelect?.value || "";
+  els.serviceSelect.innerHTML = filtered.length
+    ? filtered.map(service => `<option value="${esc(service.id)}">${esc(service.name)}</option>`).join("")
+    : `<option value="">${query ? "لا نتائج — عدّل البحث" : (activeCategory ? "لا خدمات في هذه الفئة" : "أضف خدمة أولاً")}</option>`;
+  if (previous && filtered.some(service => service.id === previous)) els.serviceSelect.value = previous;
+  return filtered;
 }
 
 function paginateItems(items, page, pageSize) {
@@ -6204,14 +6360,7 @@ function renderStaffSelects() {
   }
 
   if (els.serviceSelect) {
-    const activeCategory = els.operationCategorySelect?.value || "";
-    const activeSub = els.operationSubcategorySelect?.value || "";
-    const filtered = services.filter(service =>
-      (!activeCategory || (service.category || "") === activeCategory)
-      && (!activeSub || (service.subcategory || "") === activeSub));
-    els.serviceSelect.innerHTML = filtered.length
-      ? filtered.map(service => `<option value="${service.id}">${esc(service.name)}</option>`).join("")
-      : `<option value="">${activeCategory ? "لا خدمات في هذه الفئة" : "أضف خدمة أولاً"}</option>`;
+    const filtered = renderOperationServiceOptions();
 
     const selectedService = getService(els.serviceSelect.value) || filtered[0];
     if (selectedService && els.entryForm) {
@@ -6475,7 +6624,10 @@ function openShortcutsHelp() {
   modal.className = "close-sheet-modal shortcuts-modal";
   modal.innerHTML = `
     <div class="close-sheet-card" role="dialog" aria-modal="true" aria-label="الاختصارات والمهارات">
-      <h3>اختصارات تسرّع يومك</h3>
+      <div class="rx-modal-head">
+        <h3>اختصارات تسرّع يومك</h3>
+        <button class="icon-button rx-modal-close" type="button" data-close-sheet-dismiss aria-label="إغلاق">×</button>
+      </div>
       <table class="close-sheet-table">
         <tbody>${rows.map(([key, label]) => `<tr><td class="shortcut-key"><kbd>${esc(key)}</kbd></td><td>${esc(label)}</td></tr>`).join("")}</tbody>
       </table>
@@ -6528,7 +6680,10 @@ function openColumnCategoryEditor(columnId) {
   modal.className = "close-sheet-modal column-cats-modal";
   modal.innerHTML = `
     <div class="close-sheet-card" role="dialog" aria-modal="true" aria-label="إعدادات عمود التقويم">
-      <h3>إعدادات عمود «${esc(column.label)}»</h3>
+      <div class="rx-modal-head">
+        <h3>إعدادات عمود «${esc(column.label)}»</h3>
+        <button class="icon-button rx-modal-close" type="button" data-close-sheet-dismiss aria-label="إغلاق">×</button>
+      </div>
       <p class="close-sheet-note"><strong>فريق العمود:</strong> اختر من ينفّذ حجوزات هذا العمود. شخص واحد → يُسند تلقائياً ولا يمكن اختيار غيره؛ أكثر من شخص → يُختار من بينهم فقط عند الحجز؛ بدون تحديد → اختيار حر من كل الطاقم.</p>
       ${doctors.length ? `<p class="column-staff-group">الأطباء</p><div class="column-cats-list">${doctors.map(staffCheck).join("")}</div>` : ""}
       ${specialists.length ? `<p class="column-staff-group">الأخصائيون</p><div class="column-cats-list">${specialists.map(staffCheck).join("")}</div>` : ""}
@@ -7803,6 +7958,50 @@ function renderPatientFile() {
     `).join("")
     : `<div class="empty-state">${canUseFeature("view_receipts") ? "لا توجد إيصالات لهذا الملف." : "لا توجد صلاحية لعرض الإيصالات."}</div>`;
 
+  // Packages with a per-visit breakdown: every session shows its date,
+  // performer and status — plus the upcoming booked sessions.
+  const patientPkgs = (state.patientPackages || []).filter(pkg => pkg.patientId === patient.id);
+  const packageSection = canView("packages") && patientPkgs.length ? `
+    <div class="patient-history-section">
+      <h3>الباقات <span class="patient-ops-count">${patientPkgs.length}</span></h3>
+      ${patientPkgs.map(pkg => {
+        const sessions = packageSessionEntries(pkg.id);
+        const upcoming = (state.bookings || [])
+          .filter(b => b.packageId === pkg.id && ["scheduled", "confirmed", "arrived"].includes(b.status))
+          .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+        // entryId link first; fall back to packageId for states saved before the
+        // link survived reloads (session entries always carry sessionIndex > 0).
+        const saleEntry = (state.entries || []).find(e => e.id === pkg.entryId)
+          || (state.entries || []).find(e => e.packageId === pkg.id && !(e.sessionIndex > 0));
+        const due = saleEntry ? Math.max(netAmount(saleEntry) - paidAmount(saleEntry), 0) : 0;
+        const statusKey = packageComputedStatus(pkg);
+        const untracked = Math.max(0, (pkg.usedSessions || 0) - sessions.length);
+        return `
+        <div class="pkg-file-card">
+          <div class="pkg-file-head">
+            <div>
+              <strong>${esc(pkg.name)}</strong>
+              <small>${pkg.usedSessions}/${pkg.totalSessions} جلسة${canViewSensitive() ? ` · ${money(pkg.price)}${saleEntry ? (due > 0.009 ? ` — متبقٍ ${money(due)}` : " — مدفوعة بالكامل") : ""}` : ""}</small>
+            </div>
+            <div class="pkg-file-actions">
+              <span class="status-pill ${statusKey === "active" ? "chip--confirmed" : statusKey === "completed" ? "chip--done" : "chip--cancelled"}">${statusKey === "active" ? "نشطة" : statusKey === "completed" ? "مكتملة" : "منتهية"}</span>
+              ${due > 0.009 && canViewSensitive() && saleEntry ? `<button class="dark-button" type="button" data-followup-entry="${esc(saleEntry.id)}">تحصيل ${money(due)}</button>` : ""}
+              ${packageRemaining(pkg) > 0 ? `<button class="text-button" type="button" data-package-use="${esc(pkg.id)}">تسجيل جلسة</button>` : ""}
+            </div>
+          </div>
+          <table class="practical-table pkg-file-table">
+            <thead><tr><th>الجلسة</th><th>التاريخ</th><th>المنفّذ</th><th>الحالة</th></tr></thead>
+            <tbody>
+              ${sessions.map(s => `<tr><td>${s.sessionIndex}/${pkg.totalSessions}</td><td>${esc(displayDate(s.date))}</td><td>${esc(getStaffMember(s.doctorId || s.specialistId)?.name || "بدون تعيين")}</td><td><span class="status-pill ${statusClass(s.status)}">${esc(entryStatusLabel(s.status))}</span></td></tr>`).join("")}
+              ${untracked ? `<tr><td colspan="4"><small>${untracked} ${untracked === 1 ? "جلسة قديمة سُجّلت" : "جلسات قديمة سُجّلت"} قبل تفعيل تتبع المنفّذ.</small></td></tr>` : ""}
+              ${upcoming.map(b => `<tr><td>قادمة</td><td>${esc(displayDate(b.date))} · ${esc(displayTime(b.time))}</td><td>${esc(getStaffMember(b.doctorId || b.specialistId)?.name || "—")}</td><td><span class="status-pill ${statusClass(b.status)}">${esc(bookingStatusLabel(b.status))}</span></td></tr>`).join("")}
+              ${!sessions.length && !upcoming.length && !untracked ? `<tr><td colspan="4">لا جلسات مسجّلة بعد — «تسجيل جلسة» يبدأ التتبع.</td></tr>` : ""}
+            </tbody>
+          </table>
+        </div>`;
+      }).join("")}
+    </div>` : "";
+
   const allergyAlert = hasAllergyKeywords(patient.notes)
     ? `<div class="allergy-alert" role="alert">
         <span class="allergy-alert-icon">⚠️</span>
@@ -7861,6 +8060,7 @@ function renderPatientFile() {
         </table>
       </div>
     </div>
+    ${packageSection}
     <div class="patient-history-section">
       <h3>الإيصالات والفواتير</h3>
       <div class="patient-receipt-list">${receiptRows}</div>
@@ -8096,7 +8296,7 @@ function renderPackages() {
         </div>
         <div class="pkg-actions">
           ${remaining > 0 ? `<button class="text-button" type="button" data-package-use="${pkg.id}">تسجيل جلسة</button>` : ""}
-          ${pkg.usedSessions > 0 ? `<button class="text-button" type="button" data-package-unuse="${pkg.id}" title="تراجع عن آخر جلسة">↺ تراجع</button>` : ""}
+          ${pkg.usedSessions > 0 && canUseFeature("delete_treatments_medical") ? `<button class="text-button" type="button" data-package-unuse="${pkg.id}" title="تراجع عن آخر جلسة">↺ تراجع</button>` : ""}
           ${canViewSensitive() ? `<button class="icon-button danger" type="button" data-delete-package="${pkg.id}">حذف</button>` : ""}
         </div>
       </div>`;
@@ -12456,6 +12656,11 @@ function openOperationModal({ returnView = "", patientName = "", serviceId = "",
   applyPriceFieldVisibility();
   updatePaymentFieldsForStatus();
   renderPaymentQuickButtons();
+  // A stale search from the previous visit must never hide services silently.
+  if (els.serviceSearch) {
+    els.serviceSearch.value = "";
+    renderOperationServiceOptions();
+  }
   if (els.entryForm) {
     const patientInput = els.entryForm.querySelector('input[name="patient"]');
     if (patientInput && patientName) patientInput.value = patientName;
@@ -12478,9 +12683,12 @@ function openOperationModal({ returnView = "", patientName = "", serviceId = "",
     const form = els.entryForm;
     if (!form) return;
     const patientInput = form.querySelector('input[name="patient"]');
+    // Focus order: patient first; with a patient already on the form, jump
+    // straight to the service search so the visit is "type the treatment".
     const target = patientInput && !patientInput.value.trim()
       ? patientInput
-      : (els.doctorSelect && !els.doctorSelect.value ? els.doctorSelect : patientInput);
+      : (els.serviceSearch
+        || (els.doctorSelect && !els.doctorSelect.value ? els.doctorSelect : patientInput));
     target?.focus({ preventScroll: true });
   }, 120);
 }
@@ -14809,12 +15017,8 @@ if (els.entryForm) {
       return;
     }
     if (event.target === els.operationCategorySelect) {
-      const activeCategory = els.operationCategorySelect.value || "";
-      const services = activeServices();
-      const filtered = activeCategory ? services.filter(service => (service.category || "") === activeCategory) : services;
-      els.serviceSelect.innerHTML = filtered.length
-        ? filtered.map(service => `<option value="${service.id}">${esc(service.name)}</option>`).join("")
-        : `<option value="">${activeCategory ? "لا خدمات في هذه الفئة" : "أضف خدمة أولاً"}</option>`;
+      if (els.operationSubcategorySelect) els.operationSubcategorySelect.value = "";
+      renderOperationServiceOptions();
       els.serviceSelect.dispatchEvent(new Event("change", { bubbles: true }));
       return;
     }
@@ -14845,6 +15049,30 @@ if (els.entryForm) {
 }
 
 document.querySelector("[data-add-operation-line]")?.addEventListener("click", addCurrentOperationLine);
+
+// The live service search: filters the select as you type (clearing it
+// restores the category-filtered list), auto-selects a single match, and
+// Enter picks the top match without submitting the visit form.
+if (els.serviceSearch && els.serviceSelect) {
+  const selectServiceMatch = service => {
+    if (!service) return;
+    els.serviceSelect.value = service.id;
+    els.serviceSelect.dispatchEvent(new Event("change", { bubbles: true }));
+  };
+  els.serviceSearch.addEventListener("input", () => {
+    const before = els.serviceSelect.value;
+    const filtered = renderOperationServiceOptions();
+    if (filtered.length === 1) selectServiceMatch(filtered[0]);
+    // The rebuild can silently move the selection (previous pick filtered out);
+    // fire change so amount/cost never keep another service's price.
+    else if (els.serviceSelect.value !== before) els.serviceSelect.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  els.serviceSearch.addEventListener("keydown", event => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    selectServiceMatch(renderOperationServiceOptions()[0]);
+  });
+}
 
 if (els.bookingForm) {
   els.bookingForm.elements.date.value = state.settings.activeDate;
@@ -15007,7 +15235,7 @@ function openCategoryRowPrompt(category) {
     saveState();
     render();
   });
-  modal.querySelector("[data-category-row-skip]")?.addEventListener("click", close);
+  modal.querySelectorAll("[data-category-row-skip]").forEach(button => button.addEventListener("click", close));
   modal.addEventListener("click", event => { if (event.target === modal) close(); });
 })();
 
@@ -15027,21 +15255,73 @@ function openCategoryRowPrompt(category) {
   const columnSel = modal.querySelector("[data-slot-booking-column]");
   const columnRow = modal.querySelector("[data-slot-booking-column-row]");
   const timeSel = modal.querySelector("[data-slot-booking-time]");
+  const searchInput = modal.querySelector("[data-slot-booking-search]");
 
   function close() { modal.hidden = true; form.reset(); pendingPackageId = ""; if (statusEl) statusEl.textContent = ""; }
 
   let columnCategories = [];
   let pendingPackageId = "";
+  const packageRow = modal.querySelector("[data-slot-booking-package-row]");
+  const sessionCountSel = modal.querySelector("[data-slot-booking-session-count]");
+
   function fillServices(category) {
     let services = activeServices();
     // When the column is tied to one or two categories, never show anything else.
     if (columnCategories.length) services = services.filter(service => columnCategories.includes(service.category || ""));
     if (category) services = services.filter(service => (service.category || "") === category);
-    serviceSel.innerHTML = services.length
-      ? services.map(service => `<option value="${service.id}">${esc(service.name)}</option>`).join("")
-      : `<option value="">لا توجد خدمات في هذه الفئة</option>`;
+    // Packages sell straight from the calendar, like any other service.
+    let templates = (state.packageTemplates || []).filter(template => template.active !== false);
+    if (columnCategories.length) templates = templates.filter(template => !template.category || columnCategories.includes(template.category));
+    if (category) templates = templates.filter(template => (template.category || "") === category);
+    // Live search filters services AND packages by name/category — typing
+    // beats scrolling, and clearing restores the category-filtered list.
+    const query = (searchInput?.value || "").trim();
+    if (query) {
+      services = services.filter(service => matchesSmartQuery([service.name, service.category, service.subcategory], query));
+      templates = templates.filter(template => matchesSmartQuery([template.name, template.category], query));
+    }
+    const serviceOptions = services.map(service => `<option value="${esc(service.id)}">${esc(service.name)}</option>`).join("");
+    const packageOptions = templates.length
+      ? `<optgroup label="الباقات">${templates.map(template => `<option value="pkg-template:${esc(template.id)}">📦 ${esc(template.name)} — ${template.sessions} ${template.sessions === 1 ? "جلسة" : "جلسات"}${canViewSensitive() ? ` · ${money(template.price)}` : ""}</option>`).join("")}</optgroup>`
+      : "";
+    serviceSel.innerHTML = (serviceOptions || packageOptions)
+      ? serviceOptions + packageOptions
+      : `<option value="">${query ? "لا نتائج — عدّل البحث" : "لا توجد خدمات في هذه الفئة"}</option>`;
+    syncPackageRow();
   }
+  // The sessions row appears only when a package is chosen: how many of its
+  // sessions to book now, and how far apart.
+  function syncPackageRow() {
+    const isPackage = (serviceSel.value || "").startsWith("pkg-template:");
+    if (packageRow) packageRow.hidden = !isPackage;
+    if (isPackage && sessionCountSel) {
+      const template = (state.packageTemplates || []).find(item => `pkg-template:${item.id}` === serviceSel.value);
+      const max = Math.max(1, template?.sessions || 1);
+      sessionCountSel.innerHTML = Array.from({ length: max }, (_, i) => `<option value="${i + 1}"${i === 0 ? " selected" : ""}>${i + 1}</option>`).join("");
+    }
+  }
+  serviceSel?.addEventListener("change", syncPackageRow);
   if (catSel) catSel.addEventListener("change", () => fillServices(catSel.value));
+  // Same "type the treatment" behavior as the operation modal: filter live
+  // (packages included), auto-pick a single match, Enter takes the top match.
+  const selectableOptions = () => [...serviceSel.options].filter(option => option.value);
+  searchInput?.addEventListener("input", () => {
+    fillServices(catSel ? catSel.value : "");
+    const options = selectableOptions();
+    if ((searchInput.value || "").trim() && options.length === 1) {
+      serviceSel.value = options[0].value;
+      serviceSel.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  });
+  searchInput?.addEventListener("keydown", event => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    const first = selectableOptions()[0];
+    if (first) {
+      serviceSel.value = first.value;
+      serviceSel.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  });
 
   // All bookable times for a column, taken slots disabled. With no requested
   // time the first free slot is preselected, so F4 → name → confirm is enough.
@@ -15170,7 +15450,6 @@ function openCategoryRowPrompt(category) {
       return;
     }
     const patient = findOrCreatePatientByName(data.patient.trim(), (data.phone || "").trim());
-    const service = getService(data.serviceId);
     // The column's team constrains the assignment: a single assignee always
     // wins (a disabled select never submits); with a team, the chosen member
     // must belong to it; unassigned columns take the free choice as-is.
@@ -15181,6 +15460,64 @@ function openCategoryRowPrompt(category) {
       : (teamIds.length ? (teamIds.includes(data.providerId) ? data.providerId : teamIds[0]) : (data.providerId || ""));
     const provider = getStaffMember(providerId);
     state.bookings = state.bookings || [];
+
+    // Package chosen from the picker: link the patient's existing active
+    // package of that template, or sell a new one (sale entry included) — then
+    // book N sessions at the chosen interval, skipping occupied slots.
+    const isTemplate = (data.serviceId || "").startsWith("pkg-template:");
+    if (isTemplate) {
+      const template = (state.packageTemplates || []).find(item => `pkg-template:${item.id}` === data.serviceId);
+      if (!template) { if (statusEl) statusEl.textContent = "تعذّر العثور على الباقة."; return; }
+      let pkg = (state.patientPackages || []).find(item =>
+        item.patientId === patient.id && item.templateId === template.id && packageComputedStatus(item) === "active" && packageRemaining(item) > 0);
+      let sold = false;
+      if (!pkg) {
+        pkg = sellPackage({ patientId: patient.id, template, sessions: template.sessions, price: template.price, paid: 0, soldByStaffId: providerId });
+        sold = true;
+      }
+      // Clamp to sessions that are neither used NOR already sitting on the
+      // calendar — re-submitting the popup must not over-book the package.
+      const alreadyScheduled = packageScheduledSessions(pkg.id).length;
+      const bookable = Math.max(0, packageRemaining(pkg) - alreadyScheduled);
+      if (!bookable) { if (statusEl) statusEl.textContent = "كل جلسات هذه الباقة محجوزة أو مستخدمة بالفعل."; return; }
+      const count = Math.min(Math.max(1, Number(data.sessionCount) || 1), bookable);
+      const interval = Math.max(1, Number(data.sessionInterval) || 7);
+      const startDate = data.date || state.settings.activeDate;
+      let booked = 0, skipped = 0;
+      for (let i = 0; i < count; i += 1) {
+        const sessionDate = new Date(`${startDate}T12:00:00`);
+        sessionDate.setDate(sessionDate.getDate() + i * interval);
+        // Local date parts, not toISOString(): UTC conversion shifts the day
+        // for clinics at extreme offsets.
+        const dateStr = `${sessionDate.getFullYear()}-${String(sessionDate.getMonth() + 1).padStart(2, "0")}-${String(sessionDate.getDate()).padStart(2, "0")}`;
+        const candidate = normalizeBooking({
+          date: dateStr,
+          time: data.time || "09:00",
+          patientId: patient.id,
+          patient: patient.name,
+          phone: (data.phone || "").trim() || patient.phone || "",
+          serviceId: pkg.serviceId || "",
+          service: pkg.name,
+          scheduleColumnId: data.scheduleColumnId,
+          doctorId: provider?.role === "doctor" ? provider.id : "",
+          specialistId: provider?.role === "specialist" ? provider.id : "",
+          packageId: pkg.id,
+          expectedAmount: 0,
+          status: "scheduled"
+        }, state.services);
+        if (bookingSlotConflict(candidate, candidate.id)) { skipped += 1; continue; }
+        state.bookings.push(candidate);
+        booked += 1;
+      }
+      logEdit(sold ? "بيع باقة من التقويم" : "حجز جلسات باقة", `${patient.name} · ${pkg.name} · ${booked} ${booked === 1 ? "جلسة" : "جلسات"}`);
+      close();
+      saveState();
+      render();
+      showToast(`${sold ? `بيعت «${pkg.name}» و` : ""}حُجزت ${booked} ${booked === 1 ? "جلسة" : "جلسات"}${skipped ? ` — تم تخطي ${skipped} لتعارض المواعيد` : ""}${sold ? ". حصّل ثمن الباقة من ملف المريض." : ""}`, skipped || sold ? "warn" : "success");
+      return;
+    }
+
+    const service = getService(data.serviceId);
     state.bookings.push(normalizeBooking({
       date: data.date || state.settings.activeDate,
       time: data.time || "09:00",
@@ -15833,12 +16170,32 @@ els.serviceBrowseSearch?.addEventListener("input", renderServiceBrowse);
     const entry = (state.entries || []).find(item => item.id === entryId);
     if (!entry) return;
     form.elements.entryId.value = entry.id;
+    // Provider selects: the fix for «بانتظار التعيين» happens right here —
+    // pick who performed it and the visit promotes out of pending-assignment.
+    const doctorSel = form.querySelector("[data-edit-entry-doctor]");
+    const specialistSel = form.querySelector("[data-edit-entry-specialist]");
+    // If the entry's current provider is inactive, deleted, or has another role
+    // (a sale's seller lands in specialistId), it must still appear as an option —
+    // otherwise the select falls back to «—» and submit silently wipes attribution.
+    const fillProviderSelect = (sel, role, currentId) => {
+      if (!sel) return;
+      sel.innerHTML = `<option value="">—</option>`
+        + (state.staff || []).filter(member => member.role === role && member.active !== false)
+          .map(member => `<option value="${esc(member.id)}">${esc(member.name)}</option>`).join("");
+      if (currentId && !sel.querySelector(`option[value="${CSS.escape(currentId)}"]`)) {
+        const prev = getStaffMember(currentId);
+        sel.insertAdjacentHTML("beforeend", `<option value="${esc(currentId)}">${esc(prev ? `${prev.name} (غير نشط)` : "منفّذ سابق")}</option>`);
+      }
+      sel.value = currentId || "";
+    };
+    fillProviderSelect(doctorSel, "doctor", entry.doctorId || "");
+    fillProviderSelect(specialistSel, "specialist", entry.specialistId || "");
     form.elements.amount.value = netAmount(entry);
     if (form.elements.cost) form.elements.cost.value = numberValue(entry.cost);
     form.elements.paid.value = paidAmount(entry);
     form.elements.category.value = entryCategory(entry);
     form.elements.status.value = ["completed", "partial_payment", "pending_payment", "cancelled"].includes(entry.status) ? entry.status : "completed";
-    titleEl.textContent = `تعديل: ${esc(entry.service)}`;
+    titleEl.textContent = `تعديل: ${esc(entry.service)}${entry.status === "pending_assignment" ? " — اختر المنفّذ لإكمالها" : ""}`;
     modal.hidden = false;
   }
 
@@ -15874,7 +16231,28 @@ els.serviceBrowseSearch?.addEventListener("input", renderServiceBrowse);
       }
       entry.paymentMethod = paymentMethodFromBreakdown(entry.paymentBreakdown, entry.paymentMethod);
     }
+    const hadProvider = !!(entry.doctorId || entry.specialistId);
+    const wasPending = entry.status === "pending_assignment";
+    const wasCancelled = entry.status === "cancelled";
+    entry.doctorId = data.doctorId || "";
+    entry.specialistId = data.specialistId || "";
     entry.status = data.status || entry.status;
+    // No provider chosen while marked completed → stays pending-assignment,
+    // same rule as the entry form — but only when the provider was cleared or the
+    // entry was already pending. Package sales are legitimately provider-less
+    // (soldByStaffId may be «—») and must not be demoted by an unrelated edit.
+    const isPackageSale = entry.packageId && !(entry.sessionIndex > 0);
+    if (!isPackageSale && (hadProvider || wasPending)
+      && entry.status === "completed" && !entry.doctorId && !entry.specialistId) entry.status = "pending_assignment";
+    // Cancelling a package session refunds the credit; un-cancelling re-uses it.
+    if (entry.packageId && entry.sessionIndex > 0 && (entry.status === "cancelled") !== wasCancelled) {
+      const pkg = (state.patientPackages || []).find(item => item.id === entry.packageId);
+      if (pkg) {
+        pkg.usedSessions = Math.min(pkg.totalSessions, Math.max(0, (pkg.usedSessions || 0) + (entry.status === "cancelled" ? -1 : 1)));
+        if (pkg.status === "completed" && packageRemaining(pkg) > 0) pkg.status = "active";
+        else if (packageRemaining(pkg) <= 0) pkg.status = "completed";
+      }
+    }
     const category = (data.category || "").trim();
     if (entry.packageId) {
       const pkg = (state.patientPackages || []).find(item => item.id === entry.packageId);
@@ -16594,7 +16972,7 @@ if (els.packageSessionForm) {
   });
 }
 
-document.addEventListener("click", event => {
+document.addEventListener("click", async event => {
   const restoreAudit = event.target.closest("[data-restore-audit]");
   if (restoreAudit) {
     if (canViewSensitive()) restoreAuditEntry(restoreAudit.dataset.restoreAudit);
@@ -16648,8 +17026,22 @@ document.addEventListener("click", event => {
     if (!canViewSensitive()) return;
     const id = deletePackage.dataset.deletePackage;
     const removedPkg = (state.patientPackages || []).find(pkg => pkg.id === id);
+    // Cascade: the amount-0 session entries and not-yet-done bookings must go
+    // with the package, or they linger as ghost visits / orphan calendar slots.
+    // The sale entry stays — it carries the money and deletes via the entry flow.
+    const sessionEntries = (state.entries || []).filter(e => e.packageId === id && e.sessionIndex > 0);
+    const openBookings = (state.bookings || []).filter(b => b.packageId === id && b.status === "scheduled");
+    if (sessionEntries.length || openBookings.length) {
+      const parts = [];
+      if (sessionEntries.length) parts.push(arCount(sessionEntries.length, "جلسة مسجلة", "جلستان مسجلتان", "جلسات مسجلة"));
+      if (openBookings.length) parts.push(arCount(openBookings.length, "حجز قادم", "حجزان قادمان", "حجوزات قادمة"));
+      const ok = await showConfirm(`سيُحذف مع الباقة: ${parts.join(" و")}. تبقى عملية البيع (والمبالغ) في السجل. هل تريد المتابعة؟`, { title: "تأكيد حذف الباقة", okLabel: "حذف الباقة", okClass: "danger-button" });
+      if (!ok) return;
+    }
     if (removedPkg) logEdit("حذف باقة", `${patientById(removedPkg.patientId)?.name || ""} · ${removedPkg.name}`, { type: "patientPackage", record: removedPkg });
     state.patientPackages = (state.patientPackages || []).filter(pkg => pkg.id !== id);
+    state.entries = (state.entries || []).filter(e => !(e.packageId === id && e.sessionIndex > 0));
+    state.bookings = (state.bookings || []).filter(b => !(b.packageId === id && b.status === "scheduled"));
     saveState();
     render();
     return;
@@ -16657,21 +17049,28 @@ document.addEventListener("click", event => {
   const usePackage = event.target.closest("[data-package-use]");
   if (usePackage) {
     const pkg = (state.patientPackages || []).find(item => item.id === usePackage.dataset.packageUse);
-    if (pkg && packageRemaining(pkg) > 0) {
-      pkg.usedSessions = Math.min(pkg.totalSessions, (pkg.usedSessions || 0) + 1);
-      if (packageRemaining(pkg) <= 0) pkg.status = "completed";
-      saveState();
-      render();
-    }
+    // The session sheet asks WHO performed it — every session is a real visit.
+    if (pkg) openPackageSessionSheet(pkg);
     return;
   }
   const unusePackage = event.target.closest("[data-package-unuse]");
   if (unusePackage) {
+    // Undoing a session deletes a visit entry — same permission as entry deletion.
+    if (!canUseFeature("delete_treatments_medical")) return;
     const pkg = (state.patientPackages || []).find(item => item.id === unusePackage.dataset.packageUnuse);
     if (pkg && (pkg.usedSessions || 0) > 0) {
+      // Remove the visit record of the undone session so no ghost remains
+      // (legacy untracked sessions have no entry — only the counter moves).
+      const lastSession = packageSessionEntries(pkg.id).slice(-1)[0];
+      const removing = lastSession && lastSession.sessionIndex >= pkg.usedSessions ? lastSession : null;
+      if (removing && paidAmount(removing) > 0.009) {
+        const ok = await showConfirm(`هذه الجلسة عليها مبلغ محصّل (${money(paidAmount(removing))}). سيُحذف سجل الجلسة ومبلغها. هل تريد المتابعة؟`, { title: "تأكيد التراجع", okLabel: "تراجع وحذف", okClass: "danger-button" });
+        if (!ok) return;
+      }
       pkg.usedSessions = Math.max(0, pkg.usedSessions - 1);
       if (pkg.status === "completed" && packageRemaining(pkg) > 0) pkg.status = "active";
-      logEdit("تراجع جلسة", `${patientById(pkg.patientId)?.name || ""} · ${pkg.name} (${pkg.usedSessions}/${pkg.totalSessions})`);
+      if (removing) state.entries = state.entries.filter(item => item.id !== removing.id);
+      logEdit("تراجع جلسة", `${patientById(pkg.patientId)?.name || ""} · ${pkg.name} (${pkg.usedSessions}/${pkg.totalSessions})`, removing ? { type: "entry", record: removing } : undefined);
       saveState();
       render();
     }
@@ -16681,14 +17080,22 @@ document.addEventListener("click", event => {
   if (sessionDone) {
     const booking = (state.bookings || []).find(item => item.id === sessionDone.dataset.packageSessionDone);
     if (booking) {
-      booking.status = "completed";
       const pkg = patientPackageById(booking.packageId);
       if (pkg && packageRemaining(pkg) > 0) {
-        pkg.usedSessions = Math.min(pkg.totalSessions, (pkg.usedSessions || 0) + 1);
-        if (packageRemaining(pkg) <= 0) pkg.status = "completed";
+        openPackageSessionSheet(pkg, { bookingId: booking.id });
+      } else {
+        // Exhausted or deleted package: never complete the visit silently —
+        // record it as a normal (paid) operation through the usual flow.
+        showToast("الباقة مستنفدة أو محذوفة — سجّل الزيارة كعملية عادية.", "error");
+        openOperationModal({
+          returnView: "reception",
+          patientName: booking.patient,
+          serviceId: booking.serviceId,
+          bookingId: booking.id,
+          doctorId: booking.doctorId || "",
+          specialistId: booking.specialistId || ""
+        });
       }
-      saveState();
-      render();
     }
     return;
   }
@@ -17172,7 +17579,10 @@ function openCloseSheet(record) {
   modal.className = "close-sheet-modal";
   modal.innerHTML = `
     <div class="close-sheet-card" role="dialog" aria-modal="true" aria-label="ملخص إغلاق اليوم">
-      <h3>إغلاق يوم ${esc(displayDate(date))}</h3>
+      <div class="rx-modal-head">
+        <h3>إغلاق يوم ${esc(displayDate(date))}</h3>
+        <button class="icon-button rx-modal-close" type="button" data-close-sheet-dismiss aria-label="إغلاق">×</button>
+      </div>
       <div class="close-sheet-kpis">
         <div><span>الزيارات</span><strong>${visits}</strong></div>
         <div><span>المحصّل</span><strong>${money(revenue)}</strong></div>
@@ -17376,6 +17786,24 @@ document.addEventListener("click", async event => {
   if (bookingCard && canView("entries")) {
     const booking = (state.bookings || []).find(item => item.id === bookingCard.dataset.dragBooking);
     if (booking && booking.status !== "completed" && booking.status !== "cancelled") {
+      // Package sessions go through the session sheet, never the paid entry
+      // form — the money already lives on the sale entry.
+      if (booking.packageId) {
+        const pkg = patientPackageById(booking.packageId);
+        if (pkg && packageRemaining(pkg) > 0) {
+          openPackageSessionSheet(pkg, { bookingId: booking.id });
+        } else {
+          showToast("الباقة مستنفدة أو محذوفة — سجّل الزيارة كعملية عادية.", "error");
+          openOperationModal({
+            patientName: booking.patient,
+            serviceId: booking.serviceId,
+            bookingId: booking.id,
+            doctorId: booking.doctorId || "",
+            specialistId: booking.specialistId || ""
+          });
+        }
+        return;
+      }
       const service = getService(booking.serviceId);
       const column = bookingScheduleColumns().find(col => col.id === booking.scheduleColumnId);
       openOperationModal({
@@ -17715,6 +18143,15 @@ document.addEventListener("click", async event => {
     if (removed) {
       logEdit("حذف عملية", `${removed.visitNumber ? "#" + removed.visitNumber + " " : ""}${removed.patient || ""} · ${removed.service || ""} · ${money(netAmount(removed))}`, { type: "entry", record: removed });
       restoreInventoryForEntry(removed);
+      // Deleting a package session refunds the credit so the patient can
+      // still take the session it recorded.
+      if (removed.packageId && removed.sessionIndex > 0) {
+        const pkg = (state.patientPackages || []).find(p => p.id === removed.packageId);
+        if (pkg && (pkg.usedSessions || 0) > 0) {
+          pkg.usedSessions = Math.max(0, pkg.usedSessions - 1);
+          if (pkg.status === "completed" && packageRemaining(pkg) > 0) pkg.status = "active";
+        }
+      }
     }
     state.entries = state.entries.filter(entry => entry.id !== deleteEntryId);
     saveState();

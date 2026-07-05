@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260704g">
+  <link rel="stylesheet" href="app.css?v=20260704h">
 </head>
 <body>
 
@@ -191,7 +191,7 @@
         <div class="security-dialog">
           <div class="security-dialog-head">
             <h2>المصادقة الثنائية (2FA)</h2>
-            <button class="icon-button" type="button" data-security-close aria-label="إغلاق">×</button>
+            <button class="icon-button rx-modal-close" type="button" data-security-close aria-label="إغلاق">×</button>
           </div>
           <p class="security-intro">طبقة حماية إضافية: بعد كلمة المرور يُطلب رمز من تطبيق المصادقة على هاتفك، فلا يكفي تسريب كلمة المرور لاختراق الحساب.</p>
 
@@ -594,7 +594,7 @@
                 <h2>إضافة عملية للملف</h2>
                 <p class="panel-description">سجّل الخدمة والدفع والفريق من شاشة واحدة. التكلفة تُحتسب من إعدادات الخدمة ولا تظهر هنا.</p>
               </div>
-              <button class="icon-button" type="button" data-close-operation-modal aria-label="إغلاق">×</button>
+              <button class="icon-button rx-modal-close" type="button" data-close-operation-modal aria-label="إغلاق">×</button>
             </div>
             <form class="entry-form operation-entry-form" data-entry-form>
               <input name="bookingId" type="hidden">
@@ -708,6 +708,10 @@
                 </label>
               </div>
               <div class="operation-line-builder">
+                <label class="operation-service-search-field">
+                  ابحث عن الخدمة
+                  <input type="search" data-service-search placeholder="اكتب اسم الخدمة… (مثال: ليزر كامل)" autocomplete="off">
+                </label>
                 <div class="operation-line-composer">
                   <label data-operation-category-field hidden>
                     الفئة
@@ -861,7 +865,7 @@
             </div>
             <div class="form-actions">
               <button class="text-button" type="button" data-reset-patient-form>تفريغ</button>
-              <button class="icon-button" type="button" data-patient-create-close aria-label="إغلاق">×</button>
+              <button class="icon-button rx-modal-close" type="button" data-patient-create-close aria-label="إغلاق">×</button>
             </div>
           </div>
           <form class="patient-form" data-patient-form>
@@ -2987,10 +2991,10 @@
     <div class="followup-dialog">
       <div class="followup-dialog-header">
         <div>
-          <p class="eyebrow" style="margin:0 0 2px;font-size:11px;color:var(--color-amber,#d97706);letter-spacing:.08em">تكملة الدفع</p>
-          <h3 id="followup-modal-title" style="margin:0;font-size:18px">إكمال الحساب</h3>
+          <p class="eyebrow">تكملة الدفع</p>
+          <h3 id="followup-modal-title">إكمال الحساب</h3>
         </div>
-        <button class="icon-button" type="button" data-close-followup aria-label="إغلاق" style="font-size:20px;padding:4px 10px">×</button>
+        <button class="icon-button rx-modal-close" type="button" data-close-followup aria-label="إغلاق">×</button>
       </div>
       <div class="followup-summary" data-followup-summary></div>
       <form class="followup-form" data-followup-form novalidate>
@@ -3018,8 +3022,8 @@
           <input class="followup-note-input" type="text" name="note" placeholder="مثال: دفع باقي الجلسة" data-followup-note>
         </label>
         <div class="followup-actions">
-          <button type="button" class="followup-cancel-btn" data-close-followup>إلغاء</button>
           <button type="button" class="followup-submit-btn" data-submit-followup>تأكيد التحصيل ←</button>
+          <button type="button" class="followup-cancel-btn" data-close-followup>إلغاء</button>
         </div>
       </form>
     </div>
@@ -3035,8 +3039,8 @@
       </div>
       <p id="confirm-modal-body" class="confirm-dialog-body"></p>
       <div class="confirm-dialog-actions">
-        <button class="ghost-button" type="button" id="confirm-modal-cancel">إلغاء</button>
         <button class="danger-button" type="button" id="confirm-modal-ok">تأكيد الحذف</button>
+        <button class="ghost-button" type="button" id="confirm-modal-cancel">إلغاء</button>
       </div>
     </div>
   </div>
@@ -3061,8 +3065,8 @@
         </label>
         <p class="change-password-hint">12 حرفاً على الأقل مع أرقام وحروف</p>
         <div class="confirm-dialog-actions">
-          <button class="ghost-button" type="button" id="change-password-cancel">إلغاء</button>
           <button class="dark-button" type="submit">حفظ كلمة المرور</button>
+          <button class="ghost-button" type="button" id="change-password-cancel">إلغاء</button>
         </div>
       </form>
     </div>
@@ -3078,8 +3082,10 @@
   <!-- Quick booking popup: opens when a free calendar slot is clicked -->
   <div class="slot-booking-modal" data-slot-booking-modal hidden>
     <div class="slot-booking-card" role="dialog" aria-modal="true" aria-label="حجز موعد">
-      <button class="icon-button slot-booking-close" type="button" data-slot-booking-close aria-label="إغلاق">×</button>
-      <h3 data-slot-booking-title>حجز موعد</h3>
+      <div class="rx-modal-head">
+        <h3 data-slot-booking-title>حجز موعد</h3>
+        <button class="icon-button rx-modal-close" type="button" data-slot-booking-close aria-label="إغلاق">×</button>
+      </div>
       <form class="slot-booking-form" data-slot-booking-form>
         <input type="hidden" name="date">
         <label data-slot-booking-column-row hidden>
@@ -3095,13 +3101,31 @@
           <input name="phone" type="tel" inputmode="tel" placeholder="رقم الهاتف (اختياري — للتذكير والمتابعة)">
         </label>
         <label>
+          ابحث عن الخدمة أو الباقة
+          <input type="search" data-slot-booking-search placeholder="اكتب اسم الخدمة… (مثال: ليزر كامل)" autocomplete="off">
+        </label>
+        <label>
           الفئة
           <select name="category" data-slot-booking-category></select>
         </label>
         <label>
-          الخدمة
+          الخدمة أو الباقة
           <select name="serviceId" data-slot-booking-service required></select>
         </label>
+        <div class="slot-package-row" data-slot-booking-package-row hidden>
+          <label>
+            عدد الجلسات المحجوزة
+            <select name="sessionCount" data-slot-booking-session-count></select>
+          </label>
+          <label>
+            الفاصل بين الجلسات
+            <select name="sessionInterval" data-slot-booking-session-interval>
+              <option value="7">أسبوع</option>
+              <option value="14">أسبوعان</option>
+              <option value="30">شهر</option>
+            </select>
+          </label>
+        </div>
         <label>
           الوقت
           <select name="time" data-slot-booking-time required></select>
@@ -3122,8 +3146,11 @@
   <!-- New-category prompt: choose a calendar row for a newly added category -->
   <div class="category-row-modal slot-booking-modal" data-category-row-modal hidden>
     <div class="slot-booking-card" role="dialog" aria-modal="true" aria-label="عمود الفئة الجديدة">
-      <h3>فئة جديدة: <span data-category-row-name></span></h3>
-      <p style="color:var(--ink-soft);font-size:13px;margin:0 0 14px">أين تظهر خدمات هذه الفئة في التقويم؟</p>
+      <div class="rx-modal-head">
+        <h3>فئة جديدة: <span data-category-row-name></span></h3>
+        <button class="icon-button rx-modal-close" type="button" data-category-row-skip aria-label="إغلاق">×</button>
+      </div>
+      <p class="rx-modal-hint">أين تظهر خدمات هذه الفئة في التقويم؟</p>
       <div class="category-row-options">
         <button class="primary-button" type="button" data-category-row-new>عمود جديد بهذه الفئة</button>
         <div class="category-row-existing">
@@ -3138,10 +3165,20 @@
   <!-- Edit a report row (package sale): price, cost, paid, category, status -->
   <div class="edit-entry-modal slot-booking-modal" data-edit-entry-modal hidden>
     <div class="slot-booking-card" role="dialog" aria-modal="true" aria-label="تعديل العملية">
-      <button class="icon-button slot-booking-close" type="button" data-edit-entry-close aria-label="إغلاق">×</button>
-      <h3 data-edit-entry-title>تعديل</h3>
+      <div class="rx-modal-head">
+        <h3 data-edit-entry-title>تعديل</h3>
+        <button class="icon-button rx-modal-close" type="button" data-edit-entry-close aria-label="إغلاق">×</button>
+      </div>
       <form class="slot-booking-form" data-edit-entry-form>
         <input type="hidden" name="entryId">
+        <label>
+          الطبيب المنفّذ
+          <select name="doctorId" data-edit-entry-doctor></select>
+        </label>
+        <label>
+          الأخصائي المنفّذ
+          <select name="specialistId" data-edit-entry-specialist></select>
+        </label>
         <label>
           السعر
           <input name="amount" type="number" min="0" step="0.01">
@@ -3179,7 +3216,7 @@
     <div class="commission-table-panel" role="dialog" aria-modal="true" aria-label="إضافة خدمات بالجملة">
       <header class="ct-header">
         <h2>إضافة خدمات بالجملة</h2>
-        <button class="icon-button" type="button" data-bulk-services-close aria-label="إغلاق">×</button>
+        <button class="icon-button rx-modal-close" type="button" data-bulk-services-close aria-label="إغلاق">×</button>
       </header>
       <p class="ct-label" style="padding:8px 20px 0">املأ صفاً لكل خدمة (الاسم مطلوب). الصفوف الفارغة تُتجاهل.</p>
       <div class="ct-body" data-bulk-services-body></div>
@@ -3195,7 +3232,7 @@
     <div class="commission-table-panel" role="dialog" aria-modal="true" aria-label="جدول العمولات">
       <header class="ct-header">
         <h2>جدول العمولات — عمولة لكل خدمة دفعة واحدة</h2>
-        <button class="icon-button" type="button" data-commission-table-close aria-label="إغلاق">×</button>
+        <button class="icon-button rx-modal-close" type="button" data-commission-table-close aria-label="إغلاق">×</button>
       </header>
       <div class="ct-controls">
         <label>اسم القاعدة<input type="text" data-ct-name placeholder="عمولات الليزر"></label>
@@ -3227,8 +3264,10 @@
 
   <div class="slot-booking-modal" data-product-sale-modal hidden>
     <div class="slot-booking-card" role="dialog" aria-modal="true" aria-label="بيع منتج">
-      <button class="icon-button slot-booking-close" type="button" data-product-sale-close aria-label="إغلاق">×</button>
-      <h3>بيع منتج: <span data-product-sale-name></span></h3>
+      <div class="rx-modal-head">
+        <h3>بيع منتج: <span data-product-sale-name></span></h3>
+        <button class="icon-button rx-modal-close" type="button" data-product-sale-close aria-label="إغلاق">×</button>
+      </div>
       <form class="slot-booking-form" data-product-sale-form>
         <label>المنتج<select name="productId" data-product-sale-select required><option value="">اختر المنتج</option></select></label>
         <label>الكمية<input name="qty" type="number" min="1" step="1" value="1" required></label>
@@ -3246,8 +3285,10 @@
 
   <div class="slot-booking-modal" data-edit-service-modal hidden>
     <div class="slot-booking-card" role="dialog" aria-modal="true" aria-label="تعديل الخدمة">
-      <button class="icon-button slot-booking-close" type="button" data-edit-service-close aria-label="إغلاق">×</button>
-      <h3>تعديل الخدمة</h3>
+      <div class="rx-modal-head">
+        <h3>تعديل الخدمة</h3>
+        <button class="icon-button rx-modal-close" type="button" data-edit-service-close aria-label="إغلاق">×</button>
+      </div>
       <form class="slot-booking-form" data-edit-service-form>
         <input type="hidden" name="serviceId">
         <label>اسم الخدمة<input name="name" type="text" required></label>
@@ -3272,7 +3313,7 @@
       </form>
     </div>
   </div>
-  <script src="app.js?v=20260704g"></script>
+  <script src="app.js?v=20260704h"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>
