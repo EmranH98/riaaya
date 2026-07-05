@@ -481,7 +481,9 @@ const APP_TEXT_EN = {
   "اختيار التقرير": "Choose Report",
   "طباعة التقرير": "Print Report",
   "تكبير الشاشة": "Maximize",
-  "تصغير الشاشة": "Exit Full Screen",
+  "إغلاق الشاشة الكاملة": "Close full screen",
+  "ابحث بالاسم أو الهاتف…": "Search by name or phone…",
+  "أضف مريضاً أولاً": "Add a patient first",
   "عرض كامل": "Full View",
   "إغلاق": "Close",
   "من": "From",
@@ -5053,6 +5055,27 @@ function renderOperationServiceOptions() {
   return filtered;
 }
 
+// Sell-package form: with hundreds of patients the select alone is unusable —
+// the search box above it filters by name or phone (same smart matching as ⌘K).
+// Pure rebuild: no auto-select here — this runs on every render(), and a render
+// arriving mid-typing must never re-pick a patient the user deselected.
+function renderPackagePatientOptions() {
+  const select = els.packageSellForm?.querySelector("[name='patientId']");
+  if (!select) return [];
+  const query = (els.packageSellForm.querySelector("[data-package-patient-search]")?.value || "").trim();
+  // Phone numbers stay behind the see_mobile gate, in display AND in matching.
+  const canSeePhone = canUseFeature("see_mobile");
+  const matches = (state.patients || []).filter(patient =>
+    matchesSmartQuery(canSeePhone ? [patient.name, patient.phone] : [patient.name], query));
+  const previous = select.value;
+  const lang = currentLanguage();
+  const placeholder = matches.length ? "اختر المريض" : (query ? "لا نتائج — عدّل البحث" : "أضف مريضاً أولاً");
+  select.innerHTML = `<option value="">${esc(translateLiteral(placeholder, lang))}</option>`
+    + matches.map(patient => `<option value="${esc(patient.id)}">${esc(patient.name)}${canSeePhone && patient.phone ? ` — ${esc(patient.phone)}` : ""}</option>`).join("");
+  if (previous && matches.some(patient => patient.id === previous)) select.value = previous;
+  return matches;
+}
+
 function paginateItems(items, page, pageSize) {
   const size = Math.max(Number(pageSize) || 25, 1);
   const pageCount = Math.max(Math.ceil(items.length / size), 1);
@@ -8258,8 +8281,7 @@ function renderPackages() {
     const patientSelect = els.packageSellForm.querySelector("[name='patientId']");
     const templateSelect = els.packageSellForm.querySelector("[name='templateId']");
     const staffSelect = els.packageSellForm.querySelector("[name='soldByStaffId']");
-    if (patientSelect) patientSelect.innerHTML = `<option value="">اختر المريض</option>`
-      + (state.patients || []).map(patient => `<option value="${patient.id}">${esc(patient.name)}</option>`).join("");
+    if (patientSelect) renderPackagePatientOptions();
     if (templateSelect) templateSelect.innerHTML = `<option value="">اختر الباقة</option>`
       + templates.filter(template => template.active !== false)
         .map(template => `<option value="${template.id}" data-sessions="${template.sessions}" data-price="${template.price}">${esc(template.name)} — ${template.sessions} جلسة</option>`).join("");
@@ -14641,7 +14663,6 @@ function enterFocusMode(viewName, options = {}) {
   }
   if (els.focusExit) {
     els.focusExit.hidden = false;
-    els.focusExit.textContent = currentLanguage() === "en" ? "Exit Full Screen" : "تصغير الشاشة";
   }
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
@@ -15072,6 +15093,27 @@ if (els.serviceSearch && els.serviceSelect) {
     event.preventDefault();
     selectServiceMatch(renderOperationServiceOptions()[0]);
   });
+}
+
+// Sell-package patient search: type to filter the select, Enter picks the top
+// match. Auto-selection happens ONLY here (user typing), never in render().
+{
+  const packagePatientSearch = els.packageSellForm?.querySelector("[data-package-patient-search]");
+  if (packagePatientSearch) {
+    packagePatientSearch.addEventListener("input", () => {
+      const matches = renderPackagePatientOptions();
+      const select = els.packageSellForm.querySelector("[name='patientId']");
+      if (packagePatientSearch.value.trim() && matches.length === 1 && select) select.value = matches[0].id;
+    });
+    packagePatientSearch.addEventListener("keydown", event => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      if (!packagePatientSearch.value.trim()) return;
+      const select = els.packageSellForm.querySelector("[name='patientId']");
+      const top = renderPackagePatientOptions()[0];
+      if (top && select) select.value = top.id;
+    });
+  }
 }
 
 if (els.bookingForm) {

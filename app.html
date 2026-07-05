@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260704h">
+  <link rel="stylesheet" href="app.css?v=20260704i">
 </head>
 <body>
 
@@ -38,7 +38,7 @@
       <span class="print-page-ref">رعاية — نظام إدارة العيادات</span>
     </div>
   </div>
-  <button class="focus-exit" type="button" data-exit-focus hidden>تصغير الشاشة</button>
+  <button class="focus-exit" type="button" data-exit-focus aria-label="إغلاق الشاشة الكاملة" title="إغلاق الشاشة الكاملة" hidden>✕</button>
   <!-- ════════════════════════════════════════════════════════ -->
 
   <svg class="nav-sprite" aria-hidden="true" width="0" height="0" style="position:absolute"><defs>
@@ -1467,6 +1467,7 @@
             <form class="entry-form" data-package-sell-form>
               <label>
                 المريض
+                <input type="search" data-package-patient-search placeholder="ابحث بالاسم أو الهاتف…" autocomplete="off">
                 <select name="patientId" required><option value="">اختر المريض</option></select>
               </label>
               <label>
@@ -3313,7 +3314,7 @@
       </form>
     </div>
   </div>
-  <script src="app.js?v=20260704h"></script>
+  <script src="app.js?v=20260704i"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>

@@ -111,7 +111,37 @@ nav{
   flex-direction:column;justify-content:center;gap:6px;
   padding:0 8px;cursor:pointer;
 }
-.menu-button span{display:block;width:26px;height:2px;background:var(--mist);border-radius:999px}
+.menu-button span{display:block;width:26px;height:2px;background:var(--mist);border-radius:999px;transition:transform .2s,opacity .15s}
+.menu-button.open span:nth-child(1){transform:translateY(8px) rotate(45deg)}
+.menu-button.open span:nth-child(2){opacity:0}
+.menu-button.open span:nth-child(3){transform:translateY(-8px) rotate(-45deg)}
+/* The mobile menu anchors under the sticky nav; only exists ≤960px. */
+.mobile-menu{
+  display:none;
+  position:absolute;
+  top:100%;inset-inline:0;
+  background:var(--forest-900);
+  border-bottom:1px solid var(--gold-line);
+  padding:6px 20px 18px;
+  flex-direction:column;
+}
+.mobile-menu a,.mobile-menu button{
+  display:block;width:100%;text-align:start;
+  padding:14px 4px;
+  font:inherit;font-size:16px;font-weight:600;
+  color:var(--mist);
+  background:none;border:0;border-bottom:1px solid var(--line-dark);
+  cursor:pointer;
+}
+.mobile-menu a:hover,.mobile-menu button:hover{color:var(--white)}
+.mobile-menu .mobile-menu-cta{
+  margin-top:14px;
+  background:var(--gold);color:var(--forest-950);
+  text-align:center;font-weight:700;
+  border-radius:2px;border-bottom:0;
+  padding:13px 4px;
+}
+.mobile-menu .mobile-menu-cta:hover{background:var(--gold-bright);color:var(--forest-950)}
 
 /* ══════════ HERO (dark command center) ══════════ */
 .hero{
@@ -593,7 +623,8 @@ footer{background:var(--forest-950);color:var(--mist);border-top:1px solid var(-
 @media (max-width:960px){
   .hero-grid{grid-template-columns:1fr;gap:44px;padding-top:52px}
   .nav-links{display:none}
-  .menu-button{display:inline-flex}
+  .menu-button{display:inline-flex;margin-inline-start:auto}
+  .mobile-menu.open{display:flex}
   .hero{padding-bottom:200px}
   .branch-divider{height:230px}
   .features-grid{grid-template-columns:repeat(2,1fr)}
@@ -641,18 +672,26 @@ footer{background:var(--forest-950);color:var(--mist);border-top:1px solid var(-
     <img class="site-logo" src="assets/riaaya-logo-wordmark.png" alt="RIAAYA">
   </a>
   <ul class="nav-links">
-    <li><a href="#features">الميزات</a></li>
+    <li><a href="#features">المميزات</a></li>
     <li><a href="#pricing">الأسعار</a></li>
     <li><a href="#contact">تواصل معنا</a></li>
     <li><button class="language-toggle" type="button" data-landing-language-toggle>English</button></li>
     <li><a href="/login" data-landing-login-label>تسجيل الدخول</a></li>
     <li><a href="app.html?trial=1" class="nav-cta" data-landing-trial-label>افتح النموذج</a></li>
   </ul>
-  <button class="menu-button" type="button" aria-label="القائمة">
+  <button class="menu-button" type="button" aria-label="القائمة" aria-expanded="false">
     <span></span>
     <span></span>
     <span></span>
   </button>
+  <div class="mobile-menu" data-mobile-menu>
+    <a href="#features">المميزات</a>
+    <a href="#pricing">الأسعار</a>
+    <a href="#contact">تواصل معنا</a>
+    <button type="button" data-mobile-language>English</button>
+    <a href="/login" data-landing-login-label>تسجيل الدخول</a>
+    <a href="app.html?trial=1" class="mobile-menu-cta" data-landing-trial-label>افتح النموذج</a>
+  </div>
 </nav>
 
 <!-- HERO -->
@@ -1068,8 +1107,9 @@ function escapeLanding(value) {
 }
 
 function setLandingText(selector, value) {
-  const element = document.querySelector(selector);
-  if (element && value !== undefined && value !== null) element.textContent = value;
+  // querySelectorAll: nav labels exist twice (desktop links + mobile menu).
+  if (value === undefined || value === null) return;
+  document.querySelectorAll(selector).forEach(element => { element.textContent = value; });
 }
 
 function observeLandingAnimations() {
@@ -1217,6 +1257,9 @@ async function loadLandingSettings() {
     if (!response.ok) return;
     const result = await response.json();
     applyLandingSettings(result.landing);
+    // Settings arrive async with Arabic defaults — re-run the language pass so
+    // an English visitor doesn't see the nav labels revert to Arabic.
+    applyLandingLanguage();
   } catch {
     // Static previews keep the baked-in landing content.
   }
@@ -1337,6 +1380,7 @@ const landingTextEn = {
   'رعاية يساعد العيادات في الأردن على تنظيم العمليات اليومية، مراجعة الإيرادات، وحساب النسب من مكان واحد.': 'Riaaya helps clinics in Jordan manage daily operations, revenue review, and staff payouts from one place.',
   'المنتج': 'Product',
   'المميزات': 'Features',
+  'تسجيل الدخول': 'Log in',
   'الأسعار': 'Pricing',
   'الوحدات': 'Modules',
   'الدعم': 'Support',
@@ -1388,6 +1432,32 @@ document.querySelector('[data-landing-language-toggle]')?.addEventListener('clic
   localStorage.setItem('riaayaLanguage', nextLanguage);
   applyLandingLanguage(nextLanguage);
 });
+
+// Mobile menu: the three bars open a panel with the same links as the desktop
+// nav — without this, login and the demo are unreachable on phones.
+(function initMobileMenu() {
+  const menuButton = document.querySelector('.menu-button');
+  const mobileMenu = document.querySelector('[data-mobile-menu]');
+  if (!menuButton || !mobileMenu) return;
+  const mobileLang = mobileMenu.querySelector('[data-mobile-language]');
+  const mainLang = document.querySelector('[data-landing-language-toggle]');
+  const setOpen = open => {
+    mobileMenu.classList.toggle('open', open);
+    menuButton.classList.toggle('open', open);
+    menuButton.setAttribute('aria-expanded', String(open));
+    if (open && mobileLang && mainLang) mobileLang.textContent = mainLang.textContent;
+  };
+  menuButton.addEventListener('click', () => setOpen(!mobileMenu.classList.contains('open')));
+  mobileMenu.addEventListener('click', event => {
+    if (event.target.closest('a')) setOpen(false);
+  });
+  if (mobileLang && mainLang) {
+    mobileLang.addEventListener('click', () => {
+      mainLang.click();
+      mobileLang.textContent = mainLang.textContent;
+    });
+  }
+})();
 
 applyLandingLanguage();
 loadLandingSettings();

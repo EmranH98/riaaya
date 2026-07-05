@@ -4416,18 +4416,24 @@ body.table-focus-open {
 
 .focus-exit {
   position: fixed;
-  top: 18px;
-  inset-inline-end: 18px;
+  top: 14px;
+  inset-inline-end: 14px;
   /* Above the expanded view (--z-overlay) but UNDER modals and toasts —
      it must never paint over or steal clicks from a dialog. */
   z-index: calc(var(--z-overlay) + 1);
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
   border: 0;
-  border-radius: 0;
-  padding: 11px 16px;
+  border-radius: 2px;
+  padding: 0;
   background: var(--brown-ink);
   color: white;
+  font-size: 17px;
   font-weight: 700;
-  
+  line-height: 1;
+  cursor: pointer;
 }
 
 body.focus-mode {
