@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { audit, databasePath, db, defaultClinicModules, listClinicNotifications, nowIso, parseJson, publicClinic, publicUser } from "../lib/database.js";
 import { requireSession } from "./auth.js";
 import { clientIp, encryptSecret, hashPassword, isValidEmail, normalizeEmail, safeText, validatePassword } from "../lib/security.js";
@@ -123,6 +125,11 @@ function filterClinicState(rawState, user, accountRows, clinic) {
         delete safe.email;
         return safe;
       })
+    : [];
+  // Photo metadata (labels, medical notes) follows the same gate as the image
+  // endpoint: no patient_history, no photos.
+  state.patientPhotos = can(user, "patient_history") && clinicModuleEnabled(clinic, "patients")
+    ? (state.patientPhotos || [])
     : [];
 
   if (!user.canViewSensitive) {
@@ -265,6 +272,16 @@ function mergeClinicState(existing, incoming, user, clinic) {
         allowCreate: can(user, "add_patient"),
         allowUpdate: can(user, "edit_patient_information"),
         allowDelete: can(user, "delete_patient")
+      }
+    );
+    next.patientPhotos = mergeScopedCollection(
+      existing.patientPhotos || [],
+      incoming.patientPhotos || [],
+      () => true,
+      {
+        allowCreate: can(user, "edit_patient_information") || can(user, "add_patient"),
+        allowUpdate: can(user, "edit_patient_information"),
+        allowDelete: can(user, "edit_patient_information")
       }
     );
   }
@@ -850,7 +867,75 @@ function getClinicNotifications(req, res) {
   });
 }
 
+// ── Before/after photos: files live on the persistent /data disk, one folder
+// per clinic; only the tiny metadata rides in the state blob. The photo id
+// carries its extension so serving needs no lookup table.
+function patientPhotoPath(clinicId, photoId) {
+  return join(dirname(databasePath), "photos", String(clinicId), photoId);
+}
+
+const PHOTO_ID_PATTERN = /^[0-9a-f-]{36}\.(jpg|png|webp)$/;
+
+function uploadPatientPhoto(req, res) {
+  const auth = requireSession(req, res, { csrf: true });
+  if (!auth) return;
+  if (!can(auth.user, "edit_patient_information") && !can(auth.user, "add_patient")) {
+    return sendJson(res, 403, { error: "forbidden" });
+  }
+  const body = req.body || {};
+  const dataUrl = String(body.dataUrl || "");
+  if (dataUrl.length > 2_500_000) return sendJson(res, 413, { error: "image_too_large" });
+  const match = dataUrl.match(/^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/);
+  if (!match) return sendJson(res, 400, { error: "invalid_image" });
+  const ext = match[1] === "jpeg" ? "jpg" : match[1];
+  const photoId = `${randomUUID()}.${ext}`;
+  const file = patientPhotoPath(auth.user.clinicId, photoId);
+  try {
+    mkdirSync(dirname(file), { recursive: true });
+    // Per-clinic quota: photos share the /data disk with the database.
+    if (readdirSync(dirname(file)).length >= 1000) {
+      return sendJson(res, 413, { error: "photo_quota_exceeded" });
+    }
+    writeFileSync(file, Buffer.from(match[2], "base64"));
+  } catch {
+    return sendJson(res, 500, { error: "photo_write_failed" });
+  }
+  audit({ clinicId: auth.user.clinicId, userId: auth.user.id, action: "patient_photo_uploaded", entity: "patient_photo", entityId: photoId, ipAddress: clientIp(req) });
+  sendJson(res, 200, { ok: true, id: photoId, url: `/api/patient-photos/${photoId}` });
+}
+
+function servePatientPhoto(req, res, photoId) {
+  const auth = requireSession(req, res);
+  if (!auth) return;
+  if (!can(auth.user, "patient_history")) return sendJson(res, 403, { error: "forbidden" });
+  const id = String(photoId || "");
+  if (!PHOTO_ID_PATTERN.test(id)) return sendJson(res, 404, { error: "photo_not_found" });
+  const file = patientPhotoPath(auth.user.clinicId, id);
+  if (!existsSync(file)) return sendJson(res, 404, { error: "photo_not_found" });
+  const ext = id.split(".").pop();
+  res.setHeader("Content-Type", ext === "jpg" ? "image/jpeg" : `image/${ext}`);
+  res.setHeader("Cache-Control", "private, max-age=86400");
+  res.end(readFileSync(file));
+}
+
+function deletePatientPhoto(req, res, photoId) {
+  const auth = requireSession(req, res, { csrf: true });
+  if (!auth) return;
+  if (!can(auth.user, "edit_patient_information")) return sendJson(res, 403, { error: "forbidden" });
+  const id = String(photoId || "");
+  if (!PHOTO_ID_PATTERN.test(id)) return sendJson(res, 404, { error: "photo_not_found" });
+  try {
+    unlinkSync(patientPhotoPath(auth.user.clinicId, id));
+  } catch { /* already gone — deletion is idempotent */ }
+  audit({ clinicId: auth.user.clinicId, userId: auth.user.id, action: "patient_photo_deleted", entity: "patient_photo", entityId: id, ipAddress: clientIp(req) });
+  sendJson(res, 200, { ok: true });
+}
+
 export default async function clinicHandler(req, res, url) {
+  if (url.pathname === "/api/patient-photos" && req.method === "POST") return uploadPatientPhoto(req, res);
+  const photoMatch = url.pathname.match(/^\/api\/patient-photos\/([^/]+)$/);
+  if (photoMatch && req.method === "GET") return servePatientPhoto(req, res, photoMatch[1]);
+  if (photoMatch && req.method === "DELETE") return deletePatientPhoto(req, res, photoMatch[1]);
   if (url.pathname === "/api/clinic-state" && req.method === "GET") return getState(req, res);
   if (url.pathname === "/api/clinic-state" && req.method === "PUT") return saveState(req, res);
   if (url.pathname === "/api/clinic-storage-status" && req.method === "GET") return getStorageStatus(req, res);

@@ -194,6 +194,7 @@ async function handleRequest(req, res) {
     || url.pathname === "/api/clinic-storage-status"
     || url.pathname === "/api/clinic-export"
     || url.pathname.startsWith("/api/clinic-users")
+    || url.pathname.startsWith("/api/patient-photos")
     || url.pathname === "/api/clinic-integrations"
     || url.pathname === "/api/clinic/notifications"
   ) {

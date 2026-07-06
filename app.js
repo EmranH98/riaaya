@@ -39,10 +39,12 @@ function storageGet(key) {
 
 function storageSet(key, value) {
   try {
-    if (typeof localStorage === "undefined") return;
+    if (typeof localStorage === "undefined") return false;
     localStorage.setItem(key, value);
+    return true;
   } catch {
-    // Ignore storage errors in restricted browser contexts.
+    // Quota exceeded or restricted context — callers decide how loud to be.
+    return false;
   }
 }
 
@@ -489,6 +491,25 @@ const APP_TEXT_EN = {
   "إغلاق الشاشة الكاملة": "Close full screen",
   "ابحث بالاسم أو الهاتف…": "Search by name or phone…",
   "أضف مريضاً أولاً": "Add a patient first",
+  "تأكيدات الغد": "Tomorrow's confirmations",
+  "ذُكّر الجميع ✓": "All reminded ✓",
+  "ذُكّر ✓": "Reminded ✓",
+  "تم التأكيد": "Confirmed",
+  "💬 تذكير": "💬 Remind",
+  "لا رقم": "No number",
+  "صور قبل / بعد": "Before / After photos",
+  "＋ إضافة صورة": "＋ Add photo",
+  "المنطقة / ملاحظة (اختياري)": "Area / note (optional)",
+  "تُحفظ الصور بموافقة المريض وتبقى داخل حساب العيادة فقط.": "Photos are saved with the patient's consent and stay inside the clinic account only.",
+  "لا صور بعد — أول صورة «قبل» هي بداية قصة النتيجة.": "No photos yet — the first \"before\" photo starts the result story.",
+  "عربون مدفوع الآن": "Deposit paid now",
+  "اختياري — يُخصم من سعر الزيارة": "Optional — deducted from the visit price",
+  "طريقة دفع العربون": "Deposit payment method",
+  "طريقة الدفع": "Payment method",
+  "هاتف المالك (واتساب)": "Owner phone (WhatsApp)",
+  "📱 ملخص للمالك": "📱 Owner summary",
+  "قبل": "Before",
+  "بعد": "After",
   "الموظف": "Employee",
   "قوالب جاهزة:": "Presets:",
   "طبيب / أخصائي": "Doctor / Specialist",
@@ -2752,7 +2773,7 @@ function renderReception() {
   const bookingRow = (b, actions) => `
     <tr>
       <td class="reception-time">${displayTime(b.time)}</td>
-      <td><strong>${esc(b.patient)}</strong><small>${esc(serviceLabel(b))} · ${teamLabel(b)}</small></td>
+      <td><strong>${esc(b.patient)}</strong><small>${esc(serviceLabel(b))} · ${teamLabel(b)}${numberValue(b.deposit) > 0 ? ` · <span class="tomorrow-done">عربون ${canViewSensitive() ? money(numberValue(b.deposit)) : "✓"}</span>` : ""}</small></td>
       <td class="reception-actions">${actions}</td>
     </tr>`;
 
@@ -2814,6 +2835,42 @@ function renderReception() {
         <h3>عمليات اليوم <span class="patient-ops-count">${entries.length}</span></h3>
         <table class="reception-table"><tbody>${entryRows}</tbody></table>
       </div>
+    </div>
+    ${tomorrowConfirmationsHtml()}`;
+}
+
+// «تأكيدات الغد» — the evening-before WhatsApp confirmation is the proven
+// no-show killer. One list, one tap per patient, and the sent-state is DATA
+// (booking.reminderAt), not tribal memory.
+function tomorrowConfirmationsHtml() {
+  if (!canUseFeature("calendar_page")) return "";
+  const tomorrow = dateOffset(1, ammanToday());
+  const rows = (state.bookings || [])
+    .filter(b => b.date === tomorrow && ["scheduled", "confirmed"].includes(b.status))
+    .sort((a, b) => String(a.time).localeCompare(String(b.time)));
+  if (!rows.length) return "";
+  const canSeePhone = canUseFeature("see_mobile");
+  const unreminded = rows.filter(b => !b.reminderAt).length;
+  return `
+    <div class="tomorrow-confirmations">
+      <h3>تأكيدات الغد <span class="patient-ops-count">${rows.length}</span>
+        ${unreminded ? `<span class="pill tomorrow-unreminded">${arCount(unreminded, "موعد", "موعدان", "مواعيد")} بلا تذكير</span>` : `<span class="pill tomorrow-done">ذُكّر الجميع ✓</span>`}
+      </h3>
+      <table class="reception-table"><tbody>
+        ${rows.map(b => {
+          const patient = b.patientId ? patientById(b.patientId) : null;
+          const phone = b.phone || patient?.phone || "";
+          const waNumber = canSeePhone ? phoneDigits(phone) : "";
+          const msg = `السلام عليكم ${b.patient}،\n\nنذكّركم بموعدكم غداً في ${state.settings?.clinicName || "العيادة"}\nالتاريخ: ${displayDate(b.date)}\nالوقت: ${displayTime(b.time)}\nالخدمة: ${serviceLabel(b)}\n\nنرجو تأكيد الحضور، وإن رغبتم بتغيير الموعد يسعدنا التواصل معكم 🌿`;
+          return `<tr>
+            <td><strong>${esc(displayTime(b.time))}</strong> ${esc(b.patient)}<br><small>${esc(serviceLabel(b))}</small></td>
+            <td>${b.reminderAt ? `<span class="pill tomorrow-done">ذُكّر ✓</span>` : (waNumber
+              ? `<a class="text-button whatsapp-action" href="https://wa.me/${waNumber}?text=${esc(encodeURIComponent(msg))}" target="_blank" rel="noreferrer" data-remind-booking="${esc(b.id)}">💬 تذكير</a>`
+              : `<small>لا رقم</small>`)}</td>
+            <td class="reception-actions">${b.status === "confirmed" ? `<span class="pill tomorrow-done">مؤكد</span>` : `<button class="text-button" type="button" data-booking-status-id="${esc(b.id)}" data-booking-status="confirmed">تم التأكيد</button>`}</td>
+          </tr>`;
+        }).join("")}
+      </tbody></table>
     </div>`;
 }
 
@@ -3082,12 +3139,187 @@ function openPackageSessionSheet(pkg, { bookingId = "" } = {}) {
       closeSessionSheet();
       saveState();
       render();
-      showToast(provider
-        ? `سُجّلت الجلسة ${sessionIndex}/${pkg.totalSessions} باسم ${provider.name}`
-        : `سُجّلت الجلسة — أكمل تعيين المنفّذ من العمليات`, provider ? "success" : "warn");
+      // The last session is the highest-converting renewal moment — the
+      // patient is standing at the desk. One tap opens the sell sheet.
+      if (packageRemaining(pkg) <= 0) {
+        showToast(`سُجّلت الجلسة الأخيرة ${sessionIndex}/${pkg.totalSessions} من «${pkg.name}» — اعرض التجديد الآن`, "warn",
+          { actionLabel: "تجديد الباقة", onAction: () => openSellPackageSheet({ patientId: pkg.patientId }) });
+      } else {
+        showToast(provider
+          ? `سُجّلت الجلسة ${sessionIndex}/${pkg.totalSessions} باسم ${provider.name}`
+          : `سُجّلت الجلسة — أكمل تعيين المنفّذ من العمليات`, provider ? "success" : "warn");
+      }
     }
   });
   document.body.appendChild(modal);
+}
+
+// ── Before/after photos ─────────────────────────────────────────────────────
+// Client-side downscale keeps uploads small (~200-400KB JPEG) so clinic
+// tablets on mobile data stay fast and the server disk stays lean.
+function downscaleImage(file, maxDim = 1100, quality = 0.82) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("read_failed"));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("decode_failed"));
+      img.onload = () => {
+        const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(img.width * scale));
+        canvas.height = Math.max(1, Math.round(img.height * scale));
+        canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// Deleting a file must not leak its photos: server files are removed (live)
+// and the metadata + trial dataURLs leave the state.
+function purgePatientPhotos(patientIds) {
+  const idSet = patientIds instanceof Set ? patientIds : new Set([].concat(patientIds));
+  const goners = (state.patientPhotos || []).filter(p => idSet.has(p.patientId));
+  if (!goners.length) return;
+  if (runtime.mode === "live") {
+    goners.filter(p => p.url).forEach(p => {
+      fetch(`/api/patient-photos/${encodeURIComponent(p.id)}`, {
+        method: "DELETE",
+        headers: { "X-CSRF-Token": runtime.csrfToken }
+      }).catch(() => {});
+    });
+  }
+  state.patientPhotos = (state.patientPhotos || []).filter(p => !idSet.has(p.patientId));
+}
+
+document.addEventListener("change", async event => {
+  const input = event.target.closest("[data-photo-input]");
+  if (!input || !input.files?.length) return;
+  if (!canUseFeature("edit_patient_information") && !canUseFeature("add_patient")) return;
+  const patientId = input.dataset.photoPatient;
+  const label = document.querySelector("[data-photo-label]")?.value === "after" ? "after" : "before";
+  const note = (document.querySelector("[data-photo-note]")?.value || "").trim();
+  const file = input.files[0];
+  input.value = "";
+  try {
+    const dataUrl = await downscaleImage(file);
+    if (runtime.mode === "live") {
+      const response = await fetch("/api/patient-photos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": runtime.csrfToken },
+        body: JSON.stringify({ patientId, label, note, dataUrl })
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "photo_upload_failed");
+      state.patientPhotos = [...(state.patientPhotos || []),
+        { id: result.id, patientId, label, note, date: state.settings.activeDate, url: result.url }];
+    } else {
+      // Trial keeps photos on-device only — cap by SIZE (localStorage quota is
+      // ~5M chars) so a save can never silently start failing.
+      const projected = JSON.stringify(state).length + dataUrl.length;
+      if ((state.patientPhotos || []).length >= 12 || projected > 3_800_000) {
+        showToast("مساحة النموذج التجريبي للصور امتلأت — الحساب الفعلي يخزّنها على الخادم بلا حد يذكر.", "warn");
+        return;
+      }
+      state.patientPhotos = [...(state.patientPhotos || []),
+        { id: nextId("photo"), patientId, label, note, date: state.settings.activeDate, dataUrl }];
+    }
+    logEdit("إضافة صورة", `${patientById(patientId)?.name || ""} · ${label === "after" ? "بعد" : "قبل"}`);
+    saveState();
+    render();
+    showToast("أُضيفت الصورة ✓", "success");
+  } catch {
+    showToast("تعذّر حفظ الصورة — جرّب صورة أخرى أو تحقق من الاتصال.", "error");
+  }
+});
+
+document.addEventListener("click", async event => {
+  const del = event.target.closest("[data-photo-delete]");
+  if (del) {
+    if (!canUseFeature("edit_patient_information")) return;
+    const id = del.dataset.photoDelete;
+    const photo = (state.patientPhotos || []).find(p => p.id === id);
+    if (!photo) return;
+    if (!await showConfirm("حذف هذه الصورة نهائياً؟", { title: "حذف صورة", okLabel: "حذف", okClass: "danger-button" })) return;
+    if (runtime.mode === "live" && photo.url) {
+      fetch(`/api/patient-photos/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+        headers: { "X-CSRF-Token": runtime.csrfToken }
+      }).catch(() => {});
+    }
+    state.patientPhotos = (state.patientPhotos || []).filter(p => p.id !== id);
+    logEdit("حذف صورة", patientById(photo.patientId)?.name || "");
+    saveState();
+    render();
+    return;
+  }
+  const view = event.target.closest("[data-photo-view]");
+  if (view) {
+    const photo = (state.patientPhotos || []).find(p => p.id === view.dataset.photoView);
+    if (!photo) return;
+    document.querySelector(".photo-lightbox")?.remove();
+    const box = document.createElement("div");
+    box.className = "close-sheet-modal photo-lightbox";
+    box.innerHTML = `
+      <div class="close-sheet-card photo-lightbox-card" role="dialog" aria-modal="true" aria-label="عرض الصورة">
+        <div class="rx-modal-head">
+          <h3>${photo.label === "after" ? "بعد" : "قبل"} · ${esc(displayDate(photo.date))}${photo.note ? ` · ${esc(photo.note)}` : ""}</h3>
+          <button class="icon-button rx-modal-close" type="button" data-close-sheet-dismiss aria-label="إغلاق">×</button>
+        </div>
+        <img class="photo-lightbox-img" src="${esc(photo.url || photo.dataUrl || "")}" alt="">
+      </div>`;
+    const closeBox = () => { box.remove(); document.removeEventListener("keydown", onEsc, true); };
+    const onEsc = e => { if (e.key !== "Escape") return; e.preventDefault(); e.stopPropagation(); closeBox(); };
+    document.addEventListener("keydown", onEsc, true);
+    box.addEventListener("click", e => {
+      if (e.target === box || e.target.closest("[data-close-sheet-dismiss]")) closeBox();
+    });
+    document.body.appendChild(box);
+  }
+});
+
+// عربون: a booking deposit is REAL money taken TODAY — it gets its own entry
+// so the drawer and day totals stay honest, and it is credited against the
+// visit price when the appointment is completed (the visit entry's price is
+// reduced by the deposit, so revenue is counted exactly once).
+function recordBookingDeposit(booking, amount, patientId = "", method = "cash") {
+  const dep = Math.max(numberValue(amount), 0);
+  if (!dep || !booking) return null;
+  const payMethod = PAYMENT_METHODS.includes(method) ? method : "cash";
+  const breakdown = { cash: 0, card: 0, transfer: 0, [payMethod]: dep };
+  // A deposit is money received NOW — stamp the real day, never the cursor.
+  const depositDate = ammanToday();
+  const entry = normalizeEntry({
+    id: nextId("entry"),
+    visitNumber: nextVisitNumber(),
+    date: depositDate,
+    patientId: patientId || booking.patientId || "",
+    patient: booking.patient || "مريض",
+    serviceId: "",
+    service: `عربون حجز — ${serviceLabel(booking)}`,
+    amount: dep,
+    quantity: 1,
+    cost: 0,
+    // Attributed to the booked provider, so the deposit share of the price
+    // still feeds their commission (the visit entry is reduced by it).
+    doctorId: booking.doctorId || "",
+    specialistId: booking.specialistId || "",
+    bookingId: booking.id,
+    kind: "deposit",
+    status: "completed",
+    paymentBreakdown: breakdown,
+    paymentLog: [{ date: depositDate, ...breakdown, amount: dep, note: "عربون حجز" }],
+    notes: `عربون لموعد ${displayDate(booking.date)} ${displayTime(booking.time)}`
+  }, state.services);
+  state.entries = state.entries || [];
+  state.entries.push(entry);
+  booking.deposit = dep;
+  booking.depositEntryId = entry.id;
+  logEdit("عربون حجز", `${booking.patient} · ${money(dep)} · موعد ${displayDate(booking.date)}`);
+  return entry;
 }
 
 // Sell a package from anywhere — reception, the patient file — without leaving
@@ -3160,7 +3392,7 @@ function openSellPackageSheet({ patientId = "" } = {}) {
     const matches = (state.patients || []).filter(p => matchesSmartQuery(canSeePhone ? [p.name, p.phone] : [p.name], query));
     const previous = patientSelect.value;
     patientSelect.innerHTML = `<option value="">${matches.length ? "اختر المريض" : (query ? "لا نتائج — عدّل البحث" : "أضف مريضاً أولاً")}</option>`
-      + matches.map(p => `<option value="${esc(p.id)}">${esc(p.name)}${canSeePhone && p.phone ? ` — ${esc(p.phone)}` : ""}</option>`).join("");
+      + matches.map(p => `<option value="${esc(p.id)}">${esc(p.name)}${canSeePhone && p.phone ? ` — ${esc(fmtPhone(p.phone))}` : ""}</option>`).join("");
     if (previous && matches.some(p => p.id === previous)) patientSelect.value = previous;
     return matches;
   };
@@ -3876,6 +4108,7 @@ function loadState() {
       importHistory: Array.isArray(saved.importHistory) ? saved.importHistory.map(normalizeImportHistory) : [],
       packageTemplates: Array.isArray(saved.packageTemplates) ? saved.packageTemplates.map(normalizePackageTemplate) : seed.packageTemplates,
       patientPackages: Array.isArray(saved.patientPackages) ? saved.patientPackages.map(normalizePatientPackage) : seed.patientPackages,
+      patientPhotos: Array.isArray(saved.patientPhotos) ? saved.patientPhotos : [],
       auditTrail: Array.isArray(saved.auditTrail) ? saved.auditTrail : [],
       growthLog: Array.isArray(saved.growthLog) ? saved.growthLog : [],
       bookings,
@@ -4435,6 +4668,9 @@ function setSaveIndicator(state) {
   } else if (state === "saved") {
     el.textContent = "✓ محفوظ";
     _saveIndicatorTimer = setTimeout(() => el.setAttribute("hidden", ""), 2500);
+  } else if (state === "offline") {
+    // The work is safe on this device and retries itself — say exactly that.
+    el.innerHTML = `📴 محفوظ على هذا الجهاز — سيُرفع تلقائياً عند عودة الاتصال <button type="button" data-retry-save>حاول الآن</button>`;
   } else if (state === "error") {
     // A failed save must never disappear on its own — it stays until a save
     // succeeds, and it offers the retry right where the eye already is.
@@ -4670,13 +4906,91 @@ function submitFollowup() {
 }
 // ──────────────────────────────────────────────────────────────────────────
 
+// ── Never-lose-an-entry: live state is mirrored to THIS DEVICE on every edit.
+// If the connection drops and the tab dies, the pending work replays through
+// the server's three-way merge on the next boot.
+function liveMirrorKey() {
+  return `riaayaLiveMirror:${runtime.session?.clinic?.id || "clinic"}`;
+}
+
+function writeLiveMirror(pending) {
+  if (runtime.mode !== "live" || !runtime.session) return true;
+  const ok = storageSet(liveMirrorKey(), JSON.stringify({
+    state,
+    stateVersion: runtime.stateVersion,
+    pending: !!pending,
+    savedAt: new Date().toISOString()
+  }));
+  if (!ok) {
+    // Quota exceeded: a stale pending mirror is worse than none — remove it so
+    // it can never replay old data, and never claim on-device safety.
+    storageRemove(liveMirrorKey());
+  }
+  return ok;
+}
+
+// Auto-retry with backoff: a dropped save re-queues ITSELF — it never waits
+// for the receptionist to notice a chip and click retry.
+function scheduleSaveRetry() {
+  runtime.saveRetryDelay = Math.min((runtime.saveRetryDelay || 1000) * 2, 60000);
+  clearTimeout(runtime.saveRetryTimer);
+  runtime.saveRetryTimer = setTimeout(() => {
+    runtime.saveRetryTimer = null;
+    if (runtime.savePending) flushLiveState();
+  }, runtime.saveRetryDelay);
+}
+
+async function replayLiveMirror() {
+  try {
+    const raw = storageGet(liveMirrorKey());
+    if (!raw) return;
+    const mirror = JSON.parse(raw);
+    if (!mirror?.pending || !mirror.state) return;
+    // Don't resurrect ancient work — 48h is the honest window.
+    if (mirror.savedAt && Date.now() - Date.parse(mirror.savedAt) > 48 * 3600 * 1000) {
+      storageRemove(liveMirrorKey());
+      return;
+    }
+    const response = await fetch("/api/clinic-state", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", "X-CSRF-Token": runtime.csrfToken },
+      body: JSON.stringify({ state: mirror.state, stateVersion: mirror.stateVersion })
+    });
+    const result = await response.json().catch(() => ({}));
+    if (response.ok) {
+      if (result.merged && result.state) {
+        runtime.stateVersion = Number(result.stateVersion || 0);
+        state = hydrateClinicState(result.state, runtime.session?.clinic || {}, result.accounts || result.state?.accounts || []);
+      } else {
+        // Fast path: the server applied the mirror verbatim — the mirror IS the
+        // truth now, so adopt it locally too (the boot GET predates it).
+        runtime.stateVersion = Number(result.stateVersion ?? runtime.stateVersion);
+        state = hydrateClinicState(mirror.state, runtime.session?.clinic || {}, state.accounts || []);
+      }
+      if (selectedPatientId && !(state.patients || []).some(p => p.id === selectedPatientId)) {
+        selectedPatientId = state.patients?.[0]?.id || "";
+      }
+      writeLiveMirror(false);
+      showToast("استُعيدت تعديلات لم تُرفع من هذا الجهاز وحُفظت على الخادم ✓", "success");
+    }
+    // Non-ok: the mirror stays pending for the next boot.
+  } catch { /* offline again — the mirror stays for next time */ }
+}
+
 function saveState() {
   if (runtime.mode !== "live") {
-    storageSet(STORAGE_KEY, JSON.stringify(state));
+    const persisted = storageSet(STORAGE_KEY, JSON.stringify(state));
+    if (!persisted && !runtime.trialStorageFailed) {
+      runtime.trialStorageFailed = true;
+      showToast("مساحة المتصفح ممتلئة — التغييرات لن تُحفظ. احذف بعض الصور أو البيانات التجريبية.", "error");
+    } else if (persisted) {
+      runtime.trialStorageFailed = false;
+    }
     return;
   }
   if (!runtime.ready) return;
   runtime.savePending = true;
+  writeLiveMirror(true);
   setSaveIndicator("saving");
   clearTimeout(runtime.saveTimer);
   runtime.saveTimer = setTimeout(flushLiveState, 350);
@@ -4723,6 +5037,10 @@ function applySaveResult(result) {
   } else {
     runtime.stateVersion = Number(result.stateVersion ?? runtime.stateVersion);
   }
+  runtime.saveRetryDelay = 0;
+  clearTimeout(runtime.saveRetryTimer);
+  runtime.saveRetryTimer = null;
+  writeLiveMirror(runtime.savePending);
   setSaveIndicator("saved");
 }
 
@@ -4779,7 +5097,16 @@ function flushPendingSaveOnExit(useKeepalive) {
       headers: { "Content-Type": "application/json", "X-CSRF-Token": runtime.csrfToken },
       body: JSON.stringify({ state, stateVersion: runtime.stateVersion }),
       keepalive: true
-    }).catch(() => {});
+    }).then(response => response.ok ? response.json().catch(() => null) : null)
+      .then(result => {
+        // If the page survives (bfcache/tab switch), clear the pending mirror so
+        // an already-saved snapshot never replays on the next boot.
+        if (result) {
+          runtime.stateVersion = Number(result.stateVersion ?? runtime.stateVersion);
+          writeLiveMirror(false);
+        }
+      })
+      .catch(() => {});
   } catch { /* best effort on unload */ }
 }
 document.addEventListener("visibilitychange", () => {
@@ -4813,18 +5140,40 @@ async function flushLiveState() {
         title: "تحديث البيانات", icon: "🔄", okLabel: "تحديث الآن", okOnly: true
       }).then(() => location.reload());
       return;
+    } else if (response.status >= 500 || response.status === 408 || response.status === 429) {
+      // Transient server trouble: keep the work queued and retry by ourselves.
+      runtime.savePending = true;
+      writeLiveMirror(true);
+      setSaveIndicator("offline");
+      scheduleSaveRetry();
     } else {
       setSaveIndicator("error");
       showToast(`تعذّر حفظ التغييرات: ${result.error || "خطأ " + response.status}. أعد المحاولة.`, "error");
     }
   } catch {
-    setSaveIndicator("error");
-    // A later user action retries the save without blocking the current screen.
+    // Network drop: the work is queued AND mirrored on this device — it
+    // retries itself with backoff and replays on next boot if the tab dies.
+    runtime.savePending = true;
+    const mirrored = writeLiveMirror(true);
+    setSaveIndicator(mirrored ? "offline" : "error");
+    scheduleSaveRetry();
   } finally {
     runtime.saveInFlight = false;
-    if (runtime.savePending) saveState();
+    // New edits queued during the flight re-debounce as usual; when a backoff
+    // retry is scheduled (network trouble) it owns the timing instead.
+    if (runtime.savePending && !runtime.saveRetryTimer) saveState();
   }
 }
+
+window.addEventListener("online", () => {
+  if (runtime.mode === "live" && runtime.savePending) {
+    runtime.saveRetryDelay = 0;
+    flushLiveState();
+  }
+});
+window.addEventListener("offline", () => {
+  if (runtime.mode === "live") setSaveIndicator("offline");
+});
 
 function nearestAllowedDate(account) {
   if (calendarDateAllowed(account, today)) return today;
@@ -4916,6 +5265,21 @@ function applyRuntimeUI() {
   document.body.classList.toggle("live-workspace", live);
 }
 
+// Boot failure = a full-screen retry, never a silent slide into demo data.
+function renderBootRetry() {
+  document.body.innerHTML = `
+    <div style="min-height:100vh;display:grid;place-items:center;background:#F4F1EA;font-family:inherit;padding:24px" dir="rtl">
+      <div style="max-width:420px;text-align:center;border:1px solid #D6D0C6;border-top:4px solid #C49A5A;background:#fff;padding:32px 28px">
+        <div style="font-size:34px;margin-bottom:10px">📡</div>
+        <h2 style="margin:0 0 8px">تعذّر الاتصال بالخادم</h2>
+        <p style="margin:0 0 18px;color:#6B6358;font-weight:600">بيانات عيادتك لم تُحمَّل — لا تسجّل أي شيء قبل عودة الاتصال. سنعيد المحاولة تلقائياً.</p>
+        <button type="button" onclick="location.reload()" style="border:0;background:#1A5C38;color:#fff;font:inherit;font-weight:700;padding:12px 26px;cursor:pointer">إعادة المحاولة الآن</button>
+      </div>
+    </div>`;
+  window.addEventListener("online", () => location.reload());
+  setTimeout(() => location.reload(), 20000);
+}
+
 async function initializeApp() {
   const forceTrial = new URLSearchParams(location.search).get("trial") === "1";
   let initializeClinicState = false;
@@ -4947,12 +5311,14 @@ async function initializeApp() {
         }
         selectedPatientId = state.patients?.[0]?.id || "";
         initializeClinicState = !result.state;
+        // Work saved on this device while offline replays through the merge.
+        await replayLiveMirror();
       }
     } catch {
-      runtime.mode = "trial";
-      runtime.session = null;
-      runtime.csrfToken = "";
-      state = loadState();
+      // NEVER fall silently into the demo — a receptionist on flaky Wi-Fi
+      // would record real cash into trial data. Offer a retry instead.
+      renderBootRetry();
+      return;
     }
   }
   runtime.ready = true;
@@ -5333,7 +5699,7 @@ function renderPackagePatientOptions() {
   const lang = currentLanguage();
   const placeholder = matches.length ? "اختر المريض" : (query ? "لا نتائج — عدّل البحث" : "أضف مريضاً أولاً");
   select.innerHTML = `<option value="">${esc(translateLiteral(placeholder, lang))}</option>`
-    + matches.map(patient => `<option value="${esc(patient.id)}">${esc(patient.name)}${canSeePhone && patient.phone ? ` — ${esc(patient.phone)}` : ""}</option>`).join("");
+    + matches.map(patient => `<option value="${esc(patient.id)}">${esc(patient.name)}${canSeePhone && patient.phone ? ` — ${esc(fmtPhone(patient.phone))}` : ""}</option>`).join("");
   if (previous && matches.some(patient => patient.id === previous)) select.value = previous;
   return matches;
 }
@@ -6032,7 +6398,8 @@ function totalsFor(entries) {
     totals.revenue += net;
     totals.paid += PAYMENT_METHODS.reduce((sum, method) => sum + numberValue(payments[method]), 0);
     totals.discount += numberValue(entry.discount);
-    totals.count += 1;
+    // Deposits are money, not visits — they must not inflate operation counts.
+    if (entry.kind !== "deposit") totals.count += 1;
     totals.cash += numberValue(payments.cash);
     totals.card += numberValue(payments.card);
     totals.transfer += numberValue(payments.transfer);
@@ -6757,6 +7124,7 @@ function renderClinicForm() {
   els.clinicForm.elements.branch.value = state.settings.branch || "";
   if (els.clinicForm.elements.workStart) els.clinicForm.elements.workStart.value = state.settings.workStart || "08:00";
   if (els.clinicForm.elements.workEnd) els.clinicForm.elements.workEnd.value = state.settings.workEnd || "18:00";
+  if (els.clinicForm.elements.ownerPhone) els.clinicForm.elements.ownerPhone.value = state.settings.ownerPhone || "";
   els.clinicTitle.textContent = state.settings.clinicName;
   if (els.bookingForm && !els.bookingForm.elements.date.value) {
     els.bookingForm.elements.date.value = state.settings.activeDate;
@@ -7260,6 +7628,15 @@ function phoneDigits(phone) {
   return digits;
 }
 
+// Bidi-safe phone display: LTR-isolate the number so the RTL page never
+// reorders its digit groups («079 444 0808» must never read «0808 444 079»).
+// Works inside text nodes, <option>s, titles and toasts, unlike CSS direction.
+function fmtPhone(phone) {
+  const text = String(phone || "").trim();
+  if (!text) return "";
+  return `⁦${text}⁩`; // LRI … PDI
+}
+
 function nextVisitorBooking() {
   const bookings = activeBookings().filter(booking => !["completed", "cancelled", "no_show"].includes(booking.status));
   if (!bookings.length) return null;
@@ -7299,7 +7676,7 @@ function renderNextVisitor() {
     <div class="next-visitor-time">${displayTime(booking.time)}</div>
     <button class="next-visitor-name" type="button" data-open-patient="${patient?.id || ""}">${esc(booking.patient)}</button>
     <p>${esc(serviceLabel(booking))} | ${team}</p>
-    ${canSeePhone && (booking.phone || patient?.phone) ? `<p class="next-visitor-phone">${esc(booking.phone || patient?.phone)}</p>` : ""}
+    ${canSeePhone && (booking.phone || patient?.phone) ? `<p class="next-visitor-phone">${esc(fmtPhone(booking.phone || patient?.phone))}</p>` : ""}
     <div class="next-visitor-actions">
       ${canSeePhone && (booking.phone || patient?.phone) ? `<a class="text-button" href="tel:${booking.phone || patient?.phone}">اتصال</a>` : ""}
       ${canSeePhone && whatsappNumber ? `<a class="text-button whatsapp-action" href="https://wa.me/${whatsappNumber}" target="_blank" rel="noreferrer">WhatsApp</a>` : ""}
@@ -8300,7 +8677,7 @@ function renderPatientDirectory() {
         <td>${canUseFeature("patient_number") ? patient.patientNumber : "—"}</td>
         <td><span class="cell-with-avatar">${genderAvatar(patient, 32)}<button class="table-link" type="button" data-open-patient="${patient.id}">${esc(patient.name)}</button>${patient.rating ? ` ${ratingStarsStatic(patient.rating)}` : ""}</span></td>
         <td><span class="pill">${profileTypeLabel(patient.profileType)}</span></td>
-        <td>${esc(canSeePhone ? (patient.phone || "-") : "مخفي")}</td>
+        <td>${esc(canSeePhone ? (fmtPhone(patient.phone) || "-") : "مخفي")}</td>
         <td>${displayDate(patientLastActivity(patient)) || "-"}</td>
         <td>${operations.length}</td>
         <td><button class="text-button" type="button" data-open-patient="${patient.id}">فتح الملف</button></td>
@@ -8341,6 +8718,7 @@ document.addEventListener("click", async event => {
   state.patients = (state.patients || []).filter(patient => !idSet.has(patient.id));
   state.entries = (state.entries || []).map(entry => idSet.has(entry.patientId) ? { ...entry, patientId: "" } : entry);
   state.bookings = (state.bookings || []).map(booking => idSet.has(booking.patientId) ? { ...booking, patientId: "" } : booking);
+  purgePatientPhotos(idSet);
   if (idSet.has(selectedPatientId)) selectedPatientId = state.patients[0]?.id || "";
   logEdit("حذف ملفات مرضى بالجملة", `${removed.length} ملف: ${removed.slice(0, 6).map(patient => patient.name).join("، ")}${removed.length > 6 ? "…" : ""}`);
   saveState();
@@ -8430,6 +8808,42 @@ function renderPatientFile() {
       </div>
     `).join("")
     : `<div class="empty-state">${canUseFeature("view_receipts") ? "لا توجد إيصالات لهذا الملف." : "لا توجد صلاحية لعرض الإيصالات."}</div>`;
+
+  // Before/after photos — the aesthetic clinic's proof of results. Files live
+  // on the server disk (live) or as small data-URLs (trial); the state blob
+  // only carries metadata.
+  const patientPhotos = (state.patientPhotos || []).filter(p => p.patientId === patient.id)
+    .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  const canEditPhotos = canUseFeature("edit_patient_information") || canUseFeature("add_patient");
+  const photosSection = canUseFeature("patient_history") ? `
+    <div class="patient-history-section">
+      <div class="pkg-file-section-head">
+        <h3>صور قبل / بعد <span class="patient-ops-count">${patientPhotos.length}</span></h3>
+        ${canEditPhotos ? `
+        <div class="photo-upload-controls">
+          <select data-photo-label>
+            <option value="before">قبل</option>
+            <option value="after">بعد</option>
+          </select>
+          <input type="text" data-photo-note placeholder="المنطقة / ملاحظة (اختياري)">
+          <label class="dark-button photo-upload-btn">＋ إضافة صورة
+            <input type="file" accept="image/*" data-photo-input data-photo-patient="${esc(patient.id)}" hidden>
+          </label>
+        </div>` : ""}
+      </div>
+      <p class="photo-consent-hint">تُحفظ الصور بموافقة المريض وتبقى داخل حساب العيادة فقط.</p>
+      ${patientPhotos.length ? `<div class="photo-grid">
+        ${patientPhotos.map(p => `
+          <figure class="photo-card">
+            <img src="${esc(p.url || p.dataUrl || "")}" alt="${p.label === "after" ? "بعد" : "قبل"}" loading="lazy" data-photo-view="${esc(p.id)}">
+            <figcaption>
+              <span class="status-pill ${p.label === "after" ? "chip--done" : "chip--confirmed"}">${p.label === "after" ? "بعد" : "قبل"}</span>
+              <small>${esc(displayDate(p.date))}${p.note ? ` · ${esc(p.note)}` : ""}</small>
+              ${canEditPhotos ? `<button class="icon-button danger compact-delete" type="button" data-photo-delete="${esc(p.id)}" aria-label="حذف الصورة">×</button>` : ""}
+            </figcaption>
+          </figure>`).join("")}
+      </div>` : `<div class="empty-state">لا صور بعد — أول صورة «قبل» هي بداية قصة النتيجة.</div>`}
+    </div>` : "";
 
   // Packages with a per-visit breakdown: every session shows its date,
   // performer and status — plus the upcoming booked sessions, the purchase
@@ -8539,7 +8953,7 @@ function renderPatientFile() {
       <div><span>إجمالي المدفوع</span><strong>${canViewSensitive() ? money(totalPaid) : "مخفي"}</strong></div>
     </div>
     <div class="patient-demographics">
-      <div><span>الهاتف</span><strong>${esc(canSeePhone ? (patient.phone || "-") : "مخفي")}</strong></div>
+      <div><span>الهاتف</span><strong>${esc(canSeePhone ? (fmtPhone(patient.phone) || "-") : "مخفي")}</strong></div>
       <div><span>البريد</span><strong>${esc(patient.email || "-")}</strong></div>
       <div><span>الجنس</span><strong>${genderLabel(patient.gender)}</strong></div>
       <div><span>الجنسية</span><strong>${esc(patient.nationality || "-")}</strong></div>
@@ -8564,6 +8978,7 @@ function renderPatientFile() {
       </div>
     </div>
     ${packageSection}
+    ${photosSection}
     <div class="patient-history-section">
       <h3>الإيصالات والفواتير</h3>
       <div class="patient-receipt-list">${receiptRows}</div>
@@ -8604,7 +9019,7 @@ function renderStaffList() {
           <strong>${esc(member.name)}</strong>
           <div class="staff-meta">
             <span class="pill">${roleLabel(member.role)}</span>
-            ${member.phone ? `<span class="pill">${esc(member.phone)}</span>` : ""}
+            ${member.phone ? `<span class="pill">${esc(fmtPhone(member.phone))}</span>` : ""}
             ${canViewSensitive() ? `<span class="pill sensitive-pill">${rateDisplay} · ${modelDisplay}</span>` : ""}
             ${canViewSensitive() && memberRules.length ? `<span class="pill">+${memberRules.length} قاعدة خاصة</span>` : ""}
           </div>
@@ -9267,7 +9682,7 @@ function renderCollections() {
     return `
       <tr>
         <td>${patient ? `<button class="table-link" type="button" data-open-patient="${patient.id}">${esc(name)}</button>` : esc(name)}</td>
-        <td class="cell-phone">${canSeePhone && phone ? esc(phone) : "—"}</td>
+        <td class="cell-phone">${canSeePhone && phone ? esc(fmtPhone(phone)) : "—"}</td>
         <td class="cell-num">${row.operations > 0.009 ? money(row.operations) : "—"}</td>
         <td class="cell-num">${row.packages > 0.009 ? money(row.packages) : "—"}</td>
         <td class="cell-num"><strong>${money(row.total)}</strong></td>
@@ -10564,7 +10979,7 @@ function renderBookingDayCalendar() {
           <span class="drag-handle" aria-hidden="true">⠿</span>
           <strong>${esc(booking.patient)}</strong>
           <span>${booking.time} | ${esc(serviceLabel(booking))}</span>
-          <small>${bookingStatusLabel(booking.status)}${booking.phone && canUseFeature("see_mobile") ? ` | ${esc(booking.phone)}` : ""}</small>
+          <small>${bookingStatusLabel(booking.status)}${booking.phone && canUseFeature("see_mobile") ? ` | ${esc(fmtPhone(booking.phone))}` : ""}</small>
         </div>
       `).join("");
 
@@ -10649,7 +11064,7 @@ function renderBookingList() {
             <div>
               <strong>${b.time} | ${esc(b.patient)}</strong>
               <p>${esc(b.service || "—")} | ${b.date}</p>
-              ${b.phone && canUseFeature("see_mobile") ? `<p>📞 ${esc(b.phone)}</p>` : ""}
+              ${b.phone && canUseFeature("see_mobile") ? `<p>📞 ${esc(fmtPhone(b.phone))}</p>` : ""}
               ${b.notes ? `<p style="color:#666;font-size:12px">${esc(b.notes)}</p>` : ""}
               ${b.reference ? `<p style="font-size:11px;color:#999">Ref: ${esc(b.reference)}</p>` : ""}
             </div>
@@ -10698,7 +11113,7 @@ function renderBookingList() {
         ${genderAvatar(patient || booking, 42)}
         <div>
           <strong>${booking.time} | ${esc(booking.patient)}</strong>
-          <p>${esc(serviceLabel(booking))}${phone && canUseFeature("see_mobile") ? ` | ${esc(phone)}` : ""}</p>
+          <p>${esc(serviceLabel(booking))}${phone && canUseFeature("see_mobile") ? ` | ${esc(fmtPhone(phone))}` : ""}</p>
           <p>الفريق: ${esc([doctor?.name, specialist?.name].filter(Boolean).join(" / ") || "بانتظار التعيين")}${canViewSensitive() ? ` | المتوقع ${money(booking.expectedAmount)}` : ""}</p>
           ${booking.notes ? `<p>${esc(booking.notes)}</p>` : ""}
         </div>
@@ -11725,7 +12140,7 @@ function renderPatientsReport(patients) {
       <td>${canUseFeature("patient_number") ? patient.patientNumber : "—"}</td>
       <td><button class="table-link" type="button" data-open-patient="${patient.id}">${esc(patient.name)}</button></td>
       <td>${profileTypeLabel(patient.profileType)}</td>
-      <td>${esc(canUseFeature("see_mobile") ? (patient.phone || "-") : "مخفي")}</td>
+      <td>${esc(canUseFeature("see_mobile") ? (fmtPhone(patient.phone) || "-") : "مخفي")}</td>
       <td>${esc(patient.category || "-")}</td>
       <td>${patientEntries(patient).length}</td>
       <td>${patientBookings(patient).length}</td>
@@ -13363,6 +13778,13 @@ function openOperationModal({ returnView = "", patientName = "", serviceId = "",
   applyPriceFieldVisibility();
   updatePaymentFieldsForStatus();
   renderPaymentQuickButtons();
+  // Show WHICH day this visit will be stamped on — amber when it isn't today.
+  const dateChip = els.operationModal.querySelector("[data-operation-date-chip]");
+  if (dateChip) {
+    const isToday = state.settings.activeDate === ammanToday();
+    dateChip.hidden = isToday;
+    dateChip.textContent = isToday ? "" : `⚠ تاريخ التسجيل: ${displayDate(state.settings.activeDate)} — ليس تاريخ اليوم`;
+  }
   // A stale search from the previous visit must never hide services silently.
   if (els.serviceSearch) {
     els.serviceSearch.value = "";
@@ -13370,6 +13792,16 @@ function openOperationModal({ returnView = "", patientName = "", serviceId = "",
   }
   if (els.entryForm) {
     const patientInput = els.entryForm.querySelector('input[name="patient"]');
+    // Opening for a DIFFERENT patient starts a clean visit — patient A's
+    // unsaved services and paid amounts must never ride into patient B's bill.
+    const previousPatient = (patientInput?.value || "").trim();
+    if (patientName && previousPatient && patientNameKey(previousPatient) !== patientNameKey(patientName)) {
+      const hadLines = pendingOperationLines.length > 0;
+      resetEntryFormDefaults();
+      renderOperationLines();
+      updateEntryPreview();
+      if (hadLines) showToast("بدأت زيارة جديدة — أُفرغت خدمات الزيارة السابقة غير المحفوظة.", "warn");
+    }
     if (patientInput && patientName) patientInput.value = patientName;
     // Known patient → a chip instead of name/phone inputs. The input keeps the
     // value (submit reads it); the chip just removes the retyping noise.
@@ -13404,6 +13836,20 @@ function openOperationModal({ returnView = "", patientName = "", serviceId = "",
     if (specialistId && els.specialistSelect) els.specialistSelect.value = specialistId;
     const bookingField = els.entryForm.querySelector('input[name="bookingId"]');
     if (bookingField) bookingField.value = bookingId || "";
+    // عربون: purely informational here — the actual credit is applied ONCE at
+    // submit time from booking.deposit, so it survives service re-picks and
+    // modal reopens (mutating the field here proved unreliable).
+    const sourceBooking = bookingId ? (state.bookings || []).find(item => item.id === bookingId) : null;
+    const depositChip = els.operationModal.querySelector("[data-operation-deposit-chip]");
+    const deposit = sourceBooking && !sourceBooking.depositUsedAt ? numberValue(sourceBooking.deposit) : 0;
+    if (depositChip) {
+      depositChip.hidden = !(deposit > 0);
+      if (deposit > 0) {
+        depositChip.textContent = canViewSensitive()
+          ? `💰 عربون مدفوع ${money(deposit)} يوم الحجز — سيُخصم تلقائياً عند حفظ الزيارة.`
+          : "💰 عربون مدفوع ✓ — يُخصم تلقائياً عند حفظ الزيارة.";
+      }
+    }
   }
   window.setTimeout(() => {
     const form = els.entryForm;
@@ -13605,7 +14051,7 @@ function renderLeads() {
     <div class="lead-card">
       <div>
         <strong>${lead.clinic || "عيادة بدون اسم"}</strong>
-        <p>${esc(lead.name || "")} | ${esc(lead.phone || "")} | ${esc(lead.city || "")}</p>
+        <p>${esc(lead.name || "")} | ${esc(fmtPhone(lead.phone) || "")} | ${esc(lead.city || "")}</p>
         <p>الخطة: ${lead.plan || "غير محدد"} | الحجم: ${lead.size || lead.clinic_size || "غير محدد"}</p>
         ${lead.notes ? `<p>${esc(lead.notes)}</p>` : ""}
       </div>
@@ -13622,6 +14068,29 @@ function digestTemplateLabel(template) {
     inventory_alerts: "تنبيهات المخزون"
   };
   return labels[template] || template;
+}
+
+// The owner's nightly pulse: today's numbers as plain WhatsApp text (no HTML
+// escaping — this goes into a wa.me message, not the DOM).
+function ownerPulseText() {
+  const date = state.settings.activeDate;
+  const entries = (state.entries || []).filter(e => e.date === date);
+  const totals = totalsFor(entries);
+  const bookings = (state.bookings || []).filter(b => b.date === date);
+  const arrived = bookings.filter(b => ["arrived", "completed"].includes(b.status)).length;
+  const noShow = bookings.filter(b => b.status === "no_show").length;
+  const outstanding = entries.reduce((sum, e) => sum + Math.max(netAmount(e) - paidAmount(e), 0), 0);
+  const reconciliation = activeReconciliation();
+  const diffs = reconciliationDiffs(totals, reconciliation);
+  const visits = new Set(entries.filter(e => isBillableEntry(e) && e.kind !== "deposit").map(e => e.visitId || e.id)).size;
+  return [
+    `رعاية | ${state.settings.clinicName}`,
+    `ملخص يوم ${displayDate(date)}`,
+    `الزيارات: ${visits} · المواعيد: ${bookings.length}${arrived ? ` (حضر ${arrived}${noShow ? ` · لم يحضر ${noShow}` : ""})` : ""}`,
+    `المقبوض: ${money(totals.paid)} — كاش ${money(totals.cash)} · فيزا ${money(totals.card)} · تحويل ${money(totals.transfer)}`,
+    outstanding > 0.009 ? `ذمم جديدة اليوم: ${money(outstanding)}` : "لا ذمم جديدة اليوم ✓",
+    diffs ? `فرق الإغلاق: ${money(diffs.totalDiff)}` : "الإغلاق لم يُحفظ بعد"
+  ].join("\n");
 }
 
 function roleDigestText(account, template = "role_daily") {
@@ -15889,7 +16358,7 @@ if (els.bookingForm) {
       els.bookingForm.elements.time?.focus();
       return;
     }
-    state.bookings.push(normalizeBooking({
+    const newBooking = normalizeBooking({
       id: nextId("booking"),
       date: data.date,
       time: data.time,
@@ -15905,7 +16374,12 @@ if (els.bookingForm) {
       status: data.status,
       notes: data.notes.trim(),
       createdAt: new Date().toISOString()
-    }, state.services));
+    }, state.services);
+    state.bookings.push(newBooking);
+    if (canViewSensitive() && numberValue(data.deposit) > 0) {
+      recordBookingDeposit(newBooking, data.deposit, patient.id, data.depositMethod);
+      showToast(`سُجّل عربون ${money(numberValue(data.deposit))} — يُخصم من سعر الزيارة عند الحضور`, "success");
+    }
     logEdit("حجز موعد", `${data.patient.trim()} · ${service?.name || "خدمة"} · ${data.date} ${data.time}`);
     els.bookingForm.reset();
     els.bookingForm.elements.date.value = state.settings.activeDate;
@@ -16039,6 +16513,13 @@ function openCategoryRowPrompt(category) {
   function syncPackageRow() {
     const isPackage = (serviceSel.value || "").startsWith("pkg-template:");
     if (packageRow) packageRow.hidden = !isPackage;
+    // For a package, the deposit becomes a payment on the SALE — relabel so
+    // typed money is never silently dropped.
+    const depositRow = document.querySelector("[data-slot-deposit-row]");
+    if (depositRow) {
+      const label = depositRow.querySelector("label small");
+      if (label) label.textContent = isPackage ? "يُسجَّل دفعة من ثمن الباقة" : "اختياري";
+    }
     if (isPackage && sessionCountSel) {
       const template = (state.packageTemplates || []).find(item => `pkg-template:${item.id}` === serviceSel.value);
       const max = Math.max(1, template?.sessions || 1);
@@ -16216,9 +16697,23 @@ function openCategoryRowPrompt(category) {
       let pkg = (state.patientPackages || []).find(item =>
         item.patientId === patient.id && item.templateId === template.id && packageComputedStatus(item) === "active" && packageRemaining(item) > 0);
       let sold = false;
+      // Money typed in the deposit box for a PACKAGE is a payment on the sale —
+      // never silently dropped.
+      const packagePayment = canViewSensitive() ? Math.max(numberValue(data.deposit), 0) : 0;
       if (!pkg) {
-        pkg = sellPackage({ patientId: patient.id, template, sessions: template.sessions, price: template.price, paid: 0, soldByStaffId: providerId });
+        pkg = sellPackage({ patientId: patient.id, template, sessions: template.sessions, price: template.price, paid: packagePayment, soldByStaffId: providerId });
         sold = true;
+      } else if (packagePayment > 0) {
+        const saleEntry = (state.entries || []).find(e => e.id === pkg.entryId)
+          || (state.entries || []).find(e => e.packageId === pkg.id && !(e.sessionIndex > 0));
+        if (saleEntry) {
+          const method = PAYMENT_METHODS.includes(data.depositMethod) ? data.depositMethod : "cash";
+          const b = entryPaymentBreakdown(saleEntry);
+          saleEntry.paymentBreakdown = { ...b, [method]: numberValue(b[method]) + packagePayment };
+          saleEntry.paymentLog = [...(Array.isArray(saleEntry.paymentLog) ? saleEntry.paymentLog : []),
+            { date: ammanToday(), cash: 0, card: 0, transfer: 0, [method]: packagePayment, amount: packagePayment, note: "دفعة عند الحجز" }];
+          logEdit("تكملة دفع", `${patient.name} · ${money(packagePayment)} · ${pkg.name}`);
+        }
       }
       // Clamp to sessions that are neither used NOR already sitting on the
       // calendar — re-submitting the popup must not over-book the package.
@@ -16263,7 +16758,7 @@ function openCategoryRowPrompt(category) {
     }
 
     const service = getService(data.serviceId);
-    state.bookings.push(normalizeBooking({
+    const slotBooking = normalizeBooking({
       date: data.date || state.settings.activeDate,
       time: data.time || "09:00",
       patientId: patient.id,
@@ -16277,7 +16772,12 @@ function openCategoryRowPrompt(category) {
       packageId: pendingPackageId || "",
       expectedAmount: pendingPackageId ? 0 : (service ? service.defaultPrice : 0),
       status: "scheduled"
-    }, state.services));
+    }, state.services);
+    state.bookings.push(slotBooking);
+    if (canViewSensitive() && !pendingPackageId && numberValue(data.deposit) > 0) {
+      recordBookingDeposit(slotBooking, data.deposit, patient.id, data.depositMethod);
+      showToast(`سُجّل عربون ${money(numberValue(data.deposit))} — يُخصم من سعر الزيارة عند الحضور`, "success");
+    }
     logEdit("حجز موعد", `${patient.name} · ${service ? service.name : "خدمة"} · ${data.date || state.settings.activeDate} ${data.time || "09:00"}`);
     close();
     saveState();
@@ -17063,6 +17563,7 @@ els.clinicForm.addEventListener("submit", event => {
     branch: data.branch.trim(),
     workStart: /^\d{2}:\d{2}$/.test(data.workStart) ? data.workStart : (state.settings.workStart || "08:00"),
     workEnd: /^\d{2}:\d{2}$/.test(data.workEnd) ? data.workEnd : (state.settings.workEnd || "18:00"),
+    ownerPhone: (data.ownerPhone || "").trim(),
     language: currentLanguage()
   };
   if (els.bookingForm) {
@@ -17072,14 +17573,37 @@ els.clinicForm.addEventListener("submit", event => {
   render();
 });
 
-els.entryForm.addEventListener("submit", event => {
+let entrySubmitInFlight = false;
+els.entryForm.addEventListener("submit", async event => {
   event.preventDefault();
   if (!canView("entries")) return;
+  // Re-entrancy guard: the async date-confirm below must never let a second
+  // Enter/click record the same visit twice.
+  if (entrySubmitInFlight) return;
+  entrySubmitInFlight = true;
+  try {
   const data = Object.fromEntries(new FormData(els.entryForm).entries());
   const lines = pendingOperationLines.length
     ? pendingOperationLines.slice()
     : [operationLineFromForm()].filter(Boolean);
   if (!lines.length) return;
+  // The working date is a navigable cursor — an interrupted receptionist must
+  // never stamp today's cash onto yesterday without noticing.
+  if (state.settings.activeDate !== ammanToday()) {
+    const ok = await showConfirm(`ستُسجَّل هذه الزيارة بتاريخ ${displayDate(state.settings.activeDate)} — وهو ليس تاريخ اليوم. متابعة؟`, { title: "تنبيه التاريخ", okLabel: "تسجيل بهذا التاريخ" });
+    if (!ok) return;
+  }
+  // عربون credit — applied here, ONCE, as data: the deposit entry already
+  // carries that money on the day it was taken, so the visit's first line is
+  // reduced by the unconsumed deposit and the booking is marked consumed.
+  const depositBooking = data.bookingId ? (state.bookings || []).find(b => b.id === data.bookingId) : null;
+  const depositCredit = depositBooking && !depositBooking.depositUsedAt
+    ? Math.max(0, Math.min(numberValue(depositBooking.deposit), Math.max(numberValue(lines[0].amount) - numberValue(lines[0].discount), 0)))
+    : 0;
+  if (depositCredit > 0) {
+    lines[0] = { ...lines[0], amount: numberValue(lines[0].amount) - depositCredit };
+    data.notes = [data.notes || "", `خُصم عربون ${money(depositCredit)} مدفوع يوم الحجز`].filter(Boolean).join(" | ");
+  }
   const account = currentAccount();
   const scopedMember = accountStaffScoped(account) ? getStaffMember(account.staffId) : null;
   const doctorId = scopedMember?.role === "doctor" ? scopedMember.id : data.doctorId;
@@ -17197,6 +17721,9 @@ els.entryForm.addEventListener("submit", event => {
     const booking = state.bookings.find(item => item.id === data.bookingId);
     if (booking) booking.status = "completed";
   }
+  if (depositCredit > 0 && depositBooking) {
+    depositBooking.depositUsedAt = new Date().toISOString();
+  }
   const returnView = runtime.operationReturnView || "dashboard";
   resetEntryFormDefaults();
   saveState();
@@ -17206,6 +17733,9 @@ els.entryForm.addEventListener("submit", event => {
     // Auto-demoted because no provider was chosen — say so instead of silently
     // parking the visit where commissions never count it.
     showToast("حُفظت بانتظار تعيين الطبيب — أكملها من العمليات", "warn");
+  }
+  if (depositCredit > 0) {
+    showToast(`خُصم عربون ${money(depositCredit)} من سعر الزيارة تلقائياً`, "success");
   }
   const recos = state.reconciliations;
   const dayAlreadyClosed = Array.isArray(recos)
@@ -17217,6 +17747,9 @@ els.entryForm.addEventListener("submit", event => {
     showToast("تنبيه: هذا اليوم مُغلق ومُطابق — العملية الجديدة ستغيّر أرقام الإغلاق.", "warn");
   }
   if (receipt) openReceipt(receipt.id);
+  } finally {
+    entrySubmitInFlight = false;
+  }
 });
 
 // ── Staff commission model hint ────────────────────────────────────────────
@@ -17748,6 +18281,30 @@ document.addEventListener("click", async event => {
     openSellPackageSheet({ patientId: sellSheetOpen.dataset.openSellPackage || "" });
     return;
   }
+  const remindBooking = event.target.closest("[data-remind-booking]");
+  if (remindBooking) {
+    const booking = (state.bookings || []).find(item => item.id === remindBooking.dataset.remindBooking);
+    if (booking && !booking.reminderAt) {
+      booking.reminderAt = new Date().toISOString();
+      logEdit("تذكير موعد", `${booking.patient} · ${displayDate(booking.date)} ${displayTime(booking.time)}`);
+      saveState();
+      // Defer the re-render so the wa.me tab opens from the original anchor.
+      setTimeout(() => render(), 80);
+    }
+    return; // no preventDefault — WhatsApp opens normally
+  }
+  const ownerPulse = event.target.closest("[data-owner-pulse]");
+  if (ownerPulse) {
+    if (!canViewSensitive()) return;
+    const phone = phoneDigits(state.settings.ownerPhone || "");
+    if (!phone) {
+      showToast("أضف هاتف المالك أولاً من إعدادات اليوم (النظام ← إعدادات اليوم).", "warn");
+      return;
+    }
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(ownerPulseText())}`, "_blank", "noreferrer");
+    logEdit("إرسال ملخص المالك", displayDate(state.settings.activeDate));
+    return;
+  }
   const opToggle = event.target.closest("[data-toggle-operation]");
   if (opToggle) {
     const detail = document.querySelector(`[data-operation-detail="${opToggle.dataset.toggleOperation}"]`);
@@ -17997,7 +18554,8 @@ function fillEntryFromBooking(bookingId) {
   renderOperationLines();
   updatePaymentFieldsForStatus();
   updateEntryPreview();
-  openOperationModal({ returnView });
+  // Pass the booking through so the عربون credit and completion both work.
+  openOperationModal({ returnView, bookingId: booking.id, patientName: booking.patient });
 }
 
 if (els.supplierForm) {
@@ -18864,6 +19422,7 @@ document.addEventListener("click", async event => {
     state.patients = state.patients.filter(patient => patient.id !== deletePatientId);
     state.entries = state.entries.map(entry => entry.patientId === deletePatientId ? { ...entry, patientId: "" } : entry);
     state.bookings = state.bookings.map(booking => booking.patientId === deletePatientId ? { ...booking, patientId: "" } : booking);
+    purgePatientPhotos(deletePatientId);
     selectedPatientId = state.patients[0]?.id || "";
     saveState();
     render();
@@ -19011,6 +19570,11 @@ document.addEventListener("click", async event => {
     booking.status = newStatus;
     saveState();
     render();
+    // A cancelled/no-show booking with an unconsumed عربون must never vanish
+    // silently — the money sits in a deposit entry awaiting a decision.
+    if (["cancelled", "no_show"].includes(newStatus) && numberValue(booking.deposit) > 0 && !booking.depositUsedAt && canViewSensitive()) {
+      showToast(`على هذا الحجز عربون ${money(numberValue(booking.deposit))} — احذف قيد العربون من العمليات لردّه، أو اتركه لموعد بديل.`, "warn");
+    }
     if (newStatus !== prevStatus) {
       // One-tap transitions stay fast BECAUSE they are reversible: a mis-tap
       // on «لم يحضر» for someone in the waiting room is one tap to undo.

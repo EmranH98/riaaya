@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260705b">
+  <link rel="stylesheet" href="app.css?v=20260706a">
 </head>
 <body>
 
@@ -293,6 +293,10 @@
               نهاية الدوام
               <input name="workEnd" type="time" step="900" value="18:00">
             </label>
+            <label data-sensitive>
+              هاتف المالك (واتساب)
+              <input name="ownerPhone" type="tel" inputmode="tel" placeholder="079xxxxxxx — لملخص الإغلاق اليومي">
+            </label>
             <button class="dark-button" type="submit">حفظ الإعدادات</button>
           </form>
         </details>
@@ -500,7 +504,10 @@
                 <p class="eyebrow">الإغلاق المالي</p>
                 <h2>المطابقة اليومية</h2>
               </div>
-              <button class="text-button" type="button" data-jump="reconcile">فتح المطابقة</button>
+              <div class="form-actions">
+                <button class="text-button" type="button" data-owner-pulse title="ملخص اليوم برسالة واتساب للمالك">📱 ملخص للمالك</button>
+                <button class="text-button" type="button" data-jump="reconcile">فتح المطابقة</button>
+              </div>
             </div>
             <div class="close-summary" data-close-summary></div>
             <div class="financial-mini-kpis">
@@ -597,6 +604,8 @@
               </div>
               <button class="icon-button rx-modal-close" type="button" data-close-operation-modal aria-label="إغلاق">×</button>
             </div>
+            <div class="op-date-chip" data-operation-date-chip hidden></div>
+            <div class="op-date-chip op-deposit-chip" data-operation-deposit-chip hidden></div>
             <form class="entry-form operation-entry-form op-steps" data-entry-form>
               <input name="bookingId" type="hidden">
               <input name="doctorRate" type="hidden" value="">
@@ -1200,6 +1209,18 @@
               <label data-sensitive>
                 القيمة المتوقعة
                 <input name="expectedAmount" type="number" min="0" step="0.01" placeholder="80">
+              </label>
+              <label data-sensitive>
+                عربون مدفوع الآن <small>اختياري — يُخصم من سعر الزيارة</small>
+                <input name="deposit" type="number" min="0" step="0.01" placeholder="0">
+              </label>
+              <label data-sensitive>
+                طريقة دفع العربون
+                <select name="depositMethod">
+                  <option value="cash">كاش</option>
+                  <option value="card">فيزا</option>
+                  <option value="transfer">تحويل</option>
+                </select>
               </label>
               <label class="wide-field">
                 ملاحظات الحجز
@@ -3169,6 +3190,20 @@
           الوقت
           <select name="time" data-slot-booking-time required></select>
         </label>
+        <div class="slot-deposit-row" data-slot-deposit-row data-sensitive>
+          <label>
+            عربون مدفوع الآن <small>اختياري</small>
+            <input name="deposit" type="number" min="0" step="0.01" placeholder="0">
+          </label>
+          <label>
+            طريقة الدفع
+            <select name="depositMethod">
+              <option value="cash">كاش</option>
+              <option value="card">فيزا</option>
+              <option value="transfer">تحويل</option>
+            </select>
+          </label>
+        </div>
         <label>
           المنفّذ — طبيب أو أخصائي
           <select name="providerId" data-slot-booking-provider></select>
@@ -3352,7 +3387,7 @@
       </form>
     </div>
   </div>
-  <script src="app.js?v=20260705b"></script>
+  <script src="app.js?v=20260706a"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>
