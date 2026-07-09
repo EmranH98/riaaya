@@ -2836,7 +2836,43 @@ function renderReception() {
         <table class="reception-table"><tbody>${entryRows}</tbody></table>
       </div>
     </div>
+    ${todayPackagesHtml()}
     ${tomorrowConfirmationsHtml()}`;
+}
+
+// Packages sold or used TODAY stay actionable right on the reception board —
+// record the next session, collect the balance, or open the file, no tab
+// switch after a sale.
+function todayPackagesHtml() {
+  if (!canView("packages")) return "";
+  const day = state.settings.activeDate;
+  const showMoney = canViewSensitive();
+  // Any package SOLD or USED today — completed ones stay visible for the
+  // renewal/collection conversation while the patient is still around.
+  const rows = (state.patientPackages || []).filter(pkg =>
+    (state.entries || []).some(e => (e.packageId === pkg.id || e.id === pkg.entryId) && e.date === day));
+  if (!rows.length) return "";
+  return `
+    <div class="tomorrow-confirmations today-packages">
+      <h3>باقات اليوم <span class="patient-ops-count">${rows.length}</span></h3>
+      <table class="reception-table"><tbody>
+        ${rows.map(pkg => {
+          const patient = patientById(pkg.patientId);
+          const sale = (state.entries || []).find(e => e.id === pkg.entryId)
+            || (state.entries || []).find(e => e.packageId === pkg.id && !(e.sessionIndex > 0));
+          const due = sale ? Math.max(netAmount(sale) - paidAmount(sale), 0) : 0;
+          const remaining = packageRemaining(pkg);
+          return `<tr>
+            <td><strong>${esc(patient?.name || "—")}</strong><br><small>${esc(pkg.name)} · ${pkg.usedSessions}/${pkg.totalSessions} جلسة${showMoney && due > 0.009 ? ` · <span class="pay-badge due">متبقٍ ${money(due)}</span>` : ""}</small></td>
+            <td class="reception-actions">
+              ${remaining > 0 ? `<button class="primary-button reception-op-btn" type="button" data-package-use="${esc(pkg.id)}">تسجيل جلسة</button>` : ""}
+              ${showMoney && due > 0.009 && sale ? `<button class="dark-button" type="button" data-followup-entry="${esc(sale.id)}">تحصيل</button>` : ""}
+              ${patient ? `<button class="text-button" type="button" data-open-patient="${esc(patient.id)}">الملف</button>` : ""}
+            </td>
+          </tr>`;
+        }).join("")}
+      </tbody></table>
+    </div>`;
 }
 
 // «تأكيدات الغد» — the evening-before WhatsApp confirmation is the proven
@@ -3430,7 +3466,8 @@ function openSellPackageSheet({ patientId = "" } = {}) {
     if (due > 0.009 && showPrices && saleEntry) {
       showToast(`بيعت «${pkg.name}» لـ ${targetPatient.name} — متبقٍ ${money(due)}`, "warn", { actionLabel: "تحصيل الآن", onAction: () => openFollowupModal(saleEntry.id) });
     } else {
-      showToast(`بيعت «${pkg.name}» لـ ${targetPatient.name}`, "success");
+      // Fully paid — the next natural step is the first session, one tap.
+      showToast(`بيعت «${pkg.name}» لـ ${targetPatient.name} ✓`, "success", { actionLabel: "تسجيل الجلسة", onAction: () => openPackageSessionSheet(pkg) });
     }
   });
   document.body.appendChild(modal);
@@ -5861,7 +5898,28 @@ function inventoryValue() {
 }
 
 function serviceLabel(entry) {
+  // A package session must READ as part of its package everywhere — never as
+  // a detached zero-amount service row.
+  if (entry.packageId && entry.sessionIndex > 0) {
+    const pkg = (state.patientPackages || []).find(item => item.id === entry.packageId);
+    if (pkg) return `${pkg.name} — جلسة ${entry.sessionIndex}/${pkg.totalSessions}`;
+  }
   return getService(entry.serviceId)?.name || entry.service || "خدمة";
+}
+
+// Payment context for a package-session row: the money lives on the SALE
+// entry, so show that story instead of a misleading zero.
+function packageSessionPayLabel(entry) {
+  const pkg = (state.patientPackages || []).find(item => item.id === entry.packageId);
+  if (!pkg) return "ضمن الباقة";
+  const sale = (state.entries || []).find(e => e.id === pkg.entryId)
+    || (state.entries || []).find(e => e.packageId === pkg.id && !(e.sessionIndex > 0));
+  if (!sale) return "ضمن الباقة";
+  const net = netAmount(sale);
+  const paid = paidAmount(sale);
+  return paid >= net - 0.01
+    ? `ضمن الباقة — مدفوعة بالكامل ✓`
+    : `ضمن الباقة — مدفوع ${money(paid)} من ${money(net)}`;
 }
 
 function ruleModelLabel(model) {
@@ -8755,14 +8813,29 @@ function renderPatientFile() {
       const staffNames = esc([getStaffMember(entry.doctorId)?.name, getStaffMember(entry.specialistId)?.name]
         .filter(Boolean).join(" / ") || "بدون تعيين");
       const receipt = receiptForEntry(entry.id);
+      // A package session row tells the PACKAGE's money story — its own amount
+      // is 0 by design (the sale entry carries the price).
+      const isPkgSession = Boolean(entry.packageId && entry.sessionIndex > 0);
+      const pkgCtx = isPkgSession ? (() => {
+        const pkg = (state.patientPackages || []).find(item => item.id === entry.packageId);
+        const sale = pkg ? ((state.entries || []).find(e => e.id === pkg.entryId)
+          || (state.entries || []).find(e => e.packageId === pkg.id && !(e.sessionIndex > 0))) : null;
+        const share = pkg && pkg.totalSessions ? numberValue(pkg.price) / pkg.totalSessions : 0;
+        const saleNet = sale ? netAmount(sale) : 0;
+        const salePaid = sale ? paidAmount(sale) : 0;
+        return { pkg, sale, share, saleNet, salePaid, saleDue: Math.max(saleNet - salePaid, 0) };
+      })() : null;
+      const payCell = isPkgSession
+        ? `<span class="pay-badge ${pkgCtx?.saleDue > 0.009 ? "due" : "paid"}">${packageSessionPayLabel(entry)}</span>`
+        : (due > 0.009 ? `<span class="pay-badge due">مطلوب دفع ${money(due)}</span>` : `<span class="pay-badge paid">مدفوعة بالكامل ✓</span>`);
       return `
       <tr class="op-summary-row" data-toggle-operation="${entry.id}">
         <td>${displayDate(entry.date)}</td>
         <td>${entry.visitNumber ? `#${entry.visitNumber}` : "—"}</td>
         <td>${esc(serviceLabel(entry))} <span class="op-expand-caret">▾</span></td>
         <td><span class="status-pill ${statusClass(entry.status)}">${entryStatusLabel(entry.status)}</span></td>
-        <td>${showSensitivePf ? money(paid) : "مخفي"}</td>
-        <td>${showSensitivePf ? (due > 0.009 ? `<span class="pay-badge due">مطلوب دفع ${money(due)}</span>` : `<span class="pay-badge paid">مدفوعة بالكامل ✓</span>`) : "مخفي"}</td>
+        <td>${showSensitivePf ? (isPkgSession ? "ضمن الباقة" : money(paid)) : "مخفي"}</td>
+        <td>${showSensitivePf ? payCell : "مخفي"}</td>
       </tr>
       <tr class="op-detail-row" data-operation-detail="${entry.id}" hidden>
         <td colspan="6">
@@ -8770,13 +8843,25 @@ function renderPatientFile() {
             <div class="op-detail-grid">
               <div><span>رقم العملية</span><strong>${entry.visitNumber ? `#${entry.visitNumber}` : "—"}</strong></div>
               <div><span>المنفّذ</span><strong>${staffNames}</strong></div>
+              ${isPkgSession ? `
+              <div><span>حصة الجلسة من الباقة</span><strong>${showSensitivePf ? money(pkgCtx?.share || 0) : "مخفي"}</strong></div>
+              <div><span>المدفوع من الباقة</span><strong>${showSensitivePf ? `${money(pkgCtx?.salePaid || 0)} من ${money(pkgCtx?.saleNet || 0)}` : "مخفي"}</strong></div>
+              <div><span>المتبقي على الباقة</span><strong>${showSensitivePf ? money(pkgCtx?.saleDue || 0) : "مخفي"}</strong></div>
+              ` : `
               <div><span>الإجمالي</span><strong>${showSensitivePf ? money(net) : "مخفي"}</strong></div>
               <div><span>المدفوع</span><strong>${showSensitivePf ? money(paid) : "مخفي"}</strong></div>
               <div><span>المتبقي</span><strong>${showSensitivePf ? money(due) : "مخفي"}</strong></div>
               <div><span>طريقة الدفع</span><strong>${entryPaymentLabel(entry)}</strong></div>
+              `}
             </div>
             <div class="op-detail-actions">
-              ${showSensitivePf && due > 0.009 ? `<button class="primary-button" type="button" data-followup-entry="${entry.id}">تكملة الدفع (${money(due)})</button>` : (showSensitivePf ? `<span class="op-paid-full">مدفوعة بالكامل ✓</span>` : "")}
+              ${isPkgSession
+                ? (showSensitivePf && pkgCtx?.sale && pkgCtx.saleDue > 0.009
+                  ? `<button class="primary-button" type="button" data-followup-entry="${pkgCtx.sale.id}">تحصيل باقي الباقة (${money(pkgCtx.saleDue)})</button>`
+                  : (showSensitivePf ? `<span class="op-paid-full">الباقة مدفوعة بالكامل ✓</span>` : ""))
+                : (showSensitivePf && due > 0.009
+                  ? `<button class="primary-button" type="button" data-followup-entry="${entry.id}">تكملة الدفع (${money(due)})</button>`
+                  : (showSensitivePf ? `<span class="op-paid-full">مدفوعة بالكامل ✓</span>` : ""))}
               ${showSensitivePf ? `<button class="text-button" type="button" data-edit-entry="${entry.id}">تعديل العملية</button>` : ""}
               ${receipt && canUseFeature("view_receipts") ? `<button class="text-button" type="button" data-open-receipt="${receipt.id}">عرض الإيصال</button>` : ""}
               ${showSensitivePf ? `<button class="text-button danger" type="button" data-delete-entry="${entry.id}">حذف العملية</button>` : ""}
@@ -8907,12 +8992,12 @@ function renderPatientFile() {
           </div>
           ${paymentRows}
           <table class="practical-table pkg-file-table">
-            <thead><tr><th>الجلسة</th><th>التاريخ</th><th>المنفّذ</th><th>الحالة</th></tr></thead>
+            <thead><tr><th>الجلسة</th><th>التاريخ</th><th>المنفّذ</th>${showSensitivePf ? `<th>حصتها من الباقة</th>` : ""}<th>الحالة</th></tr></thead>
             <tbody>
-              ${sessions.map(s => `<tr><td>${s.sessionIndex}/${pkg.totalSessions}</td><td>${esc(displayDate(s.date))}</td><td>${esc(getStaffMember(s.doctorId || s.specialistId)?.name || "بدون تعيين")}</td><td><span class="status-pill ${statusClass(s.status)}">${esc(entryStatusLabel(s.status))}</span></td></tr>`).join("")}
-              ${untracked ? `<tr><td colspan="4"><small>${untracked} ${untracked === 1 ? "جلسة قديمة سُجّلت" : "جلسات قديمة سُجّلت"} قبل تفعيل تتبع المنفّذ.</small></td></tr>` : ""}
-              ${upcoming.map(b => `<tr><td>قادمة</td><td>${esc(displayDate(b.date))} · ${esc(displayTime(b.time))}</td><td>${esc(getStaffMember(b.doctorId || b.specialistId)?.name || "—")}</td><td><span class="status-pill ${statusClass(b.status)}">${esc(bookingStatusLabel(b.status))}</span></td></tr>`).join("")}
-              ${!sessions.length && !upcoming.length && !untracked ? `<tr><td colspan="4">لا جلسات مسجّلة بعد — «تسجيل جلسة» يبدأ التتبع.</td></tr>` : ""}
+              ${sessions.map(s => `<tr><td>${s.sessionIndex}/${pkg.totalSessions}</td><td>${esc(displayDate(s.date))}</td><td>${esc(getStaffMember(s.doctorId || s.specialistId)?.name || "بدون تعيين")}</td>${showSensitivePf ? `<td>${money(pkg.totalSessions ? numberValue(pkg.price) / pkg.totalSessions : 0)}</td>` : ""}<td><span class="status-pill ${statusClass(s.status)}">${esc(entryStatusLabel(s.status))}</span></td></tr>`).join("")}
+              ${untracked ? `<tr><td colspan="${showSensitivePf ? 5 : 4}"><small>${untracked} ${untracked === 1 ? "جلسة قديمة سُجّلت" : "جلسات قديمة سُجّلت"} قبل تفعيل تتبع المنفّذ.</small></td></tr>` : ""}
+              ${upcoming.map(b => `<tr><td>قادمة</td><td>${esc(displayDate(b.date))} · ${esc(displayTime(b.time))}</td><td>${esc(getStaffMember(b.doctorId || b.specialistId)?.name || "—")}</td>${showSensitivePf ? `<td>—</td>` : ""}<td><span class="status-pill ${statusClass(b.status)}">${esc(bookingStatusLabel(b.status))}</span></td></tr>`).join("")}
+              ${!sessions.length && !upcoming.length && !untracked ? `<tr><td colspan="${showSensitivePf ? 5 : 4}">لا جلسات مسجّلة بعد — «تسجيل جلسة» يبدأ التتبع.</td></tr>` : ""}
             </tbody>
           </table>
         </div>`;
