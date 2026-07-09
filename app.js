@@ -6051,8 +6051,22 @@ function calculateMemberPayout(entry, member) {
   // Salary-only staff earn no default commission — only an explicit per-service rule pays out.
   if (!rule && member.model === "none") return null;
   const quantity = Math.max(numberValue(entry.quantity) || 1, 1);
-  const gross = paidAmount(entry);
-  const profit = profitAmount(entry);
+  // Package session: its own amount is 0 (the sale entry carries the money),
+  // but the performer earns the SAME commission as a regular visit of the
+  // linked service — computed on the session's share of the package price.
+  // Rules still resolve by the entry's serviceId/category, so per-service
+  // designations apply unchanged.
+  const pkgForCommission = entry.packageId && entry.sessionIndex > 0
+    ? (state.patientPackages || []).find(item => item.id === entry.packageId)
+    : null;
+  const sessionShare = pkgForCommission && pkgForCommission.totalSessions
+    ? numberValue(pkgForCommission.price) / pkgForCommission.totalSessions
+    : 0;
+  const shareNote = sessionShare > 0 ? (isEnglish ? " (package session share)" : " (حصة الجلسة من الباقة)") : "";
+  const gross = sessionShare > 0 ? sessionShare : paidAmount(entry);
+  const profit = sessionShare > 0
+    ? Math.max(sessionShare - numberValue(getService(entry.serviceId)?.defaultCost), 0)
+    : profitAmount(entry);
   const fallbackRate = numberValue(member.rate);
 
   // Per-visit doctor rate override (set at operation entry time)
@@ -6078,8 +6092,8 @@ function calculateMemberPayout(entry, member) {
       member,
       payout,
       formula: isEnglish
-        ? `${visitRate}% of ${baseLabel} ${money(base)}${hasVisitOverride ? " (visit override)" : ""}`
-        : `${visitRate}% من ${baseLabel} ${money(base)}${hasVisitOverride ? " (تعديل الزيارة)" : ""}`
+        ? `${visitRate}% of ${baseLabel} ${money(base)}${shareNote}${hasVisitOverride ? " (visit override)" : ""}`
+        : `${visitRate}% من ${baseLabel} ${money(base)}${shareNote}${hasVisitOverride ? " (تعديل الزيارة)" : ""}`
     };
   }
 
@@ -6102,8 +6116,8 @@ function calculateMemberPayout(entry, member) {
       member,
       payout,
       formula: isEnglish
-        ? `${rate}% of collected amount ${money(gross)}`
-        : `${rate}% من المقبوض ${money(gross)}`
+        ? `${rate}% of collected amount ${money(gross)}${shareNote}`
+        : `${rate}% من المقبوض ${money(gross)}${shareNote}`
     };
   }
 
@@ -6114,8 +6128,8 @@ function calculateMemberPayout(entry, member) {
       member,
       payout,
       formula: isEnglish
-        ? `${rate}% of profit ${money(profit)}`
-        : `${rate}% من الربح ${money(profit)}`
+        ? `${rate}% of profit ${money(profit)}${shareNote}`
+        : `${rate}% من الربح ${money(profit)}${shareNote}`
     };
   }
 
@@ -6132,8 +6146,8 @@ function calculateMemberPayout(entry, member) {
       member,
       payout,
       formula: isEnglish
-        ? `${rate}% tiered rate of profit ${money(profit)}`
-        : `${rate}% متدرجة من الربح ${money(profit)}`
+        ? `${rate}% tiered rate of profit ${money(profit)}${shareNote}`
+        : `${rate}% متدرجة من الربح ${money(profit)}${shareNote}`
     };
   }
 
@@ -6142,8 +6156,8 @@ function calculateMemberPayout(entry, member) {
     member,
     payout,
     formula: isEnglish
-      ? `${fallbackRate}% of collected amount ${money(gross)}`
-      : `${fallbackRate}% من المقبوض ${money(gross)}`
+      ? `${fallbackRate}% of collected amount ${money(gross)}${shareNote}`
+      : `${fallbackRate}% من المقبوض ${money(gross)}${shareNote}`
   };
 }
 
