@@ -2942,11 +2942,19 @@ function parseRuleTarget(value) {
 
 function normalizePackageTemplate(template) {
   const source = template || {};
+  // Multi-service subscription: a package may cover several services; each
+  // session picks which one was performed. serviceId stays as the first for
+  // every single-service code path.
+  const serviceIds = [...new Set([
+    ...(Array.isArray(source.serviceIds) ? source.serviceIds : []),
+    ...(source.serviceId || source.service_id ? [source.serviceId || source.service_id] : [])
+  ].filter(Boolean))];
   return {
     id: source.id || nextId("pkgtpl"),
     name: source.name || "باقة بدون اسم",
     category: source.category || "",
-    serviceId: source.serviceId || source.service_id || "",
+    serviceId: serviceIds[0] || "",
+    serviceIds,
     sessions: Math.max(1, Math.round(asNumber(source.sessions) || 1)),
     price: asNumber(source.price),
     validityDays: Math.max(0, Math.round(asNumber(source.validityDays ?? source.validity_days))),
@@ -2959,13 +2967,18 @@ function normalizePatientPackage(pkg) {
   const total = Math.max(1, Math.round(asNumber(source.totalSessions ?? source.total_sessions) || 1));
   const used = Math.min(total, Math.max(0, Math.round(asNumber(source.usedSessions ?? source.used_sessions))));
   const status = ["completed", "expired", "active"].includes(source.status) ? source.status : "active";
+  const pkgServiceIds = [...new Set([
+    ...(Array.isArray(source.serviceIds) ? source.serviceIds : []),
+    ...(source.serviceId || source.service_id ? [source.serviceId || source.service_id] : [])
+  ].filter(Boolean))];
   return {
     id: source.id || nextId("pkg"),
     patientId: source.patientId || source.patient_id || "",
     templateId: source.templateId || source.template_id || "",
     name: source.name || "باقة",
     category: source.category || "",
-    serviceId: source.serviceId || source.service_id || "",
+    serviceId: pkgServiceIds[0] || "",
+    serviceIds: pkgServiceIds,
     totalSessions: total,
     usedSessions: used,
     price: asNumber(source.price),
@@ -3024,6 +3037,7 @@ function sellPackage({ patientId, template, sessions, price, paid, soldByStaffId
   }
   const pkg = normalizePatientPackage({
     patientId, templateId: template.id, name: template.name, category: template.category || "", serviceId: template.serviceId,
+    serviceIds: template.serviceIds || [],
     totalSessions, usedSessions: 0, price: finalPrice, paid: paidAmount,
     soldByStaffId: soldByStaffId || "", soldAt: state.settings.activeDate, expiresAt, status: "active"
   });
@@ -3070,7 +3084,7 @@ function packageSessionEntries(pkgId) {
     .sort((a, b) => (a.sessionIndex || 0) - (b.sessionIndex || 0));
 }
 
-function recordPackageSession(pkg, { doctorId = "", specialistId = "", date = "", note = "" } = {}) {
+function recordPackageSession(pkg, { doctorId = "", specialistId = "", date = "", note = "", serviceId = "" } = {}) {
   if (!pkg || packageRemaining(pkg) <= 0) return null;
   const patient = patientById(pkg.patientId);
   const sessionIndex = (pkg.usedSessions || 0) + 1;
@@ -3086,7 +3100,9 @@ function recordPackageSession(pkg, { doctorId = "", specialistId = "", date = ""
     date: sessionDate,
     patientId: pkg.patientId,
     patient: patient ? patient.name : "مريض",
-    serviceId: pkg.serviceId || "",
+    // The performed service drives the label, the reports, and the
+    // service-designated commission for this session.
+    serviceId: serviceId || pkg.serviceId || "",
     service: `${pkg.name} — جلسة ${sessionIndex}/${pkg.totalSessions}`,
     amount: 0,
     quantity: 1,
@@ -3131,6 +3147,18 @@ function openPackageSessionSheet(pkg, { bookingId = "" } = {}) {
         <button class="icon-button rx-modal-close" type="button" data-close-sheet-dismiss aria-label="إغلاق">×</button>
       </div>
       <p class="close-sheet-note">${esc(patient?.name || "")} · تُسجَّل الجلسة كزيارة باسم المنفّذ وتظهر في التقارير وملف المريض.</p>
+      ${(pkg.serviceIds || []).length > 1 ? `
+      <label class="column-provider-field">
+        الخدمة المنفّذة في هذه الجلسة
+        <select data-session-service>
+          ${pkg.serviceIds.map(id => {
+            const svc = getService(id);
+            if (!svc) return "";
+            const isDefault = id === (previous?.serviceId || pkg.serviceIds[0]);
+            return `<option value="${esc(id)}"${isDefault ? " selected" : ""}>${esc(svc.name)}</option>`;
+          }).join("")}
+        </select>
+      </label>` : ""}
       <label class="column-provider-field">
         من نفّذ هذه الجلسة؟
         <select data-session-provider>
@@ -3169,7 +3197,8 @@ function openPackageSessionSheet(pkg, { bookingId = "" } = {}) {
         doctorId: provider?.role === "doctor" ? provider.id : "",
         specialistId: provider?.role === "specialist" ? provider.id : "",
         date: modal.querySelector("[data-session-date]")?.value || "",
-        note: (modal.querySelector("[data-session-note]")?.value || "").trim()
+        note: (modal.querySelector("[data-session-note]")?.value || "").trim(),
+        serviceId: modal.querySelector("[data-session-service]")?.value || ""
       });
       if (booking) booking.status = "completed";
       closeSessionSheet();
@@ -5902,7 +5931,11 @@ function serviceLabel(entry) {
   // a detached zero-amount service row.
   if (entry.packageId && entry.sessionIndex > 0) {
     const pkg = (state.patientPackages || []).find(item => item.id === entry.packageId);
-    if (pkg) return `${pkg.name} — جلسة ${entry.sessionIndex}/${pkg.totalSessions}`;
+    if (pkg) {
+      // Multi-service package: say WHICH service this session performed.
+      const performed = (pkg.serviceIds || []).length > 1 ? getService(entry.serviceId)?.name : "";
+      return `${pkg.name} — جلسة ${entry.sessionIndex}/${pkg.totalSessions}${performed ? ` · ${performed}` : ""}`;
+    }
   }
   return getService(entry.serviceId)?.name || entry.service || "خدمة";
 }
@@ -9447,12 +9480,12 @@ function renderPackages() {
   const packages = state.patientPackages || [];
 
   if (els.packageTemplateForm) {
-    const serviceSelect = els.packageTemplateForm.querySelector("[name='serviceId']");
+    const serviceSelect = els.packageTemplateForm.querySelector("[name='serviceIds']");
     if (serviceSelect) {
-      const current = serviceSelect.value;
-      serviceSelect.innerHTML = `<option value="">— بدون ربط —</option>`
-        + (state.services || []).map(service => `<option value="${service.id}">${esc(service.name)}</option>`).join("");
-      serviceSelect.value = current;
+      const selected = [...serviceSelect.selectedOptions].map(option => option.value);
+      serviceSelect.innerHTML = (state.services || [])
+        .map(service => `<option value="${service.id}">${esc(service.name)}</option>`).join("");
+      [...serviceSelect.options].forEach(option => { option.selected = selected.includes(option.value); });
     }
   }
 
@@ -18286,11 +18319,13 @@ if (els.packageTemplateForm) {
     if (!canViewSensitive()) return;
     const data = Object.fromEntries(new FormData(els.packageTemplateForm).entries());
     if (!data.name || !data.name.trim()) return;
+    const serviceIds = [...(els.packageTemplateForm.querySelector("[name='serviceIds']")?.selectedOptions || [])]
+      .map(option => option.value).filter(Boolean);
     state.packageTemplates = state.packageTemplates || [];
     state.packageTemplates.push(normalizePackageTemplate({
       name: data.name.trim(),
       category: (data.category || "").trim(),
-      serviceId: data.serviceId || "",
+      serviceIds,
       sessions: data.sessions,
       price: data.price,
       validityDays: data.validityDays,
@@ -18300,6 +18335,10 @@ if (els.packageTemplateForm) {
     els.packageTemplateForm.reset();
     saveState();
     render();
+    if (!serviceIds.length) {
+      // The service link is what carries the commission designation.
+      showToast("حُفظت الباقة بدون خدمات مرتبطة — جلساتها لن تتبع عمولة خدمة محددة. اربطها بخدمة من تعديل القالب لاحقاً أو أعد إنشاءها.", "warn");
+    }
   });
 }
 

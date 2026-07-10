@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260709b">
+  <link rel="stylesheet" href="app.css?v=20260710a">
 </head>
 <body>
 
@@ -1500,8 +1500,8 @@
                 <input name="category" type="text" list="service-categories" placeholder="ليزر، فيشل...">
               </label>
               <label>
-                الخدمة المرتبطة (اختياري)
-                <select name="serviceId"><option value="">— بدون ربط —</option></select>
+                الخدمات المرتبطة <small>اختر خدمة أو أكثر (⌘/Ctrl للتعدد) — كل جلسة تُسجَّل بخدمتها وعمولتها</small>
+                <select name="serviceIds" multiple size="4"></select>
               </label>
               <label>
                 عدد الجلسات
@@ -3387,7 +3387,7 @@
       </form>
     </div>
   </div>
-  <script src="app.js?v=20260709b"></script>
+  <script src="app.js?v=20260710a"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>
