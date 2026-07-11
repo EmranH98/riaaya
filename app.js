@@ -7697,6 +7697,183 @@ function renderKpis(entries, totals, diffs) {
   differenceNote.textContent = Math.abs(diffs.totalDiff) < 0.01 ? "الإغلاق متطابق" : "يوجد فرق يحتاج مراجعة";
 }
 
+// ── مركز المال ──────────────────────────────────────────────────────────────
+// One screen for the owner's real question: وين المصاري — what came in, what
+// is owed, what is at risk, and what RIAAYA's own messages brought back.
+
+// Money that moved within ATTRIBUTION_DAYS after a logged WhatsApp contact
+// with that patient. An honest join — always labelled «منسوبة», never claimed
+// as proven causation.
+const ATTRIBUTION_DAYS = 7;
+
+function moneyRecoveredStats(monthPrefix) {
+  const empty = { collected: 0, packageSales: 0, bookings: 0, total: 0, contacts: 0 };
+  const contactsByPatient = new Map();
+  let monthContacts = 0;
+  (state.growthLog || []).forEach(contact => {
+    const date = String(contact.at || "").slice(0, 10);
+    if (!contact.patientId || !date) return;
+    if (date.startsWith(monthPrefix)) monthContacts += 1;
+    const list = contactsByPatient.get(contact.patientId) || [];
+    list.push(date);
+    contactsByPatient.set(contact.patientId, list);
+  });
+  if (!contactsByPatient.size) return empty;
+  const withinWindow = (patientId, date) => {
+    const list = contactsByPatient.get(patientId);
+    if (!list || !date) return false;
+    return list.some(contactDate => {
+      const gap = (Date.parse(date) - Date.parse(contactDate)) / 86400000;
+      // Same-day counts: «رسالة الظهر، دفعة العصر» is the most common win.
+      return gap >= 0 && gap <= ATTRIBUTION_DAYS;
+    });
+  };
+  let collected = 0;
+  let packageSales = 0;
+  (state.entries || []).forEach(entry => {
+    if (!entry.patientId || !isBillableEntry(entry)) return;
+    const isSale = entry.packageId && !(entry.sessionIndex > 0);
+    (Array.isArray(entry.paymentLog) ? entry.paymentLog : []).forEach(line => {
+      const amount = numberValue(line.amount);
+      if (amount <= 0 || !String(line.date || "").startsWith(monthPrefix)) return;
+      if (!withinWindow(entry.patientId, line.date)) return;
+      if (isSale) packageSales += amount; else collected += amount;
+    });
+  });
+  const bookings = (state.bookings || []).filter(booking => {
+    const created = String(booking.createdAt || "").slice(0, 10);
+    return booking.patientId && created.startsWith(monthPrefix) && withinWindow(booking.patientId, created);
+  }).length;
+  return { collected, packageSales, bookings, total: collected + packageSales, contacts: monthContacts };
+}
+
+function duesAging() {
+  const today = state.settings.activeDate;
+  const buckets = { week: { amount: 0, count: 0 }, month: { amount: 0, count: 0 }, older: { amount: 0, count: 0 } };
+  const debtors = new Map();
+  (state.entries || []).forEach(entry => {
+    if (!isBillableEntry(entry)) return;
+    const due = Math.max(netAmount(entry) - paidAmount(entry), 0);
+    if (due <= 0.009) return;
+    const age = (Date.parse(today) - Date.parse(entry.date)) / 86400000;
+    const bucket = age <= 7 ? buckets.week : age <= 30 ? buckets.month : buckets.older;
+    bucket.amount += due;
+    bucket.count += 1;
+    const key = entry.patientId || entry.patient || entry.id;
+    const debtor = debtors.get(key) || { name: entry.patient || "—", patientId: entry.patientId || "", amount: 0, oldest: entry.date };
+    debtor.amount += due;
+    if (entry.date < debtor.oldest) debtor.oldest = entry.date;
+    debtors.set(key, debtor);
+  });
+  return {
+    buckets,
+    total: buckets.week.amount + buckets.month.amount + buckets.older.amount,
+    top: [...debtors.values()].sort((a, b) => b.amount - a.amount).slice(0, 5)
+  };
+}
+
+function packageLiabilities() {
+  const today = state.settings.activeDate;
+  let sessionsOwed = 0;
+  let valueOwed = 0;
+  const expiring = [];
+  (state.patientPackages || []).forEach(pkg => {
+    if (packageComputedStatus(pkg) !== "active") return;
+    const remaining = packageRemaining(pkg);
+    if (remaining <= 0) return;
+    const share = pkg.totalSessions ? numberValue(pkg.price) / pkg.totalSessions : 0;
+    sessionsOwed += remaining;
+    valueOwed += remaining * share;
+    if (pkg.expiresAt) {
+      const days = Math.round((Date.parse(pkg.expiresAt) - Date.parse(today)) / 86400000);
+      if (days >= 0 && days <= 30) expiring.push({ pkg, days });
+    }
+  });
+  return { sessionsOwed, valueOwed, expiring: expiring.sort((a, b) => a.days - b.days).slice(0, 5) };
+}
+
+function leakageSignals() {
+  const today = state.settings.activeDate;
+  const monthPrefix = today.slice(0, 7);
+  const recos = state.reconciliations;
+  const closedDates = Array.isArray(recos)
+    ? new Set(recos.map(item => item.date))
+    : new Set(Object.keys(recos || {}));
+  const activityDates = [...new Set((state.entries || [])
+    .filter(entry => entry.date && entry.date < today && isBillableEntry(entry))
+    .map(entry => entry.date))].sort().slice(-14);
+  const unclosed = activityDates.filter(date => !closedDates.has(date));
+  const pendingAssignment = (state.entries || []).filter(entry => entry.status === "pending_assignment").length;
+  const weekAgoIso = new Date(Date.parse(today) - 7 * 86400000).toISOString();
+  const deletions = (state.auditTrail || []).filter(item => item.at >= weekAgoIso && String(item.action || "").startsWith("حذف")).length;
+  const discountTotal = (state.entries || [])
+    .filter(entry => entry.date && entry.date.startsWith(monthPrefix) && isBillableEntry(entry))
+    .reduce((sum, entry) => sum + numberValue(entry.discount), 0);
+  return { unclosed, pendingAssignment, deletions, discountTotal };
+}
+
+function renderMoneyCenter() {
+  const host = document.querySelector("[data-money-center]");
+  if (!host) return;
+  if (!canViewSensitive()) { host.innerHTML = ""; return; }
+  const monthPrefix = state.settings.activeDate.slice(0, 7);
+  const recovered = moneyRecoveredStats(monthPrefix);
+  const dues = duesAging();
+  const liabilities = packageLiabilities();
+  const leaks = leakageSignals();
+  const heroBody = recovered.total > 0.009 || recovered.bookings > 0
+    ? `
+      <h2 class="money-hero-number">${money(recovered.total)}</h2>
+      <p class="money-hero-sub">أعادتها رسائل رعاية هذا الشهر — تحصيلات ${money(recovered.collected)} · مبيعات باقات ${money(recovered.packageSales)}${recovered.bookings ? ` · ${arCount(recovered.bookings, "حجز", "حجزان", "حجوزات")} من الرسائل` : ""}</p>
+      <small class="money-hero-note">منسوبة إلى تواصل واتساب المُرسل من رعاية خلال ${ATTRIBUTION_DAYS} أيام قبل الدفع أو الحجز — ${recovered.contacts} رسالة هذا الشهر.</small>`
+    : `
+      <h2 class="money-hero-number">ابدأ العدّاد</h2>
+      <p class="money-hero-sub">كل رسالة تحصيل أو تذكير تُرسلها من رعاية تُحسب هنا مع ما أعادته من مال — من مركز النمو، قائمة التحصيل، أو تأكيدات الغد.</p>
+      <button class="dark-button" type="button" data-jump="communications">افتح مركز النمو</button>`;
+  host.innerHTML = `
+    <article class="panel money-hero-panel">
+      <p class="eyebrow">مركز المال</p>
+      ${heroBody}
+    </article>
+    <div class="money-grid">
+      <article class="panel money-panel">
+        <h3>المال النائم <strong class="money-total">${money(dues.total)}</strong></h3>
+        <div class="money-buckets">
+          <div><span>هذا الأسبوع</span><strong>${money(dues.buckets.week.amount)}</strong><small>${dues.buckets.week.count} عملية</small></div>
+          <div><span>هذا الشهر</span><strong>${money(dues.buckets.month.amount)}</strong><small>${dues.buckets.month.count} عملية</small></div>
+          <div class="money-bucket-old"><span>أقدم من شهر</span><strong>${money(dues.buckets.older.amount)}</strong><small>${dues.buckets.older.count} عملية</small></div>
+        </div>
+        ${dues.top.length ? `<table class="practical-table money-table"><tbody>
+          ${dues.top.map(debtor => `<tr>
+            <td><strong>${esc(debtor.name)}</strong><br><small>منذ ${esc(displayDate(debtor.oldest))}</small></td>
+            <td>${money(debtor.amount)}</td>
+            <td class="reception-actions">${debtor.patientId ? `<button class="text-button" type="button" data-open-patient="${esc(debtor.patientId)}">الملف</button>` : ""}</td>
+          </tr>`).join("")}
+        </tbody></table>` : `<div class="empty-state">لا ذمم — كل قرش محصَّل ✓</div>`}
+      </article>
+      <article class="panel money-panel">
+        <h3>التزامات الباقات <strong class="money-total">${money(liabilities.valueOwed)}</strong></h3>
+        <p class="money-panel-sub">${arCount(liabilities.sessionsOwed, "جلسة مستحقة للمرضى", "جلستان مستحقتان", "جلسات مستحقة للمرضى")} — قيمة خدمات مدفوعة لم تُقدَّم بعد.</p>
+        ${liabilities.expiring.length ? `<table class="practical-table money-table"><tbody>
+          ${liabilities.expiring.map(({ pkg, days }) => `<tr>
+            <td><strong>${esc(patientById(pkg.patientId)?.name || "—")}</strong><br><small>${esc(pkg.name)} · ${packageRemaining(pkg)} متبقية</small></td>
+            <td><span class="pay-badge due">${days === 0 ? "تنتهي اليوم" : `${days} ${days === 1 ? "يوم" : days === 2 ? "يومان" : days <= 10 ? "أيام" : "يوماً"}`}</span></td>
+            <td class="reception-actions">${patientById(pkg.patientId) ? `<button class="text-button" type="button" data-open-patient="${esc(pkg.patientId)}">الملف</button>` : ""}</td>
+          </tr>`).join("")}
+        </tbody></table>` : `<div class="empty-state">لا باقات تنتهي خلال ٣٠ يوماً.</div>`}
+      </article>
+      <article class="panel money-panel">
+        <h3>كاشف التسرّب</h3>
+        <ul class="money-leaks">
+          <li class="${leaks.unclosed.length ? "leak-warn" : ""}"><strong>${leaks.unclosed.length}</strong> ${leaks.unclosed.length === 1 ? "يوم نشط بدون إغلاق" : "أيام نشطة بدون إغلاق"} ${leaks.unclosed.length ? `<button class="text-button" type="button" data-jump="reconcile">أغلقها</button>` : "✓"}</li>
+          <li class="${leaks.pendingAssignment ? "leak-warn" : ""}"><strong>${leaks.pendingAssignment}</strong> ${leaks.pendingAssignment === 1 ? "عملية بانتظار التعيين" : "عمليات بانتظار التعيين"} ${leaks.pendingAssignment ? `<button class="text-button" type="button" data-jump="entries">أكملها</button>` : "✓"}</li>
+          <li class="${leaks.deletions ? "leak-warn" : ""}"><strong>${leaks.deletions}</strong> ${leaks.deletions === 1 ? "حذف خلال ٧ أيام" : "حذوفات خلال ٧ أيام"} ${leaks.deletions ? `<button class="text-button" type="button" data-jump="accounts">سجل التدقيق</button>` : "✓"}</li>
+          <li><strong>${money(leaks.discountTotal)}</strong> خصومات هذا الشهر</li>
+        </ul>
+      </article>
+    </div>`;
+}
+
 function renderDashboardSummary(entries, totals, diffs, weekEntries, weekTotals) {
   const avg = averageTicket(totals);
   const closeLabel = !diffs ? "الإغلاق غير محفوظ" : Math.abs(diffs.totalDiff) < 0.01 ? "الإغلاق متطابق" : "الإغلاق يحتاج مراجعة";
@@ -9804,7 +9981,7 @@ function renderCollections() {
     const waNumber = canSeePhone ? phoneDigits(phone) : "";
     const reminder = `مرحباً ${name}، نذكّركم بلطف بوجود مبلغ متبقٍ ${money(row.total)} لدى العيادة. نسعد بخدمتكم في أي وقت.`;
     const waCell = waNumber
-      ? `<a class="text-button whatsapp-action" href="https://wa.me/${waNumber}?text=${esc(encodeURIComponent(reminder))}" target="_blank" rel="noreferrer">💬 واتساب</a>`
+      ? `<a class="text-button whatsapp-action" href="https://wa.me/${waNumber}?text=${esc(encodeURIComponent(reminder))}" target="_blank" rel="noreferrer"${patient ? ` data-growth-collect="${esc(patient.id)}"` : ""}>💬 واتساب</a>`
       : (patient ? `<button class="text-button" type="button" data-open-patient="${patient.id}">لا رقم — أضِفه من الملف</button>` : "");
     const collect = row.entryIds.length === 1 || (row.entryIds.length > 1 && !patient)
       ? `<button class="dark-button" type="button" data-followup-entry="${row.entryIds[0]}">تحصيل</button>`
@@ -14221,8 +14398,12 @@ function ownerPulseText() {
     `الزيارات: ${visits} · المواعيد: ${bookings.length}${arrived ? ` (حضر ${arrived}${noShow ? ` · لم يحضر ${noShow}` : ""})` : ""}`,
     `المقبوض: ${money(totals.paid)} — كاش ${money(totals.cash)} · فيزا ${money(totals.card)} · تحويل ${money(totals.transfer)}`,
     outstanding > 0.009 ? `ذمم جديدة اليوم: ${money(outstanding)}` : "لا ذمم جديدة اليوم ✓",
-    diffs ? `فرق الإغلاق: ${money(diffs.totalDiff)}` : "الإغلاق لم يُحفظ بعد"
-  ].join("\n");
+    diffs ? `فرق الإغلاق: ${money(diffs.totalDiff)}` : "الإغلاق لم يُحفظ بعد",
+    (() => {
+      const recovered = moneyRecoveredStats(date.slice(0, 7));
+      return recovered.total > 0.009 ? `أعادته رسائل رعاية هذا الشهر: ${money(recovered.total)}` : "";
+    })()
+  ].filter(Boolean).join("\n");
 }
 
 function roleDigestText(account, template = "role_daily") {
@@ -15077,6 +15258,7 @@ function render() {
   renderCountHistory();
   renderKpis(entries, totals, diffs);
   renderDashboardSummary(entries, totals, diffs, weekEntries, weekTotals);
+  renderMoneyCenter();
   renderDashboardCommandCenter(entries);
   renderDailyCommandCenter(entries, totals, diffs);
   renderWeekChart(weekSeries);
@@ -18417,6 +18599,13 @@ document.addEventListener("click", async event => {
   const sellSheetOpen = event.target.closest("[data-open-sell-package]");
   if (sellSheetOpen) {
     openSellPackageSheet({ patientId: sellSheetOpen.dataset.openSellPackage || "" });
+    return;
+  }
+  const growthCollect = event.target.closest("[data-growth-collect]");
+  if (growthCollect) {
+    // A collections WhatsApp tap is a growth contact — the recovered-money
+    // meter joins the payment that follows it. No preventDefault: wa.me opens.
+    setTimeout(() => recordGrowthContact(growthCollect.dataset.growthCollect, "outstanding"), 80);
     return;
   }
   const remindBooking = event.target.closest("[data-remind-booking]");

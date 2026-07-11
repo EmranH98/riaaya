@@ -1694,6 +1694,34 @@ tbody tr:hover td {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+/* مركز المال — the owner's money screen on the dashboard. */
+.money-center { display: grid; gap: 18px; margin-bottom: 18px; }
+.money-center:empty { display: none; }
+.money-hero-panel {
+  border-top: 4px solid var(--gold);
+  background: var(--white);
+  text-align: center;
+  padding: 26px 20px;
+}
+.money-hero-number { margin: 6px 0 4px; font-size: clamp(30px, 5vw, 44px); color: var(--teal-dark); }
+.money-hero-sub { margin: 0 auto 8px; max-width: 640px; color: var(--ink-mid); font-weight: 700; }
+.money-hero-note { display: block; color: var(--ink-soft); font-weight: 600; }
+.money-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.money-panel h3 { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 0 0 10px; }
+.money-total { color: var(--teal-dark); font-size: var(--text-xl); }
+.money-panel-sub { margin: 0 0 10px; color: var(--ink-soft); font-weight: 700; font-size: var(--text-sm); }
+.money-buckets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
+.money-buckets > div { border: 1px solid var(--line); padding: 8px; display: grid; gap: 2px; background: var(--white); }
+.money-buckets span { font-size: var(--text-xs); color: var(--ink-soft); font-weight: 700; }
+.money-bucket-old { border-inline-start: 3px solid var(--danger) !important; }
+.money-table td { vertical-align: middle; }
+.money-leaks { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.money-leaks li { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); padding: 8px 10px; background: var(--white); font-weight: 700; }
+.money-leaks li.leak-warn { border-inline-start: 3px solid var(--gold); background: var(--gold-pale); }
+@media (max-width: 900px) {
+  .money-grid { grid-template-columns: 1fr; }
+}
+
 /* Before/after photos in the patient file. */
 .photo-upload-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .photo-upload-controls input[type="text"] { min-width: 170px; }
