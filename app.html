@@ -8,7 +8,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20260710b">
+  <link rel="stylesheet" href="app.css?v=20260711c">
+  <link rel="stylesheet" href="styles/workflow-components.css?v=20260711c">
 </head>
 <body>
 
@@ -340,8 +341,9 @@
           </div>
           <div class="daily-command-actions">
             <button class="primary-button" type="button" data-open-operation-modal>تسجيل عملية</button>
-            <button class="dark-button" type="button" data-jump="bookings">حجز جديد</button>
+            <button class="dark-button" type="button" data-new-booking>حجز جديد</button>
             <button class="text-button" type="button" data-jump="reconcile">فتح المطابقة</button>
+            <button class="text-button dashboard-details-toggle" type="button" data-dashboard-details-toggle aria-expanded="false">تفاصيل اليوم</button>
           </div>
         </section>
 
@@ -661,25 +663,25 @@
                     الخدمة
                     <select name="serviceId" data-service-select required></select>
                   </label>
-                  <div class="operation-line-composer">
-                    <label>
-                      الكمية
-                      <input name="quantity" type="number" min="1" step="1" value="1" required>
-                    </label>
-                    <label data-price-field>
-                      سعر الوحدة <small>اختياري — من إعداد الخدمة</small>
-                      <input name="amount" type="number" min="0" step="0.01" placeholder="0">
-                    </label>
-                    <label data-price-field>
-                      الخصم
-                      <input name="discount" type="number" min="0" step="0.01" value="0">
-                    </label>
-                    <label data-sensitive>
-                      التكلفة
-                      <input name="cost" type="number" min="0" step="0.01" value="0" data-cost-input>
-                    </label>
-                    <button class="dark-button add-operation-line" type="button" data-add-operation-line>إضافة للقائمة</button>
-                  </div>
+                  <input name="cost" type="hidden" value="0" data-cost-input>
+                  <details class="operation-line-options">
+                    <summary>تعديل الكمية أو السعر، أو إضافة خدمة أخرى</summary>
+                    <div class="operation-line-composer">
+                      <label>
+                        الكمية
+                        <input name="quantity" type="number" min="1" step="1" value="1" required>
+                      </label>
+                      <label data-price-field>
+                        سعر الوحدة <small>اختياري — من إعداد الخدمة</small>
+                        <input name="amount" type="number" min="0" step="0.01" placeholder="0">
+                      </label>
+                      <label data-price-field>
+                        الخصم
+                        <input name="discount" type="number" min="0" step="0.01" value="0">
+                      </label>
+                      <button class="dark-button add-operation-line" type="button" data-add-operation-line>إضافة خدمة أخرى</button>
+                    </div>
+                  </details>
                   <div class="operation-line-list" data-operation-lines></div>
                 </div>
               </section>
@@ -2082,13 +2084,17 @@
       <section class="view" data-view="reconcile">
         <div class="split-layout compact">
           <article class="panel">
-            <div class="panel-header">
+            <div class="panel-header reconcile-panel-header">
               <div>
                 <p class="eyebrow">إغلاق اليوم</p>
                 <h2>مطابقة الإغلاق</h2>
               </div>
+              <div class="reconcile-header-actions">
+                <button class="text-button reconcile-fill-all" type="button" data-copy-all-expected title="استخدمها بعد مراجعة الدرج وجهاز الفيزا والتحويلات">اعتماد المتوقع بعد المراجعة</button>
+                <button class="primary-button" type="submit" form="daily-reconcile-form">حفظ الإغلاق</button>
+              </div>
             </div>
-            <form class="reconcile-form" data-reconcile-form>
+            <form class="reconcile-form" id="daily-reconcile-form" data-reconcile-form>
               <label>
                 الكاش الموجود فعلياً
                 <input name="countedCash" type="number" min="0" step="0.01" required placeholder="عُدّ الدرج ثم أدخل المبلغ">
@@ -2108,7 +2114,6 @@
                 ملاحظة الإغلاق / سبب الفرق
                 <input name="note" type="text" placeholder="اختياري: سبب الفرق، رقم تقرير الجهاز، من راجع الإغلاق...">
               </label>
-              <button class="primary-button form-submit" type="submit">حفظ الإغلاق</button>
             </form>
           </article>
 
@@ -3389,7 +3394,8 @@
       </form>
     </div>
   </div>
-  <script src="app.js?v=20260710b"></script>
+  <script src="app.js?v=20260711c"></script>
+  <script src="modules/daily-workflows.js?v=20260711c"></script>
 
   <!-- More-nav sheet toggle (minimal, no app.js dependency) -->
   <script>

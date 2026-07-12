@@ -1,7 +1,7 @@
 name: CI
 
-# Runs syntax checks and the end-to-end test on every push/PR so regressions
-# (auth, tenant isolation, money model, backup/restore) are caught before deploy.
+# Runs backend, concurrency, build, and visual checks on every push/PR so
+# security, tenant isolation, workflow, and packaging regressions are caught.
 on:
   push:
     branches: [main]
@@ -16,9 +16,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
-      - name: Install (no runtime deps; ignore scripts)
-        run: npm install --omit=dev --ignore-scripts || true
-      - name: Syntax + lint checks
-        run: npm run check
-      - name: End-to-end test
-        run: npm run e2e
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+      - name: Install Chromium for visual checks
+        run: npx playwright install --with-deps chromium
+      - name: Security, end-to-end, and concurrency tests
+        run: npm test
+      - name: Build deployable static assets
+        run: npm run build
+      - name: Desktop and mobile screenshot regression
+        run: npm run visual

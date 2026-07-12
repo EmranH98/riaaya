@@ -1,6 +1,8 @@
 const baseUrl = (process.env.SMOKE_BASE_URL || `http://localhost:${process.env.PORT || 4174}`).replace(/\/$/, "");
 
 const requiredAppMarkers = [
+  ["workflow component styles", "styles/workflow-components.css"],
+  ["daily workflow module", "modules/daily-workflows.js"],
   ["booking navigation", 'data-view-button="bookings"'],
   ["reconciliation form", "data-reconcile-form"],
   ["daily reconciliation report tab", 'data-report-tab="reconciliation"'],
@@ -67,6 +69,11 @@ async function main() {
 
   const { text: appJs } = await fetchText(scriptMatch[1].startsWith("/") ? scriptMatch[1] : `/${scriptMatch[1]}`);
   expectMarkers(appJs, requiredJsMarkers, "app.js");
+
+  const workflowScriptMatch = appHtml.match(/<script src="([^"]*daily-workflows\.js[^"]*)"/);
+  assert(workflowScriptMatch, "app.html missing daily-workflows.js script tag");
+  const { text: workflowJs } = await fetchText(workflowScriptMatch[1].startsWith("/") ? workflowScriptMatch[1] : `/${workflowScriptMatch[1]}`);
+  expectMarkers(workflowJs, [["reconciliation shortcut", "data-copy-all-expected"]], "daily-workflows.js");
 
   const { text: ownerHtml } = await fetchText("/owner");
   expectMarkers(ownerHtml, requiredOwnerHtmlMarkers, "owner.html");

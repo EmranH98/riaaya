@@ -14,14 +14,16 @@ The public trial remains available at `app.html?trial=1`. Trial data stays in th
 
 - `index.html`: public product page and direct 14-day clinic registration.
 - `auth.html`, `auth.css`, `auth.js`: login and registration.
-- `app.html`, `app.css`, `app.js`: clinic workspace and public trial.
+- `app.html`, `app.css`, `app.js`: clinic workspace and public trial. The legacy client remains a large monolith; new daily workflow behavior starts in `modules/daily-workflows.js` and its shared responsive rules live in `styles/workflow-components.css`.
 - `owner.html`, `owner.css`, `owner.js`: platform-owner control panel.
 - Vanilla JavaScript rendering and event handling.
 
 ### Server
 
 - `server.mjs`: HTTP server, security headers, API routing, and static assets.
-- `lib/database.js`: SQLite schema, migrations, public serializers, audit logging, and owner bootstrap.
+- `lib/database.js`: SQLite connection, base schema, public serializers, audit logging, and owner bootstrap.
+- `lib/migrations.js`: ordered, transactional, recorded SQLite migrations in `schema_migrations`.
+- `lib/clinic-state-schema.js`: compatibility-first validation for clinic-state writes before encrypted persistence.
 - `lib/security.js`: password hashing, sessions, rate limiting, encryption, cookies, and input cleaning.
 - `api/auth.js`: registration, login, logout, sessions, trial expiry.
 - `api/clinic.js`: tenant state, users, permissions, calendar scopes, integrations, and audit events.
@@ -37,6 +39,7 @@ SQLite tables:
 - `sessions`
 - `audit_logs`
 - `clinic_integrations`
+- `schema_migrations`
 
 Clinic operational records are currently stored as versioned, AES-256-GCM-encrypted JSON in `clinics.state_json`. Encrypted merge-history snapshots support three-way conflict resolution, and `state_version` prevents silent concurrent overwrites. Patient photos are encrypted files on the persistent disk and are included in scheduled local/off-site archives.
 
@@ -75,6 +78,8 @@ The initial production shape is a single Node instance with one persistent SQLit
 
 ### Dashboard
 
+- Single-screen command center by default, with secondary analysis behind `تفاصيل اليوم`.
+- Direct booking, operation-entry, and reconciliation actions without routine module scrolling.
 - Today's booking, arrival, operation, attention, and revenue KPIs.
 - Next visitor with patient link, phone, call, WhatsApp, service, team, and arrival action.
 - Fourteen-day operations/revenue trend.
@@ -86,6 +91,8 @@ The initial production shape is a single Node instance with one persistent SQLit
 
 ### Calendar and Booking
 
+- Compact booking modal with the calendar column, service, and first available time preselected.
+- Occupied slots remain disabled, and the quick path needs only a patient selection before confirmation when defaults are correct.
 - Month calendar.
 - Selected-day 15-minute operational schedule.
 - Booking creation and statuses.
@@ -103,6 +110,7 @@ The initial production shape is a single Node instance with one persistent SQLit
 - Cost excluded from the normal operation-entry UI.
 - Service, team, status, payment, and date filters.
 - Configurable page size for long operation/report lists.
+- Compact operation fast path: select a patient and save with the default service/payment, while quantity, price, multiple services, split payment, receipt, and special options stay available on demand.
 
 ### Reports
 
@@ -168,12 +176,21 @@ The initial production shape is a single Node instance with one persistent SQLit
 
 ## Most Recent Work
 
-The repository now has active Git history. The July product work added the money center, multi-service packages, session-level performer commissions, mobile navigation, searchable patient workflows, permission presets, and a redesigned landing page. The current production-foundation pass adds encrypted clinic state/photos/history, restricted-session read protection, replay-safe TOTP, contact-field preservation, complete encryption-key rotation, streamed photo archives, and expanded security/concurrency regression tests.
+The repository now has active Git history. The July product work added the money center, multi-service packages, session-level performer commissions, mobile navigation, searchable patient workflows, permission presets, and a redesigned landing page. The current workflow pass adds a compact daily command center, direct booking, streamlined operation entry, top-of-page reconciliation actions, scroll reset between modules, a first extracted daily-workflow module, recorded database migrations, clinic-state schema validation, and desktop/mobile screenshot regression coverage.
+
+### Modernization Status
+
+- Daily usability: the tested default booking and operation paths are two actions after opening their forms; secondary dashboard content starts collapsed; module changes reset stale scroll position.
+- Visual consistency: workflow components now have shared responsive rules and seven deterministic desktop/mobile reference screenshots checked with `pixelmatch`.
+- Maintainability: migration infrastructure and a state validation boundary are complete, and the first frontend behavior module has been extracted.
+- Still incomplete: most client behavior remains in the 20,000-line `app.js`; core clinic records still share encrypted `clinics.state_json`; staging, full production observability, and normalized relational patient/booking/operation/payment tables remain future phases.
 
 ## Setup
 
 ```bash
 npm run check
+npm test
+npm run visual
 npm run dev
 ```
 
@@ -206,12 +223,14 @@ See `README.md` for deployment, provider, backup, and JoFotara instructions.
 ### Scale and Reliability
 
 - Move clinic operational JSON into normalized database tables.
+- Continue extracting `app.js` by domain behind stable interfaces; prioritize booking, visits/payments, patients, reporting, and permissions.
 - Migrate SQLite to PostgreSQL before multi-instance scaling.
 - Add background jobs for scheduled WhatsApp reports and SMS campaigns.
 - Add delivery webhooks and retry/dead-letter handling.
 - Add attachment/document storage for patient files.
 - Save reusable import mappings per clinic and add system-specific import adapters after collecting real export samples.
-- Add browser CI around the existing security, E2E, concurrency, build, and smoke scripts.
+- Add a separate staging deployment with synthetic data and deployment promotion checks.
+- Connect production error reporting, uptime monitoring, and restore-test alerts.
 
 ### Product
 

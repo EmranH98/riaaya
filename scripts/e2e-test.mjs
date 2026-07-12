@@ -143,6 +143,18 @@ async function run() {
   const stateA = await (await adminA.fetch("/api/clinic-state")).json();
   ok(stateA.clinic?.id === clinicA.body.clinic.id, "clinic A admin only sees clinic A state");
 
+  // ── State schema rejects malformed records before they reach SQLite ───────
+  const invalidStateResponse = await adminA.fetch("/api/clinic-state", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", "X-CSRF-Token": adminALogin.csrf },
+    body: JSON.stringify({ state: { patients: {} }, stateVersion: stateA.stateVersion })
+  });
+  const invalidStateBody = await invalidStateResponse.json();
+  ok(
+    invalidStateResponse.status === 422 && invalidStateBody.error === "invalid_clinic_state_schema",
+    "malformed clinic state is rejected by the versioned schema"
+  );
+
   // ── State is encrypted at rest, including merge-history snapshots ─────────
   const seededState = {
     ...(stateA.state || {}),
@@ -159,9 +171,11 @@ async function run() {
   const inspectionDb = new DatabaseSync(dbPath);
   const storedState = inspectionDb.prepare("select state_json from clinics where id = ?").get(clinicA.body.clinic.id)?.state_json;
   const storedHistory = inspectionDb.prepare("select state_gz from clinic_state_history where clinic_id = ? order by version desc limit 1").get(clinicA.body.clinic.id)?.state_gz;
+  const appliedMigrations = Number(inspectionDb.prepare("select count(*) as count from schema_migrations").get()?.count || 0);
   inspectionDb.close();
   ok(typeof storedState === "string" && storedState.startsWith("e1:"), "clinic state is ciphertext on disk");
   ok(typeof storedHistory === "string" && storedHistory.startsWith("e1:"), "state history is ciphertext on disk");
+  ok(appliedMigrations >= 1, "database schema migrations are recorded");
 
   // ── Clinic A admin creates a restricted user with column permissions ──────
   const newUser = await adminA.fetch("/api/clinic-users", {

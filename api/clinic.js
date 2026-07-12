@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 import { audit, databasePath, db, defaultClinicModules, listClinicNotifications, nowIso, parseJson, publicClinic, publicUser } from "../lib/database.js";
 import { requireSession } from "./auth.js";
 import { clearAccountFailures, clientIp, decryptBinary, decryptBlob, encryptBinary, encryptBlob, encryptSecret, hashPassword, isValidEmail, normalizeEmail, safeText, validatePassword } from "../lib/security.js";
+import { validateClinicState } from "../lib/clinic-state-schema.js";
 
 // clinics.state_json is encrypted at rest (AES-256-GCM). Reads transparently
 // decrypt; a legacy plaintext column still reads unchanged during migration.
@@ -528,6 +529,15 @@ function saveState(req, res) {
   const incoming = sanitizeStateValue(req.body?.state);
   if (!incoming || typeof incoming !== "object") {
     sendJson(res, 400, { error: "invalid_clinic_state" });
+    return;
+  }
+  const validation = validateClinicState(incoming);
+  if (!validation.ok) {
+    sendJson(res, 422, {
+      error: "invalid_clinic_state_schema",
+      schemaVersion: validation.version,
+      details: validation.errors.slice(0, 10)
+    });
     return;
   }
   const clinicRow = db.prepare("select state_json, state_version from clinics where id = ?").get(auth.user.clinicId);

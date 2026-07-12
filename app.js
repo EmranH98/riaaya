@@ -738,6 +738,8 @@ const APP_TEXT_EN = {
   "سعر الوحدة": "Unit Price",
   "اختياري — من إعداد الخدمة": "Optional — from service settings",
   "إضافة للقائمة": "Add to List",
+  "إضافة خدمة أخرى": "Add another service",
+  "تعديل الكمية أو السعر، أو إضافة خدمة أخرى": "Adjust quantity or price, or add another service",
   "+ بيع باقة لهذا المريض (اختياري)": "+ Sell this patient a package (optional)",
   "الباقة": "Package",
   "اختر الباقة": "Choose a package",
@@ -917,6 +919,7 @@ const APP_TEXT_EN = {
   "الكاش الموجود فعلياً": "Cash actually on hand",
   "المتوقع:": "Expected:",
   "نسخ المتوقع": "Copy expected",
+  "اعتماد المتوقع بعد المراجعة": "Use expected totals after review",
   "مجموع الفيزا من الجهاز": "Card total from the terminal",
   "التحويلات المؤكدة": "Confirmed transfers",
   "ملاحظة الإغلاق / سبب الفرق": "Closing note / reason for difference",
@@ -1443,6 +1446,7 @@ const APP_TEXT_EN = {
   "اضغط على أي صف لتعديل السعر أو الخصم أو الدفع أو الفئة.": "Click any row to edit the price, discount, payment, or category.",
   "لا توجد خدمات في الزيارة بعد": "No services in the visit yet",
   "اختر الخدمة واضغط إضافة للقائمة. يمكنك إضافة أكثر من خدمة قبل الحفظ.": "Choose a service and click Add to List. You can add more than one service before saving.",
+  "سيتم حفظ الخدمة المختارة تلقائياً. افتح الخيارات فقط لتعديلها أو لإضافة خدمة أخرى.": "The selected service is saved automatically. Open the options only to adjust it or add another service.",
   "تنبيه: المدفوع أعلى من الإجمالي بـ": "Warning: paid exceeds the total by",
   "لن تُحتسب النسب — اختر الطبيب": "Rates will not be calculated — choose the doctor",
   "مستحقات الفريق": "Team Payouts",
@@ -7264,6 +7268,7 @@ function permEditorDirty() {
 })();
 
 function setView(viewName) {
+  const previousView = document.querySelector(".view.active")?.dataset.view || "";
   const targetView = canView(viewName) ? viewName : firstAllowedView();
   if (targetView !== "bookings") setCalendarFocus(false);
   let activeButton = null;
@@ -7282,6 +7287,14 @@ function setView(viewName) {
     document.querySelectorAll("[data-report-jump]").forEach(button => button.classList.remove("active"));
   }
   keepActiveNavItemVisible(activeButton);
+  if (previousView && previousView !== targetView) {
+    // The document uses smooth scrolling for in-page navigation. View changes
+    // are different: carrying an old scroll offset can open the next form above
+    // the viewport, so reset synchronously before the user can interact.
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }
 }
 
 function keepActiveNavItemVisible(activeButton) {
@@ -13915,7 +13928,8 @@ function operationLineFromForm() {
     ? numberValue(data.amount || service.defaultPrice)
     : numberValue(data.amount) || 0;
   const amount = unitPrice * quantity;
-  // Cost: use the form's visible cost field if non-zero, else fall back to service default
+  // Cost is an admin-owned service setting. The hidden field carries the
+  // selected service default without exposing it during reception entry.
   const formCost = numberValue(data.cost);
   return {
     id: nextId("operation-line"),
@@ -13935,7 +13949,7 @@ function renderOperationLines() {
     els.operationLines.innerHTML = `
       <div class="operation-line-empty">
         <strong>لا توجد خدمات في الزيارة بعد</strong>
-        <span>اختر الخدمة واضغط إضافة للقائمة. يمكنك إضافة أكثر من خدمة قبل الحفظ.</span>
+        <span>سيتم حفظ الخدمة المختارة تلقائياً. افتح الخيارات فقط لتعديلها أو لإضافة خدمة أخرى.</span>
       </div>
     `;
   } else {

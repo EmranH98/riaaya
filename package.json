@@ -12,12 +12,19 @@
     "backup": "node scripts/backup-database.mjs",
     "restore": "node scripts/restore-database.mjs",
     "build": "node scripts/build-static.mjs",
-    "check": "node --check lib/security.js && node --check lib/storage-policy.js && node --check lib/totp.js && node --check lib/backup.js && node --check lib/offsite-backup.js && node --check lib/backup-scheduler.js && node --check lib/email.js && node --check lib/monitor.js && node --check lib/database.js && node --check api/communications.js && node --check api/auth.js && node --check api/clinic.js && node --check api/owner.js && node --check api/public.js && node --check auth.js && node --check reset-password.js && node --check owner.js && node --check app.js && node --check scripts/backup-database.mjs && node --check scripts/restore-database.mjs && node --check scripts/preflight-production.mjs && node --check scripts/smoke-test.mjs && node --check scripts/security-test.mjs && node --check scripts/e2e-test.mjs && node --check scripts/concurrency-test.mjs && node --check scripts/rotate-encryption-key.mjs && node --check server.mjs",
+    "check": "node --check lib/security.js && node --check lib/storage-policy.js && node --check lib/totp.js && node --check lib/backup.js && node --check lib/offsite-backup.js && node --check lib/backup-scheduler.js && node --check lib/email.js && node --check lib/monitor.js && node --check lib/migrations.js && node --check lib/clinic-state-schema.js && node --check lib/database.js && node --check api/communications.js && node --check api/auth.js && node --check api/clinic.js && node --check api/owner.js && node --check api/public.js && node --check auth.js && node --check reset-password.js && node --check owner.js && node --check app.js && node --check modules/daily-workflows.js && node --check scripts/backup-database.mjs && node --check scripts/restore-database.mjs && node --check scripts/preflight-production.mjs && node --check scripts/smoke-test.mjs && node --check scripts/security-test.mjs && node --check scripts/e2e-test.mjs && node --check scripts/concurrency-test.mjs && node --check scripts/rotate-encryption-key.mjs && node --check scripts/visual-regression.mjs && node --check server.mjs",
     "smoke": "node scripts/smoke-test.mjs",
     "e2e": "node scripts/e2e-test.mjs",
     "security": "node scripts/security-test.mjs",
     "concurrency": "node scripts/concurrency-test.mjs",
     "test": "npm run check && npm run security && npm run e2e && npm run concurrency",
+    "visual": "node scripts/visual-regression.mjs",
+    "visual:update": "UPDATE_VISUALS=1 node scripts/visual-regression.mjs",
     "preflight:production": "node scripts/preflight-production.mjs"
+  },
+  "devDependencies": {
+    "pixelmatch": "^7.1.0",
+    "playwright": "^1.61.1",
+    "pngjs": "^7.0.0"
   }
 }

@@ -176,6 +176,8 @@ For migrating clinics from other systems, export Excel sheets as CSV first, impo
 - Mutations require a CSRF token.
 - Clinic data is filtered and merged on the server according to the signed-in user.
 - Clinic state writes use optimistic version checks to prevent silent overwrites.
+- Clinic state writes pass a versioned compatibility schema before persistence.
+- SQLite schema changes run as ordered transactions and are recorded in `schema_migrations`.
 - Clinic state, merge history, integration secrets, 2FA secrets, and patient photos use AES-256-GCM encryption at rest.
 - Audit logs record registration, login, user, clinic, integration, and owner actions.
 - Stored state is size-limited and strips HTML angle brackets and control characters.
@@ -221,8 +223,12 @@ npm run dev
 npm start
 npm run check
 npm test
+npm run visual
+npm run visual:update
 npm run build
 npm run backup
 ```
+
+`npm run visual` boots an isolated temporary clinic server and compares seven desktop/mobile workflow screenshots against the committed baselines. Use `npm run visual:update` only after intentionally reviewing a UI change.
 
 `npm run build` creates static assets for inspection or CDN use, but it is not a replacement for the Node server.

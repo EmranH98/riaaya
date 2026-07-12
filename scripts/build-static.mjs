@@ -5,9 +5,13 @@ import { join } from "node:path";
 const root = fileURLToPath(new URL("../", import.meta.url));
 const dist = join(root, "dist");
 const distAssets = join(dist, "assets");
+const distStyles = join(dist, "styles");
+const distModules = join(dist, "modules");
 
 await rm(dist, { recursive: true, force: true });
 await mkdir(distAssets, { recursive: true });
+await mkdir(distStyles, { recursive: true });
+await mkdir(distModules, { recursive: true });
 
 await cp(join(root, "index.html"), join(dist, "index.html"));
 
@@ -15,12 +19,14 @@ const appHtml = await readFile(join(root, "app.html"), "utf8");
 await writeFile(
   join(dist, "app.html"),
   appHtml
-    .replace('href="app.css"', 'href="assets/riaaya-app.css"')
-    .replace('src="app.js"', 'src="assets/riaaya-app.js"')
+    .replace(/href="app\.css[^"]*"/, 'href="assets/riaaya-app.css"')
+    .replace(/src="app\.js[^"]*"/, 'src="assets/riaaya-app.js"')
 );
 
 await cp(join(root, "app.css"), join(distAssets, "riaaya-app.css"));
 await cp(join(root, "app.js"), join(distAssets, "riaaya-app.js"));
+await cp(join(root, "styles"), distStyles, { recursive: true });
+await cp(join(root, "modules"), distModules, { recursive: true });
 await cp(join(root, "auth.html"), join(dist, "auth.html"));
 await cp(join(root, "auth.html"), join(dist, "login.html"));
 await cp(join(root, "auth.html"), join(dist, "register.html"));

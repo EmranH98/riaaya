@@ -1,0 +1,251 @@
+/* Daily workflow layer. New workflow UI belongs here while the legacy
+   stylesheet is split gradually, keeping the refactor reversible. */
+
+.view[data-view="dashboard"]:not(.dashboard-details-open) > .day-highway-card,
+.view[data-view="dashboard"]:not(.dashboard-details-open) > .command-hero ~ * {
+  display: none;
+}
+
+.dashboard-details-toggle {
+  margin-inline-start: auto;
+}
+
+.view[data-view="dashboard"].dashboard-details-open .dashboard-details-toggle {
+  background: var(--teal-pale);
+  color: var(--teal-dark);
+  border-color: var(--teal);
+}
+
+.daily-command-center .kpi-row {
+  margin-bottom: 8px;
+}
+
+.daily-command-center .kpi-card {
+  min-height: 122px;
+  padding: 14px;
+}
+
+.daily-command-center .kpi-card-head {
+  margin-bottom: 8px;
+}
+
+.operation-line-options {
+  margin-top: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.operation-line-options > summary {
+  padding: 10px 12px;
+  color: var(--ink-soft);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.operation-line-options[open] > summary {
+  border-bottom: 1px solid var(--line);
+  color: var(--teal-dark);
+}
+
+.operation-line-options:not([open]) > .operation-line-composer,
+.op-extras:not([open]) > .op-extras-body,
+.payment-split-advanced:not([open]) > .payment-split-grid,
+.payment-split-advanced:not([open]) > small {
+  display: none;
+}
+
+.operation-line-options .operation-line-composer {
+  padding: 12px;
+}
+
+.operation-line-empty {
+  padding: 8px 10px;
+  text-align: start;
+}
+
+.reconcile-fill-all {
+  align-self: center;
+  white-space: nowrap;
+}
+
+.reconcile-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+@media (min-width: 900px) {
+  .operation-entry-dialog {
+    width: min(1180px, 100%);
+  }
+
+  .operation-entry-form.op-steps {
+    grid-template-columns: minmax(0, 1.12fr) minmax(320px, .88fr);
+    grid-template-areas:
+      "patient provider"
+      "treatment payment"
+      "extras extras"
+      "checkout checkout";
+    align-items: start;
+  }
+
+  .operation-entry-form.op-steps > .op-step:nth-of-type(1) { grid-area: patient; }
+  .operation-entry-form.op-steps > .op-step:nth-of-type(2) { grid-area: treatment; }
+  .operation-entry-form.op-steps > .op-step:nth-of-type(3) { grid-area: provider; }
+  .operation-entry-form.op-steps > .op-step:nth-of-type(4) { grid-area: payment; }
+  .operation-entry-form.op-steps > .op-extras { grid-area: extras; }
+  .operation-entry-form.op-steps > .operation-checkout { grid-area: checkout; }
+
+  [data-slot-booking-modal] .slot-booking-card {
+    max-width: 760px;
+  }
+
+  [data-slot-booking-form] {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 14px;
+  }
+
+  [data-slot-booking-form] > .slot-package-row,
+  [data-slot-booking-form] > .slot-booking-actions,
+  [data-slot-booking-form] > .form-status {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 600px) {
+  .daily-command-center .kpi-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .daily-command-center .kpi-card {
+    min-height: 108px;
+    padding: 11px;
+  }
+
+  .daily-command-center .kpi-card.alerts {
+    grid-column: 1 / -1;
+    min-height: 92px;
+  }
+
+  .daily-command-center .kpi-bubble {
+    width: 30px;
+    height: 30px;
+  }
+
+  .daily-command-center .daily-command-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .daily-command-center .daily-command-actions > * {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .dashboard-details-toggle {
+    margin-inline-start: 0;
+  }
+
+  .view[data-view="dashboard"] .command-hero {
+    display: block;
+  }
+
+  .view[data-view="dashboard"] .command-hero-copy {
+    display: none;
+  }
+
+  .view[data-view="dashboard"] .next-visitor-card {
+    min-height: 190px;
+    padding: 16px;
+  }
+
+  .operation-entry-dialog {
+    max-height: calc(100dvh - 8px);
+    padding: 16px 14px 12px;
+    overflow-x: hidden;
+  }
+
+  .operation-modal .panel-header {
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+  }
+
+  .operation-modal .panel-description,
+  .operation-modal .op-step-head small {
+    display: none;
+  }
+
+  .operation-entry-form.op-steps {
+    gap: 10px;
+  }
+
+  .op-step {
+    gap: 9px;
+    padding: 11px;
+  }
+
+  .op-step-head {
+    padding-bottom: 7px;
+  }
+
+  .operation-line-options .operation-line-composer {
+    grid-template-columns: 1fr;
+  }
+
+  .operation-checkout {
+    position: sticky;
+    bottom: -1px;
+    z-index: 2;
+    grid-template-columns: minmax(0, 1fr) minmax(116px, .55fr);
+    gap: 8px;
+    margin-inline: -4px;
+    padding: 10px 4px 0;
+    background: var(--white);
+  }
+
+  .operation-checkout .formula-preview {
+    grid-column: auto;
+    min-height: 0;
+    max-height: 84px;
+    overflow-y: auto;
+    gap: 4px;
+    padding: 7px 10px;
+    font-size: var(--text-sm);
+  }
+
+  .operation-checkout .formula-preview > span:first-child,
+  .operation-checkout .formula-preview > span:last-child {
+    display: none;
+  }
+
+  .operation-checkout .form-submit {
+    grid-column: auto;
+    min-width: 116px;
+    padding-inline: 10px;
+  }
+
+  [data-slot-booking-form] .slot-booking-actions {
+    position: sticky;
+    bottom: -1px;
+    z-index: 2;
+    margin: 4px -4px -4px;
+    padding: 10px 4px 4px;
+    background: var(--white);
+  }
+
+  .view[data-view="reconcile"] .panel-header {
+    align-items: stretch;
+  }
+
+  .reconcile-header-actions,
+  .reconcile-fill-all,
+  .reconcile-header-actions .primary-button {
+    width: 100%;
+  }
+}
