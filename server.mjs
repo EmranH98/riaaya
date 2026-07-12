@@ -11,6 +11,7 @@ import { db } from "./lib/database.js";
 import { clientIp } from "./lib/security.js";
 import { startBackupScheduler } from "./lib/backup-scheduler.js";
 import { reportEvent, startResourceMonitor } from "./lib/monitor.js";
+import { beginRequestObservation, databaseReadiness } from "./lib/observability.js";
 
 const root = fileURLToPath(new URL(".", import.meta.url));
 const port = Number(process.env.PORT || 4174);
@@ -121,26 +122,19 @@ function safePath(pathname) {
   return resolved;
 }
 
-function sendHealth(res) {
-  try {
-    db.prepare("select 1 as ok").get();
-    res.writeHead(200, {
-      "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": "no-store"
-    });
-    res.end(JSON.stringify({
-      ok: true,
-      service: "riaaya",
-      environment: process.env.NODE_ENV || "development",
-      timestamp: new Date().toISOString()
-    }));
-  } catch (error) {
-    res.writeHead(503, {
-      "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": "no-store"
-    });
-    res.end(JSON.stringify({ ok: false, error: "database_unavailable" }));
-  }
+function sendHealth(res, { ready = false } = {}) {
+  const database = ready ? databaseReadiness(db) : { ok: true };
+  res.writeHead(database.ok ? 200 : 503, {
+    "Content-Type": "application/json; charset=utf-8",
+    "Cache-Control": "no-store"
+  });
+  res.end(JSON.stringify({
+    ok: database.ok,
+    service: "riaaya",
+    environment: process.env.NODE_ENV || "development",
+    ...(ready ? { database } : {}),
+    timestamp: new Date().toISOString()
+  }));
 }
 
 function sendUnhandledError(req, res, error) {
@@ -218,7 +212,7 @@ async function handleRequest(req, res) {
   }
 
   if (url.pathname === "/healthz" || url.pathname === "/readyz") {
-    sendHealth(res);
+    sendHealth(res, { ready: url.pathname === "/readyz" });
     return;
   }
 
@@ -273,6 +267,12 @@ async function handleRequest(req, res) {
 }
 
 const server = createServer((req, res) => {
+  const pathname = (() => {
+    try { return new URL(req.url || "/", `http://${req.headers.host || "localhost"}`).pathname; }
+    catch { return "/invalid-url"; }
+  })();
+  const finishObservation = beginRequestObservation({ method: req.method, pathname });
+  res.once("finish", () => finishObservation(res.statusCode));
   handleRequest(req, res).catch(error => sendUnhandledError(req, res, error));
 });
 

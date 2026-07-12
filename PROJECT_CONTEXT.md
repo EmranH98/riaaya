@@ -1,6 +1,6 @@
 # Riaaya Project Context
 
-Updated: July 11, 2026
+Updated: July 12, 2026
 
 ## Product
 
@@ -14,7 +14,7 @@ The public trial remains available at `app.html?trial=1`. Trial data stays in th
 
 - `index.html`: public product page and direct 14-day clinic registration.
 - `auth.html`, `auth.css`, `auth.js`: login and registration.
-- `app.html`, `app.css`, `app.js`: clinic workspace and public trial. The legacy client remains a large monolith; new daily workflow behavior starts in `modules/daily-workflows.js` and its shared responsive rules live in `styles/workflow-components.css`.
+- `app.html`, `app.css`, `app.js`: clinic workspace and public trial. The legacy client remains a large monolith; extracted pure behavior now lives in `modules/booking-domain.js`, `modules/visit-domain.js`, and `modules/daily-workflows.js`. Shared responsive workflow rules live in `styles/workflow-components.css`.
 - `owner.html`, `owner.css`, `owner.js`: platform-owner control panel.
 - Vanilla JavaScript rendering and event handling.
 
@@ -24,6 +24,8 @@ The public trial remains available at `app.html?trial=1`. Trial data stays in th
 - `lib/database.js`: SQLite connection, base schema, public serializers, audit logging, and owner bootstrap.
 - `lib/migrations.js`: ordered, transactional, recorded SQLite migrations in `schema_migrations`.
 - `lib/clinic-state-schema.js`: compatibility-first validation for clinic-state writes before encrypted persistence.
+- `lib/clinic-record-store.js`: transactional, individually encrypted relational storage for patients, bookings, operations, and payment events, plus manifests that detect partial writes.
+- `lib/observability.js`: request latency/error metrics, schema readiness, relational synchronization checks, SQLite integrity, memory, and database-size reporting.
 - `lib/security.js`: password hashing, sessions, rate limiting, encryption, cookies, and input cleaning.
 - `api/auth.js`: registration, login, logout, sessions, trial expiry.
 - `api/clinic.js`: tenant state, users, permissions, calendar scopes, integrations, and audit events.
@@ -40,8 +42,13 @@ SQLite tables:
 - `audit_logs`
 - `clinic_integrations`
 - `schema_migrations`
+- `clinic_patients`
+- `clinic_bookings`
+- `clinic_operations`
+- `clinic_operation_payments`
+- `clinic_record_manifests`
 
-Clinic operational records are currently stored as versioned, AES-256-GCM-encrypted JSON in `clinics.state_json`. Encrypted merge-history snapshots support three-way conflict resolution, and `state_version` prevents silent concurrent overwrites. Patient photos are encrypted files on the persistent disk and are included in scheduled local/off-site archives.
+Patients, bookings, operations, and payment events are stored as individually AES-256-GCM-encrypted relational rows after the explicit backup-first migration activates this storage mode. Before activation, ordinary saves retain a complete encrypted legacy blob so the previous release remains rollback-compatible. `clinics.state_json` then becomes an encrypted shell for settings and lower-volume modules such as services, expenses, inventory, packages, receipts, and communications. A per-clinic manifest must match `state_version` before relational records are returned. Encrypted full-state history snapshots still support three-way conflict resolution, and `state_version` prevents silent concurrent overwrites. Patient photos are encrypted files on the persistent disk and are included in scheduled local/off-site archives.
 
 The initial production shape is a single Node instance with one persistent SQLite disk. PostgreSQL is the recommended next database step for horizontal scaling.
 
@@ -176,14 +183,14 @@ The initial production shape is a single Node instance with one persistent SQLit
 
 ## Most Recent Work
 
-The repository now has active Git history. The July product work added the money center, multi-service packages, session-level performer commissions, mobile navigation, searchable patient workflows, permission presets, and a redesigned landing page. The current workflow pass adds a compact daily command center, direct booking, streamlined operation entry, top-of-page reconciliation actions, scroll reset between modules, a first extracted daily-workflow module, recorded database migrations, clinic-state schema validation, and desktop/mobile screenshot regression coverage.
+The repository now has active Git history. The July product work added the money center, multi-service packages, session-level performer commissions, mobile navigation, searchable patient workflows, permission presets, and a redesigned landing page. The current architecture pass moves patients, bookings, operations, and payment events into encrypted relational rows; adds backup-first migration, record manifests, schema/readiness checks, owner observability, a free synthetic-data staging blueprint, booking and visit domain modules, and owner-screen visual regression coverage.
 
 ### Modernization Status
 
 - Daily usability: the tested default booking and operation paths are two actions after opening their forms; secondary dashboard content starts collapsed; module changes reset stale scroll position.
-- Visual consistency: workflow components now have shared responsive rules and seven deterministic desktop/mobile reference screenshots checked with `pixelmatch`.
-- Maintainability: migration infrastructure and a state validation boundary are complete, and the first frontend behavior module has been extracted.
-- Still incomplete: most client behavior remains in the 20,000-line `app.js`; core clinic records still share encrypted `clinics.state_json`; staging, full production observability, and normalized relational patient/booking/operation/payment tables remain future phases.
+- Visual consistency: workflow components now have shared responsive rules and eight deterministic desktop/mobile reference screenshots checked with `pixelmatch`.
+- Maintainability: migration infrastructure, state validation, relational core-record persistence, and three frontend behavior modules are complete. Public booking, owner exports, key rotation, backups, and stale-save merging use the same persistence contract.
+- Still incomplete: most client event wiring and rendering remains in the 20,000-line `app.js`; services, expenses, inventory, packages, receipts, and communications still share the encrypted state shell; PostgreSQL, background workers, and a permanently provisioned staging service remain future phases.
 
 ## Setup
 
@@ -191,6 +198,7 @@ The repository now has active Git history. The July product work added the money
 npm run check
 npm test
 npm run visual
+npm run migrate:records
 npm run dev
 ```
 
@@ -222,14 +230,14 @@ See `README.md` for deployment, provider, backup, and JoFotara instructions.
 
 ### Scale and Reliability
 
-- Move clinic operational JSON into normalized database tables.
 - Continue extracting `app.js` by domain behind stable interfaces; prioritize booking, visits/payments, patients, reporting, and permissions.
+- Move services, expenses, inventory, packages, receipts, and communications from the encrypted state shell into dedicated relational tables as each domain API is extracted.
 - Migrate SQLite to PostgreSQL before multi-instance scaling.
 - Add background jobs for scheduled WhatsApp reports and SMS campaigns.
 - Add delivery webhooks and retry/dead-letter handling.
 - Add attachment/document storage for patient files.
 - Save reusable import mappings per clinic and add system-specific import adapters after collecting real export samples.
-- Add a separate staging deployment with synthetic data and deployment promotion checks.
+- Provision the included `render.staging.yaml` service from a dedicated staging branch and keep it synthetic-data only.
 - Connect production error reporting, uptime monitoring, and restore-test alerts.
 
 ### Product

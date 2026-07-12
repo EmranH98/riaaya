@@ -70,6 +70,7 @@ const server = spawn(process.execPath, ["server.mjs"], {
     RIAAYA_OWNER_PASSWORD: OWNER.password,
     RIAAYA_OWNER_SYNC: "true",
     RIAAYA_ENCRYPTION_KEY: OLD_ENCRYPTION_KEY,
+    RIAAYA_AUTO_MIGRATE_RECORDS: "1",
     RIAAYA_DISABLE_RATE_LIMIT: "1",
     NODE_ENV: "development"
   },
@@ -96,6 +97,10 @@ async function run() {
   ok(badLogin.status === 401, "owner login with wrong password is rejected");
   const ownerLogin = await login(owner, OWNER.email, OWNER.password);
   ok(ownerLogin.status === 200 && ownerLogin.csrf, "owner logs in and gets a CSRF token");
+  const observabilityResponse = await owner.fetch("/api/owner/observability");
+  const observabilityBody = await observabilityResponse.json();
+  ok(observabilityResponse.status === 200 && observabilityBody.observability?.database?.integrity === "ok", "owner can inspect database integrity and runtime observability");
+  ok(observabilityBody.observability?.database?.appliedSchemaVersion === observabilityBody.observability?.database?.expectedSchemaVersion, "observability reports the current schema version");
 
   // ── Owner creates two clinics ─────────────────────────────────────────────
   async function createClinic(name, adminEmail) {
@@ -159,7 +164,22 @@ async function run() {
   const seededState = {
     ...(stateA.state || {}),
     settings: { clinicName: "E2E Clinic A", activeDate: "2026-07-12" },
-    patients: [{ id: "patient-secret", name: "Secret Patient", phone: "0791234567", email: "secret@example.com" }]
+    patients: [{ id: "patient-secret", name: "Secret Patient", phone: "0791234567", email: "secret@example.com" }],
+    bookings: [{
+      id: "booking-secret", patientId: "patient-secret", patient: "Secret Patient",
+      date: "2026-07-12", time: "09:00", serviceId: "service-secret",
+      service: "Secret Service", scheduleColumnId: "room-one", status: "confirmed"
+    }],
+    entries: [{
+      id: "operation-secret", visitId: "visit-secret", patientId: "patient-secret",
+      patient: "Secret Patient", date: "2026-07-12", serviceId: "service-secret",
+      service: "Secret Service", amount: 60, discount: 0, status: "completed",
+      paymentBreakdown: { cash: 40, card: 20, transfer: 0 }, paymentMethod: "mixed",
+      paymentLog: [
+        { date: "2026-07-12", cash: 40, card: 0, transfer: 0, amount: 40, note: "First collection" },
+        { date: "2026-07-12", cash: 0, card: 20, transfer: 0, amount: 20, note: "Second collection" }
+      ]
+    }]
   };
   const seedStateResponse = await adminA.fetch("/api/clinic-state", {
     method: "PUT",
@@ -168,14 +188,33 @@ async function run() {
   });
   const seedStateBody = await seedStateResponse.json();
   ok(seedStateResponse.status === 200, "clinic state saves successfully");
+  const relationalRoundTrip = await (await adminA.fetch("/api/clinic-state")).json();
+  const roundTripOperation = relationalRoundTrip.state?.entries?.find(entry => entry.id === "operation-secret");
+  ok(roundTripOperation?.paymentBreakdown?.cash === 40 && roundTripOperation?.paymentBreakdown?.card === 20, "relational operation restores its split-payment totals");
+  ok(roundTripOperation?.paymentLog?.length === 2 && roundTripOperation.paymentLog[1].note === "Second collection", "relational payment events round-trip in order");
   const inspectionDb = new DatabaseSync(dbPath);
-  const storedState = inspectionDb.prepare("select state_json from clinics where id = ?").get(clinicA.body.clinic.id)?.state_json;
+  const storedClinic = inspectionDb.prepare("select state_json, state_version, record_storage_version, record_storage_synced_version from clinics where id = ?").get(clinicA.body.clinic.id);
+  const storedState = storedClinic?.state_json;
+  const storedPatient = inspectionDb.prepare("select payload_cipher from clinic_patients where clinic_id = ? and id = 'patient-secret'").get(clinicA.body.clinic.id)?.payload_cipher;
+  const recordManifest = inspectionDb.prepare("select * from clinic_record_manifests where clinic_id = ?").get(clinicA.body.clinic.id);
   const storedHistory = inspectionDb.prepare("select state_gz from clinic_state_history where clinic_id = ? order by version desc limit 1").get(clinicA.body.clinic.id)?.state_gz;
   const appliedMigrations = Number(inspectionDb.prepare("select count(*) as count from schema_migrations").get()?.count || 0);
   inspectionDb.close();
-  ok(typeof storedState === "string" && storedState.startsWith("e1:"), "clinic state is ciphertext on disk");
+  ok(typeof storedState === "string" && storedState.startsWith("e1:"), "clinic state shell is ciphertext on disk");
+  ok(typeof storedPatient === "string" && storedPatient.startsWith("e1:"), "patient record is individually encrypted on disk");
+  ok(Number(storedClinic?.record_storage_version) === 1 && Number(storedClinic?.record_storage_synced_version) === Number(storedClinic?.state_version), "relational record storage is synchronized to the clinic version");
+  ok(
+    Number(recordManifest?.patient_count) === 1
+      && Number(recordManifest?.booking_count) === 1
+      && Number(recordManifest?.operation_count) === 1
+      && Number(recordManifest?.payment_count) === 3
+      && Number(recordManifest?.state_version) === Number(storedClinic?.state_version),
+    "relational record manifest tracks patients, bookings, operations, and payment events"
+  );
   ok(typeof storedHistory === "string" && storedHistory.startsWith("e1:"), "state history is ciphertext on disk");
-  ok(appliedMigrations >= 1, "database schema migrations are recorded");
+  ok(appliedMigrations >= 2, "database schema migrations are recorded");
+  const readinessAfterMigration = await (await owner.fetch("/api/owner/readiness")).json();
+  ok(readinessAfterMigration.observability?.database?.inconsistentClinics === 0, "owner readiness confirms relational records are consistent");
 
   // ── Clinic A admin creates a restricted user with column permissions ──────
   const newUser = await adminA.fetch("/api/clinic-users", {
@@ -365,10 +404,18 @@ async function run() {
   const cryptoHelpers = await import(`../lib/security.js?e2e-rotation=${Date.now()}`);
   const rotatedDb = new DatabaseSync(dbPath);
   const rotatedStateCipher = rotatedDb.prepare("select state_json from clinics where id = ?").get(clinicA.body.clinic.id)?.state_json;
+  const rotatedPatientCipher = rotatedDb.prepare("select payload_cipher from clinic_patients where clinic_id = ? and id = 'patient-secret'").get(clinicA.body.clinic.id)?.payload_cipher;
+  const rotatedOperationCipher = rotatedDb.prepare("select payload_cipher from clinic_operations where clinic_id = ? and id = 'operation-secret'").get(clinicA.body.clinic.id)?.payload_cipher;
+  const rotatedPaymentCiphers = rotatedDb.prepare("select payload_cipher from clinic_operation_payments where clinic_id = ? and operation_id = 'operation-secret' order by sequence asc").all(clinicA.body.clinic.id);
   const rotatedIntegrationCipher = rotatedDb.prepare("select secret_cipher from clinic_integrations where clinic_id = ? and provider = 'sms'").get(clinicA.body.clinic.id)?.secret_cipher;
   rotatedDb.close();
-  const rotatedState = JSON.parse(cryptoHelpers.decryptBlob(rotatedStateCipher));
-  ok(rotatedState.patients?.some(patient => patient.id === "patient-secret"), "rotated clinic state decrypts with the new key");
+  const rotatedShell = JSON.parse(cryptoHelpers.decryptBlob(rotatedStateCipher));
+  const rotatedPatient = JSON.parse(cryptoHelpers.decryptBlob(rotatedPatientCipher));
+  const rotatedOperation = JSON.parse(cryptoHelpers.decryptBlob(rotatedOperationCipher));
+  const rotatedPayments = rotatedPaymentCiphers.map(row => JSON.parse(cryptoHelpers.decryptBlob(row.payload_cipher)));
+  ok(!Object.prototype.hasOwnProperty.call(rotatedShell, "patients"), "core patient records are removed from the monolithic state shell");
+  ok(rotatedPatient.id === "patient-secret" && rotatedPatient.phone === "0791234567", "rotated relational patient decrypts with the new key");
+  ok(!Object.prototype.hasOwnProperty.call(rotatedOperation, "paymentBreakdown") && rotatedPayments.length === 3, "operation payment data is stored only in encrypted payment rows");
   ok(cryptoHelpers.decryptSecret(rotatedIntegrationCipher) === "integration-secret-value", "rotated integration secret decrypts with the new key");
   ok(cryptoHelpers.decryptBinary(readFileSync(photoPath)).equals(pngBytes), "rotated patient photo decrypts with the new key");
 

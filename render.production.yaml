@@ -4,7 +4,7 @@ services:
     runtime: docker
     plan: starter
     dockerfilePath: ./Dockerfile
-    healthCheckPath: /healthz
+    healthCheckPath: /readyz
     disk:
       name: riaaya-data
       mountPath: /data
@@ -24,6 +24,8 @@ services:
         value: 30
       - key: RIAAYA_BACKUP_INTERVAL_HOURS
         value: 6
+      - key: RIAAYA_SERVICE_NAME
+        value: riaaya-production
       - key: RIAAYA_PHOTOS_DIR
         value: /data/photos
       - key: RIAAYA_TRUSTED_PROXY_HOPS

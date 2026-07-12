@@ -17,6 +17,8 @@ const readinessBackupTitle = document.querySelector("[data-readiness-backup-titl
 const readinessBackupDetail = document.querySelector("[data-readiness-backup-detail]");
 const readinessSecurityTitle = document.querySelector("[data-readiness-security-title]");
 const readinessSecurityDetail = document.querySelector("[data-readiness-security-detail]");
+const readinessObservabilityTitle = document.querySelector("[data-readiness-observability-title]");
+const readinessObservabilityDetail = document.querySelector("[data-readiness-observability-detail]");
 const readinessChecks = document.querySelector("[data-readiness-checks]");
 const readinessRestore = document.querySelector("[data-readiness-restore]");
 
@@ -222,6 +224,9 @@ function renderReadiness() {
   const storage = readinessStatus.storage || {};
   const backup = readinessStatus.backup || {};
   const security = readinessStatus.security || {};
+  const observability = readinessStatus.observability || {};
+  const requests = observability.requests || {};
+  const database = observability.database || {};
   readinessBadge.className = `status-pill ${readinessStatus.readyForPilot ? "active" : "suspended"}`;
   readinessBadge.textContent = readinessStatus.readyForPilot ? "جاهز لتجربة حقيقية" : "غير جاهز للبيانات الحقيقية";
   readinessStorageMode.textContent = storage.safeForRealData
@@ -238,6 +243,10 @@ function renderReadiness() {
   readinessBackupDetail.textContent = backup.warning || `المسار: ${backup.path || "غير محدد"} | الاحتفاظ: ${backup.retentionDays || 30} يوم`;
   readinessSecurityTitle.textContent = `${security.ownerTwoFactorCount || 0}/${security.ownerAccounts || 0} مالك مع 2FA`;
   readinessSecurityDetail.textContent = `NODE_ENV=${security.nodeEnv || "غير محدد"} | ALLOWED_ORIGIN=${security.allowedOrigin || "غير مضبوط"}`;
+  readinessObservabilityTitle.textContent = database.integrity === "ok"
+    ? `API P95 ${requests.p95Ms || 0}ms`
+    : "قاعدة البيانات تحتاج مراجعة";
+  readinessObservabilityDetail.textContent = `طلبات ${requests.total || 0} | أخطاء خادم ${requests.status5xx || 0} | SQLite ${database.sizeMb || 0} MB | ذاكرة ${observability.runtime?.rssMb || 0} MB`;
   readinessChecks.innerHTML = (readinessStatus.checks || []).map(check => `
     <div class="readiness-check ${check.ok ? "ok" : ""}">
       <span class="check-icon">${check.ok ? "✓" : "!"}</span>

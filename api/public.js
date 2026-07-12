@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { db, parseJson, publicLandingSettings } from "../lib/database.js";
+import { db, publicLandingSettings } from "../lib/database.js";
 import { ensureStateSnapshot, saveStateSnapshot } from "../lib/state-history.js";
-import { decryptBlob, encryptBlob, safeText } from "../lib/security.js";
+import { safeText } from "../lib/security.js";
+import { persistClinicStateCompatible, readClinicState, withImmediateTransaction } from "../lib/clinic-record-store.js";
 
 function sendJson(res, statusCode, payload) {
   res.statusCode = statusCode;
@@ -71,7 +72,7 @@ function slotUnavailable(bookings = [], candidate = {}) {
 /* ── GET /api/public/clinic/:slug ─────────────────────────────────────── */
 function handleGetClinic(slug, res) {
   const row = db.prepare(
-    "select id, name, slug, city, phone, status, state_json from clinics where slug = ?"
+    "select * from clinics where slug = ?"
   ).get(slug);
 
   if (!row || row.status === "suspended" || row.status === "cancelled") {
@@ -79,7 +80,7 @@ function handleGetClinic(slug, res) {
     return;
   }
 
-  const state = parseJson(decryptBlob(row.state_json), {});
+  const state = readClinicState(db, row);
   const settings = state.settings || {};
   const bookings = Array.isArray(state.bookings) ? state.bookings : [];
 
@@ -106,7 +107,7 @@ function handleGetClinic(slug, res) {
 /* ── POST /api/public/clinic/:slug/booking ────────────────────────────── */
 async function handleCreateBooking(req, slug, res) {
   const row = db.prepare(
-    "select id, name, status, state_json, state_version from clinics where slug = ?"
+    "select * from clinics where slug = ?"
   ).get(slug);
 
   if (!row || row.status === "suspended" || row.status === "cancelled") {
@@ -155,10 +156,10 @@ async function handleCreateBooking(req, slug, res) {
   // have landed in the meantime, and writing from the earlier read would
   // silently discard it. From here to the update there is no await.
   const fresh = db.prepare(
-    "select state_json, state_version from clinics where id = ?"
+    "select * from clinics where id = ?"
   ).get(row.id);
-  const freshStr = decryptBlob(fresh?.state_json);
-  const state    = parseJson(freshStr, {});
+  const state = readClinicState(db, fresh);
+  const freshStr = JSON.stringify(state);
   const bookings = Array.isArray(state.bookings) ? state.bookings : [];
   const candidate = { date, time, serviceId, service: serviceName };
 
@@ -177,14 +178,19 @@ async function handleCreateBooking(req, slug, res) {
   state.bookings = bookings;
   const currentVersion = Number(fresh?.state_version || 0);
   const nextVersion = currentVersion + 1;
-  const serialized = JSON.stringify(state);
   // Snapshot both sides of this write so logged-in clients editing against the
   // pre-booking version can still merge instead of hitting a conflict.
-  if (fresh?.state_json) ensureStateSnapshot(row.id, currentVersion, freshStr);
-  db.prepare(
-    "update clinics set state_json = ?, state_version = ?, updated_at = ? where id = ?"
-  ).run(encryptBlob(serialized), nextVersion, now, row.id);
-  saveStateSnapshot(row.id, nextVersion, serialized);
+  withImmediateTransaction(db, () => {
+    if (fresh?.state_json) ensureStateSnapshot(row.id, currentVersion, freshStr);
+    const persisted = persistClinicStateCompatible(db, {
+      clinicRow: fresh,
+      clinicId: row.id,
+      state,
+      stateVersion: nextVersion,
+      updatedAt: now
+    });
+    saveStateSnapshot(row.id, nextVersion, persisted.serialized);
+  });
 
   sendJson(res, 201, { ok: true, reference, bookingId });
 }

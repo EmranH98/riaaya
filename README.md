@@ -10,7 +10,7 @@ Riaaya is an Arabic-first clinic operations SaaS. It includes a public demo, rea
 - HttpOnly session cookies and CSRF protection.
 - Server-side tenant isolation and permission enforcement.
 - Per-clinic encrypted WhatsApp, SMS, and JoFotara credentials.
-- AES-256-GCM encryption for clinic state, merge-history snapshots, and patient photos.
+- AES-256-GCM encryption for clinic settings, individual patient/booking/operation/payment rows, merge-history snapshots, and patient photos.
 - Platform-owner dashboard for clinics, plans, trials, status, audit activity, and emergency admin-password reset.
 
 No Supabase account is required. Do not deploy `dist/` by itself for production because authentication and clinic data require `server.mjs`.
@@ -131,6 +131,16 @@ npm run preflight:production
 
 SQLite is suitable for an initial single-instance launch. Migrate to PostgreSQL before horizontal scaling or sustained high write concurrency.
 
+### Staging
+
+`render.staging.yaml` defines a separate free staging service with synthetic data only. It intentionally uses preview mode and temporary storage, so never enter real patient data there. Point it at a `staging` branch, set private owner/encryption/origin values in Render, and promote a commit to `main` only after `npm test`, `npm run build`, `npm run visual`, and the staging smoke test pass.
+
+```bash
+SMOKE_BASE_URL=https://your-staging-service.onrender.com npm run smoke
+```
+
+Production remains the only environment allowed to use the persistent `/data` disk and real clinic accounts.
+
 ## GitHub Upload
 
 Upload the source files, not runtime data. Do not upload:
@@ -157,6 +167,7 @@ Then create a GitHub repository and push the branch. The `.gitignore` already ex
 RIAAYA_DB_PATH=/var/lib/riaaya/riaaya.sqlite \
 RIAAYA_BACKUP_DIR=/var/backups/riaaya \
 npm run backup
+npm run migrate:records
 ```
 
 The command uses SQLite `VACUUM INTO` and retains the newest 30 backups by default. The automatic scheduler also archives encrypted patient-photo files and streams that archive to the configured off-site bucket without loading the complete archive into server memory.
@@ -178,6 +189,7 @@ For migrating clinics from other systems, export Excel sheets as CSV first, impo
 - Clinic state writes use optimistic version checks to prevent silent overwrites.
 - Clinic state writes pass a versioned compatibility schema before persistence.
 - SQLite schema changes run as ordered transactions and are recorded in `schema_migrations`.
+- Patients, bookings, operations, and payment events are stored in individually encrypted relational rows with a versioned manifest; partial or mismatched storage is rejected instead of silently returning incomplete data.
 - Clinic state, merge history, integration secrets, 2FA secrets, and patient photos use AES-256-GCM encryption at rest.
 - Audit logs record registration, login, user, clinic, integration, and owner actions.
 - Stored state is size-limited and strips HTML angle brackets and control characters.
@@ -229,6 +241,8 @@ npm run build
 npm run backup
 ```
 
-`npm run visual` boots an isolated temporary clinic server and compares seven desktop/mobile workflow screenshots against the committed baselines. Use `npm run visual:update` only after intentionally reviewing a UI change.
+`npm run visual` boots an isolated temporary clinic server and compares eight desktop/mobile workflow screenshots against the committed baselines. Use `npm run visual:update` only after intentionally reviewing a UI change.
 
 `npm run build` creates static assets for inspection or CDN use, but it is not a replacement for the Node server.
+
+`npm run migrate:records` is a dry run. `npm run migrate:records -- --apply` first creates and verifies a SQLite backup, uploads it off-site when bucket credentials are configured, atomically moves legacy patients, bookings, operations, and payment events into individually encrypted relational rows without changing the clinic state version, verifies every round trip, and only then activates relational storage for future writes. Until that command succeeds, normal saves retain the complete encrypted legacy blob so the current production release remains a valid rollback target.

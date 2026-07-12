@@ -25,7 +25,7 @@ if (!process.env.RIAAYA_ENCRYPTION_KEY) {
   process.exit(1);
 }
 
-let clinics = 0, history = 0, secrets = 0, integrations = 0, photos = 0;
+let clinics = 0, records = 0, history = 0, secrets = 0, integrations = 0, photos = 0;
 
 function rotateDatabase() {
   db.exec("begin immediate");
@@ -37,7 +37,16 @@ function rotateDatabase() {
     db.prepare("update clinics set state_json = ? where id = ?").run(encryptBlob(plaintext), row.id);
     clinics += 1;
   }
-  // 2. State-history snapshots (gzip, possibly already e1-encrypted)
+  // 2. Individually encrypted relational clinic records.
+  for (const table of ["clinic_patients", "clinic_bookings", "clinic_operations", "clinic_operation_payments"]) {
+    for (const row of db.prepare(`select clinic_id, id, payload_cipher from ${table}`).all()) {
+      const plaintext = decryptBlob(row.payload_cipher);
+      db.prepare(`update ${table} set payload_cipher = ? where clinic_id = ? and id = ?`)
+        .run(encryptBlob(plaintext), row.clinic_id, row.id);
+      records += 1;
+    }
+  }
+  // 3. State-history snapshots (gzip, possibly already e1-encrypted)
   for (const row of db.prepare("select clinic_id, version, state_gz from clinic_state_history").all()) {
     if (row.state_gz == null) continue;
     const gz = (typeof row.state_gz === "string" && isEncryptedBlob(row.state_gz))
@@ -50,7 +59,7 @@ function rotateDatabase() {
       .run(repacked, row.clinic_id, row.version);
     history += 1;
   }
-  // 3. Per-user encrypted secrets (2FA)
+  // 4. Per-user encrypted secrets (2FA)
   for (const row of db.prepare("select id, totp_secret_cipher, totp_pending_cipher from users").all()) {
     const next = {};
     if (row.totp_secret_cipher) next.totp_secret_cipher = encryptSecret(decryptSecret(row.totp_secret_cipher));
@@ -61,7 +70,7 @@ function rotateDatabase() {
       secrets += 1;
     }
   }
-  // 4. Per-clinic provider credentials (WhatsApp, SMS, JoFotara)
+  // 5. Per-clinic provider credentials (WhatsApp, SMS, JoFotara)
   for (const row of db.prepare("select clinic_id, provider, secret_cipher from clinic_integrations where secret_cipher is not null and secret_cipher != ''").all()) {
     const plaintext = decryptSecret(row.secret_cipher);
     if (!plaintext) throw new Error(`integration_secret_decrypt_failed:${row.clinic_id}:${row.provider}`);
@@ -111,5 +120,5 @@ try {
   process.exit(1);
 }
 
-console.log(`✓ re-encrypted: ${clinics} clinic states, ${history} history snapshots, ${secrets} user secrets, ${integrations} integration secrets, ${photos} photos.`);
+console.log(`✓ re-encrypted: ${clinics} clinic shells, ${records} clinic records, ${history} history snapshots, ${secrets} user secrets, ${integrations} integration secrets, ${photos} photos.`);
 console.log("If this was a key rotation, verify the app and a photo, then remove RIAAYA_ENCRYPTION_KEY_OLD.");

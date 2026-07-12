@@ -2477,29 +2477,11 @@ function asNumber(value) {
 }
 
 function cleanPaymentBreakdown(input = {}, fallbackMethod = "cash", fallbackAmount = 0) {
-  const isArray = Array.isArray(input);
-  const raw = isArray
-    ? input.reduce((totals, row) => {
-        const method = row.method || row.type || row.paymentMethod;
-        if (PAYMENT_METHODS.includes(method)) totals[method] = numberValue(totals[method]) + numberValue(row.amount);
-        return totals;
-      }, {})
-    : input && typeof input === "object" ? input : {};
-  // An explicit breakdown (even all-zeros, e.g. an unpaid visit) must be respected,
-  // so "لم يُدفع بعد" really records 0 paid instead of being assumed paid in full.
-  const hasExplicitBreakdown = isArray || PAYMENT_METHODS.some(method => raw[method] !== undefined);
-  const breakdown = Object.fromEntries(PAYMENT_METHODS.map(method => [method, Math.max(numberValue(raw[method]), 0)]));
-  const total = PAYMENT_METHODS.reduce((sum, method) => sum + breakdown[method], 0);
-  if (total > 0.009 || hasExplicitBreakdown) return breakdown;
-  // No payment data at all (legacy entry) → assume it was paid in full via the fallback method.
-  const method = PAYMENT_METHODS.includes(fallbackMethod) ? fallbackMethod : "cash";
-  return { cash: 0, card: 0, transfer: 0, [method]: Math.max(numberValue(fallbackAmount), 0) };
+  return window.RiaayaVisitDomain.cleanPaymentBreakdown(input, fallbackMethod, fallbackAmount);
 }
 
 function paymentMethodFromBreakdown(breakdown = {}, fallback = "cash") {
-  const active = PAYMENT_METHODS.filter(method => numberValue(breakdown[method]) > 0.009);
-  if (active.length > 1) return "mixed";
-  return active[0] || (PAYMENT_METHODS.includes(fallback) ? fallback : "cash");
+  return window.RiaayaVisitDomain.paymentMethodFromBreakdown(breakdown, fallback);
 }
 
 function mergeById(baseRecords, incomingRecords) {
@@ -6119,7 +6101,7 @@ function paidAmount(entry) {
 }
 
 function paymentTotal(breakdown = {}) {
-  return PAYMENT_METHODS.reduce((sum, method) => sum + numberValue(breakdown[method]), 0);
+  return window.RiaayaVisitDomain.paymentTotal(breakdown);
 }
 
 function entryPaymentLabel(entry) {
@@ -11331,32 +11313,22 @@ function scheduleSlotForBooking(booking) {
 
 function bookingSlotConflict(candidate, ignoreId = "", stepMinutes = scheduleSlotMinutes()) {
   const columns = bookingScheduleColumns();
-  const candidateColumn = bookingScheduleColumnId(candidate, columns);
-  const candidateSlot = scheduleSlotForTime(candidate.time, stepMinutes);
-  return (state.bookings || []).find(booking => (
-    booking.id !== ignoreId
-    && booking.date === candidate.date
-    && !["cancelled", "no_show"].includes(booking.status)
-    && bookingScheduleColumnId(booking, columns) === candidateColumn
-    && scheduleSlotForTime(booking.time, stepMinutes) === candidateSlot
-  ));
+  return window.RiaayaBookingDomain.findConflict({
+    bookings: state.bookings || [],
+    candidate,
+    ignoreId,
+    stepMinutes,
+    resolveColumn: booking => bookingScheduleColumnId(booking, columns)
+  });
 }
 
 function scheduleConflictForBookings(stepMinutes = scheduleSlotMinutes()) {
   const columns = bookingScheduleColumns();
-  const seen = new Map();
-  for (const booking of (state.bookings || [])) {
-    if (["cancelled", "no_show"].includes(booking.status)) continue;
-    const columnId = bookingScheduleColumnId(booking, columns);
-    const slot = scheduleSlotForTime(booking.time, stepMinutes);
-    const key = `${booking.date}|${columnId}|${slot}`;
-    const first = seen.get(key);
-    if (first) {
-      return { first, second: booking, columnId, slot };
-    }
-    seen.set(key, booking);
-  }
-  return null;
+  return window.RiaayaBookingDomain.findAnyConflict({
+    bookings: state.bookings || [],
+    stepMinutes,
+    resolveColumn: booking => bookingScheduleColumnId(booking, columns)
+  });
 }
 
 function renderBookingDayCalendar() {
@@ -14082,7 +14054,7 @@ function allocatePaymentBreakdown(line, visitPayments, visitTotal) {
   const lineTotal = Math.max(numberValue(line.amount) - numberValue(line.discount), 0);
   if (!visitTotal) return { cash: 0, card: 0, transfer: 0 };
   const ratio = lineTotal / visitTotal;
-  return Object.fromEntries(PAYMENT_METHODS.map(method => [method, numberValue(visitPayments[method]) * ratio]));
+  return window.RiaayaVisitDomain.allocateBreakdown(visitPayments, ratio);
 }
 
 // Show/hide the paid/remaining boxes based on the payment-status toggle.
@@ -16992,19 +16964,18 @@ function openCategoryRowPrompt(category) {
   // time the first free slot is preselected, so F4 → name → confirm is enough.
   function timeOptions(columnId, requestedTime) {
     const step = scheduleSlotMinutes();
-    const start = minutesFromTime(state.settings.workStart || "08:00");
-    const end = minutesFromTime(state.settings.workEnd || "20:00");
     const date = form.elements.date.value || state.settings.activeDate;
-    let selected = requestedTime || "";
-    const rows = [];
-    for (let minutes = start; minutes < end; minutes += step) {
-      const time = timeFromMinutes(minutes);
+    const rows = window.RiaayaBookingDomain.buildAvailability({
+      start: state.settings.workStart || "08:00",
+      end: state.settings.workEnd || "20:00",
+      stepMinutes: step,
+      requestedTime,
+      isTaken(time) {
       const probe = normalizeBooking({ id: "__slot_probe__", date, time, scheduleColumnId: columnId, status: "scheduled" }, state.services);
-      const taken = Boolean(bookingSlotConflict(probe, probe.id));
-      if (!selected && !taken) selected = time;
-      rows.push({ time, taken });
-    }
-    return rows.map(row => `<option value="${row.time}"${row.taken && row.time !== selected ? " disabled" : ""}${row.time === selected ? " selected" : ""}>${displayTime(row.time)}${row.taken ? " — محجوز" : ""}</option>`).join("");
+        return Boolean(bookingSlotConflict(probe, probe.id));
+      }
+    });
+    return rows.map(row => `<option value="${row.time}"${row.taken && !row.selected ? " disabled" : ""}${row.selected ? " selected" : ""}>${displayTime(row.time)}${row.taken ? " — محجوز" : ""}</option>`).join("");
   }
 
   // The provider list offers doctors AND specialists. A column with an assigned

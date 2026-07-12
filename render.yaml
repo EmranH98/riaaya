@@ -5,7 +5,7 @@ services:
     # Persistent disks require a paid instance type (Free has no durable storage).
     plan: starter
     dockerfilePath: ./Dockerfile
-    healthCheckPath: /healthz
+    healthCheckPath: /readyz
     # Durable storage so clinic data survives every deploy/restart.
     disk:
       name: riaaya-data
@@ -26,6 +26,8 @@ services:
         value: 30
       - key: RIAAYA_BACKUP_INTERVAL_HOURS
         value: 6
+      - key: RIAAYA_SERVICE_NAME
+        value: riaaya-production
       - key: RIAAYA_OWNER_SYNC
         value: true
       - key: RIAAYA_ORIGIN

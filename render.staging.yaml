@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: riaaya-staging
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /readyz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: RIAAYA_DEPLOYMENT_MODE
+        value: preview
+      - key: RIAAYA_ALLOW_EPHEMERAL_STORAGE
+        value: true
+      - key: RIAAYA_DB_PATH
+        value: /tmp/riaaya-staging.sqlite
+      - key: RIAAYA_BACKUP_DIR
+        value: /tmp/riaaya-staging-backups
+      - key: RIAAYA_OWNER_SYNC
+        value: true
+      - key: RIAAYA_OWNER_EMAIL
+        sync: false
+      - key: RIAAYA_OWNER_PASSWORD
+        sync: false
+      - key: RIAAYA_ENCRYPTION_KEY
+        sync: false
+      - key: ALLOWED_ORIGIN
+        sync: false
+      - key: RIAAYA_ORIGIN
+        sync: false
+      - key: RIAAYA_SERVICE_NAME
+        value: riaaya-staging

@@ -108,6 +108,20 @@ async function preparePage(browser, viewport) {
   return { context, page };
 }
 
+async function prepareOwnerPage(browser, viewport) {
+  const context = await browser.newContext({ viewport, locale: "ar-JO", timezoneId: "Asia/Amman" });
+  const login = await context.request.post(`${baseUrl}/api/auth/login`, {
+    data: { email: "visual-owner@test.local", password: "VisualOwner!2026X" }
+  });
+  assert(login.ok(), `visual owner login failed with ${login.status()}`);
+  const page = await context.newPage();
+  await page.goto(`${baseUrl}/owner?v=visual`, { waitUntil: "domcontentloaded" });
+  await page.locator("[data-readiness-panel]").waitFor({ state: "visible" });
+  await page.waitForTimeout(250);
+  await page.addStyleTag({ content: "*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important}" });
+  return { context, page };
+}
+
 async function runVisualChecks() {
   await waitForServer();
   const browser = await chromium.launch({ headless: true });
@@ -156,6 +170,17 @@ async function runVisualChecks() {
     assert(visibleOperationControls <= 12, `operation fast path exposes ${visibleOperationControls} controls; expected at most 12`);
     await compareScreenshot("operation-desktop.png", await desktop.page.screenshot());
     await desktop.context.close();
+
+    const owner = await prepareOwnerPage(browser, { width: 1440, height: 900 });
+    assert(await owner.page.locator("[data-readiness-observability-title]").isVisible(), "owner readiness must show service observability");
+    const ownerChecks = await owner.page.locator("[data-readiness-checks]").innerText();
+    assert(ownerChecks.includes("مخطط قاعدة البيانات") && ownerChecks.includes("سجلات المرضى"), "owner readiness must show schema and relational-record checks");
+    await owner.page.evaluate(() => {
+      document.querySelector("[data-readiness-observability-title]").textContent = "API P95 12ms";
+      document.querySelector("[data-readiness-observability-detail]").textContent = "طلبات 42 | أخطاء خادم 0 | SQLite 1.2 MB | ذاكرة 64 MB";
+    });
+    await compareScreenshot("owner-readiness-desktop.png", await owner.page.locator("[data-readiness-panel]").screenshot());
+    await owner.context.close();
 
     const mobile = await preparePage(browser, { width: 390, height: 844 });
     const mobileMetrics = await mobile.page.evaluate(() => ({

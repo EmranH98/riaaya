@@ -18,9 +18,11 @@ import {
   slugifyClinic
 } from "../lib/database.js";
 import { requireSession, impersonateClinic } from "./auth.js";
-import { clearAccountFailures, clientIp, decryptBlob, encryptBlob, hashPassword, isValidEmail, normalizeEmail, safeText, temporaryPassword, validatePassword } from "../lib/security.js";
+import { clearAccountFailures, clientIp, hashPassword, isValidEmail, normalizeEmail, safeText, temporaryPassword, validatePassword } from "../lib/security.js";
 import { storageReadiness } from "../lib/storage-policy.js";
 import { offsiteBackupStatus, testOffsiteConnectivity } from "../lib/offsite-backup.js";
+import { clinicRecordCounts, persistClinicStateCompatible, readClinicState, withImmediateTransaction } from "../lib/clinic-record-store.js";
+import { observabilitySnapshot } from "../lib/observability.js";
 
 function sendJson(res, statusCode, payload) {
   res.statusCode = statusCode;
@@ -168,12 +170,12 @@ function listClinics(req, res) {
     order by clinics.created_at desc
   `).all();
   const clinics = rows.map(row => {
-    const state = parseJson(decryptBlob(row.state_json), {});
+    const counts = clinicRecordCounts(db, row);
     return clinicSummary({
       ...row,
-      operation_count: state.entries?.length || 0,
-      booking_count: state.bookings?.length || 0,
-      patient_count: state.patients?.length || 0
+      operation_count: counts.operations,
+      booking_count: counts.bookings,
+      patient_count: counts.patients
     });
   });
   const auditRows = db.prepare(`
@@ -278,10 +280,11 @@ function productionReadiness(req, res) {
   });
   const ownerRows = db.prepare("select * from users where role = 'platform_owner' order by created_at asc").all();
   const ownerTwoFactorCount = ownerRows.filter(row => Number(row.totp_enabled) === 1).length;
-  const clinicRows = db.prepare("select status, state_json from clinics").all();
+  const clinicRows = db.prepare("select status from clinics").all();
   const clinicCount = clinicRows.length;
   const realClinicCandidates = clinicRows.filter(row => ["active", "trial"].includes(row.status)).length;
   const exportedAt = new Date().toISOString();
+  const observability = observabilitySnapshot(db, { databasePath });
   const checks = [
     {
       id: "production-mode",
@@ -330,6 +333,26 @@ function productionReadiness(req, res) {
       label: "حصر الأصل المسموح",
       ok: String(process.env.ALLOWED_ORIGIN || "").startsWith("https://"),
       detail: process.env.ALLOWED_ORIGIN || "غير مضبوط"
+    },
+    {
+      id: "database-schema",
+      label: "مخطط قاعدة البيانات محدّث",
+      ok: observability.database.appliedSchemaVersion === observability.database.expectedSchemaVersion,
+      detail: `الإصدار ${observability.database.appliedSchemaVersion || 0} من ${observability.database.expectedSchemaVersion || 0}`
+    },
+    {
+      id: "relational-records",
+      label: "سجلات المرضى والحجوزات والعمليات متزامنة",
+      ok: observability.database.inconsistentClinics === 0 && observability.database.pendingRelationalMigration === 0,
+      detail: observability.database.inconsistentClinics
+        ? `${observability.database.inconsistentClinics} عيادة تحتاج إصلاح تزامن`
+        : `${observability.database.pendingRelationalMigration || 0} عيادة بانتظار الترحيل`
+    },
+    {
+      id: "database-integrity",
+      label: "فحص سلامة SQLite",
+      ok: observability.database.integrity === "ok",
+      detail: `النتيجة: ${observability.database.integrity}`
     }
   ];
   const readyForPilot = checks.every(check => check.ok);
@@ -358,6 +381,7 @@ function productionReadiness(req, res) {
       clinics: clinicCount,
       activeOrTrialClinics: realClinicCandidates
     },
+    observability,
     checks,
     restoreChecklist: [
       "نزّل تصدير JSON كامل للعيادة قبل أي تعديل كبير.",
@@ -366,6 +390,16 @@ function productionReadiness(req, res) {
       "قارن أعداد المرضى والعمليات والحجوزات والإيصالات بعد الاسترجاع.",
       "وثّق وقت الاختبار واسم الشخص الذي نفذه قبل إدخال بيانات حقيقية."
     ]
+  });
+}
+
+function getObservability(req, res) {
+  const auth = requireSession(req, res, { owner: true });
+  if (!auth) return;
+  sendJson(res, 200, {
+    ok: true,
+    checkedAt: nowIso(),
+    observability: observabilitySnapshot(db, { databasePath })
   });
 }
 
@@ -544,7 +578,7 @@ function exportClinicData(req, res, clinicId) {
     return;
   }
   const users = db.prepare("select id, email, name, role, active, created_at from users where clinic_id = ?").all(clinicId);
-  const state = parseJson(decryptBlob(clinic.state_json), {});
+  const state = readClinicState(db, clinic);
   const payload = {
     exportedAt: nowIso(),
     clinic: publicClinic(clinic),
@@ -730,8 +764,8 @@ function overrideClinicSettings(req, res, clinicId) {
     sendJson(res, 404, { error: "clinic_not_found" });
     return;
   }
-  const clinicStateStr = decryptBlob(clinic.state_json);
-  const state = parseJson(clinicStateStr, {});
+  const state = readClinicState(db, clinic);
+  const clinicStateStr = JSON.stringify(state);
   if (!state.settings) state.settings = {};
 
   // Allow overriding: activeDate, language
@@ -747,20 +781,26 @@ function overrideClinicSettings(req, res, clinicId) {
 
   const currentVersion = Number(clinic.state_version) || 0;
   const newVersion = currentVersion + 1;
-  const serialized = JSON.stringify(state);
-  if (clinic.state_json) ensureStateSnapshot(clinicId, currentVersion, clinicStateStr);
-  db.prepare("update clinics set state_json = ?, state_version = ?, updated_at = ? where id = ?")
-    .run(encryptBlob(serialized), newVersion, nowIso(), clinicId);
-  saveStateSnapshot(clinicId, newVersion, serialized);
-
-  audit({
-    userId: auth.user.id,
-    clinicId,
-    action: "override_settings",
-    entity: "clinic",
-    entityId: clinicId,
-    metadata: req.body,
-    ipAddress: clientIp(req)
+  const updatedAt = nowIso();
+  withImmediateTransaction(db, () => {
+    if (clinic.state_json) ensureStateSnapshot(clinicId, currentVersion, clinicStateStr);
+    const persisted = persistClinicStateCompatible(db, {
+      clinicRow: clinic,
+      clinicId,
+      state,
+      stateVersion: newVersion,
+      updatedAt
+    });
+    saveStateSnapshot(clinicId, newVersion, persisted.serialized);
+    audit({
+      userId: auth.user.id,
+      clinicId,
+      action: "override_settings",
+      entity: "clinic",
+      entityId: clinicId,
+      metadata: req.body,
+      ipAddress: clientIp(req)
+    });
   });
   sendJson(res, 200, { ok: true });
 }
@@ -768,6 +808,7 @@ function overrideClinicSettings(req, res, clinicId) {
 export default async function ownerHandler(req, res, url) {
   if (url.pathname === "/api/owner/clinics" && req.method === "GET") return listClinics(req, res);
   if (url.pathname === "/api/owner/readiness" && req.method === "GET") return productionReadiness(req, res);
+  if (url.pathname === "/api/owner/observability" && req.method === "GET") return getObservability(req, res);
   if (url.pathname === "/api/owner/offsite-backup-test" && req.method === "POST") return testOffsiteBackup(req, res);
   if (url.pathname === "/api/owner/clinics" && req.method === "POST") return createClinic(req, res);
   if (url.pathname === "/api/owner/landing-settings" && req.method === "GET") return getLandingSettings(req, res);

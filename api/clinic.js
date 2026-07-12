@@ -3,15 +3,10 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFile
 import { dirname, join } from "node:path";
 import { audit, databasePath, db, defaultClinicModules, listClinicNotifications, nowIso, parseJson, publicClinic, publicUser } from "../lib/database.js";
 import { requireSession } from "./auth.js";
-import { clearAccountFailures, clientIp, decryptBinary, decryptBlob, encryptBinary, encryptBlob, encryptSecret, hashPassword, isValidEmail, normalizeEmail, safeText, validatePassword } from "../lib/security.js";
+import { clearAccountFailures, clientIp, decryptBinary, encryptBinary, encryptSecret, hashPassword, isValidEmail, normalizeEmail, safeText, validatePassword } from "../lib/security.js";
 import { validateClinicState } from "../lib/clinic-state-schema.js";
+import { persistClinicStateCompatible, readClinicState, withImmediateTransaction } from "../lib/clinic-record-store.js";
 
-// clinics.state_json is encrypted at rest (AES-256-GCM). Reads transparently
-// decrypt; a legacy plaintext column still reads unchanged during migration.
-function decodeStateColumn(col) {
-  if (col == null) return "";
-  return decryptBlob(col);
-}
 import { storageReadiness } from "../lib/storage-policy.js";
 import { ensureStateSnapshot, getStateSnapshot, saveStateSnapshot } from "../lib/state-history.js";
 import { threeWayMergeState } from "../lib/state-merge.js";
@@ -398,12 +393,12 @@ function userPayload(row) {
 function getState(req, res) {
   const auth = requireSession(req, res);
   if (!auth) return;
-  const clinicRow = db.prepare("select state_json, state_version from clinics where id = ?").get(auth.user.clinicId);
-  const stateStr = decodeStateColumn(clinicRow?.state_json);
-  const rawState = parseJson(stateStr, null);
+  const clinicRow = db.prepare("select * from clinics where id = ?").get(auth.user.clinicId);
+  const rawState = clinicRow ? readClinicState(db, clinicRow) : null;
+  const stateStr = rawState ? JSON.stringify(rawState) : "";
   const users = clinicUsers(auth.user.clinicId);
   // Keep the version this client is about to edit from available as a merge base.
-  if (clinicRow?.state_json) {
+  if (rawState) {
     ensureStateSnapshot(auth.user.clinicId, Number(clinicRow.state_version || 0), stateStr);
   }
   sendJson(res, 200, {
@@ -475,7 +470,7 @@ function exportClinic(req, res) {
     order by created_at desc
     limit 1000
   `).all(auth.user.clinicId);
-  const state = parseJson(decodeStateColumn(clinicRow.state_json), {});
+  const state = readClinicState(db, clinicRow);
   const readiness = storageReadiness({
     databasePath,
     backupPath: process.env.RIAAYA_BACKUP_DIR || ""
@@ -540,15 +535,15 @@ function saveState(req, res) {
     });
     return;
   }
-  const clinicRow = db.prepare("select state_json, state_version from clinics where id = ?").get(auth.user.clinicId);
+  const clinicRow = db.prepare("select * from clinics where id = ?").get(auth.user.clinicId);
   const expectedVersion = Number(req.body?.stateVersion);
   const currentVersion = Number(clinicRow?.state_version || 0);
   if (!Number.isInteger(expectedVersion) || expectedVersion > currentVersion) {
     sendJson(res, 409, { error: "clinic_state_conflict", stateVersion: currentVersion });
     return;
   }
-  const existingStr = decodeStateColumn(clinicRow?.state_json);
-  const existing = parseJson(existingStr, {});
+  const existing = clinicRow ? readClinicState(db, clinicRow) : {};
+  const existingStr = JSON.stringify(existing);
   const users = clinicUsers(auth.user.clinicId);
   let candidate = incoming;
   let mergedFromVersion = null;
@@ -573,33 +568,42 @@ function saveState(req, res) {
     return;
   }
   const nextVersion = currentVersion + 1;
-  if (clinicRow?.state_json) ensureStateSnapshot(auth.user.clinicId, currentVersion, existingStr);
-  db.prepare("update clinics set state_json = ?, state_version = ?, updated_at = ? where id = ?")
-    .run(encryptBlob(serialized), nextVersion, nowIso(), auth.user.clinicId);
-  saveStateSnapshot(auth.user.clinicId, nextVersion, serialized);
-  audit({
-    clinicId: auth.user.clinicId,
-    userId: auth.user.id,
-    action: "update",
-    entity: "clinic_state",
-    entityId: auth.user.clinicId,
-    metadata: mergedFromVersion === null
-      ? { bytes: serialized.length }
-      : { bytes: serialized.length, mergedFromVersion },
-    ipAddress: clientIp(req),
-    impersonatedBy: auth.session?.impersonatedBy || null
+  const savedAt = nowIso();
+  const persisted = withImmediateTransaction(db, () => {
+    if (clinicRow?.state_json) ensureStateSnapshot(auth.user.clinicId, currentVersion, existingStr);
+    const result = persistClinicStateCompatible(db, {
+      clinicRow,
+      clinicId: auth.user.clinicId,
+      state: merged,
+      stateVersion: nextVersion,
+      updatedAt: savedAt
+    });
+    saveStateSnapshot(auth.user.clinicId, nextVersion, result.serialized);
+    audit({
+      clinicId: auth.user.clinicId,
+      userId: auth.user.id,
+      action: "update",
+      entity: "clinic_state",
+      entityId: auth.user.clinicId,
+      metadata: mergedFromVersion === null
+        ? { bytes: result.serialized.length, recordStorageVersion: result.recordStorageVersion }
+        : { bytes: result.serialized.length, mergedFromVersion, recordStorageVersion: result.recordStorageVersion },
+      ipAddress: clientIp(req),
+      impersonatedBy: auth.session?.impersonatedBy || null
+    });
+    return result;
   });
   if (mergedFromVersion === null) {
-    sendJson(res, 200, { ok: true, savedAt: nowIso(), stateVersion: nextVersion });
+    sendJson(res, 200, { ok: true, savedAt, stateVersion: nextVersion });
     return;
   }
   // Return the merged result so the client can adopt what other users saved.
   sendJson(res, 200, {
     ok: true,
-    savedAt: nowIso(),
+    savedAt,
     stateVersion: nextVersion,
     merged: true,
-    state: filterClinicState(merged, auth.user, users, auth.clinic),
+    state: filterClinicState(persisted.fullState, auth.user, users, auth.clinic),
     accounts: users.map(userPayload)
   });
 }
