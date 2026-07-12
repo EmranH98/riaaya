@@ -1,18 +1,22 @@
 import { randomUUID } from "node:crypto";
 import { db, audit, defaultClinicLimits, defaultClinicModules, nowIso, parseJson, publicClinic, publicUser, slugifyClinic } from "../lib/database.js";
 import {
+  clearAccountFailures,
   clearLoginFailures,
   clearSessionCookie,
   clientIp,
   decryptSecret,
+  DUMMY_PASSWORD_HASH,
   encryptSecret,
   hashPassword,
+  isAccountLocked,
   isValidEmail,
   isLoginRateLimited,
   loginRateLimitKey,
   normalizeEmail,
   parseCookies,
   randomToken,
+  recordAccountFailure,
   recordLoginFailure,
   safeText,
   sessionCookie,
@@ -20,7 +24,7 @@ import {
   validatePassword,
   verifyPassword
 } from "../lib/security.js";
-import { generateBackupCodes, generateTotpSecret, otpauthUrl, verifyTotp } from "../lib/totp.js";
+import { generateBackupCodes, generateTotpSecret, otpauthUrl, verifyTotp, verifyTotpCounter } from "../lib/totp.js";
 import { sendEmail } from "../lib/email.js";
 import { reportEvent } from "../lib/monitor.js";
 
@@ -139,7 +143,7 @@ export function authenticateRequest(req) {
   };
 }
 
-export function requireSession(req, res, { owner = false, csrf = false } = {}) {
+export function requireSession(req, res, { owner = false, csrf = false, allowPasswordChange = false, allow2faSetup = false } = {}) {
   const auth = authenticateRequest(req);
   if (!auth) {
     sendJson(res, 401, { error: "authentication_required" });
@@ -147,6 +151,18 @@ export function requireSession(req, res, { owner = false, csrf = false } = {}) {
   }
   if (owner && auth.user.role !== "platform_owner") {
     sendJson(res, 403, { error: "owner_access_required" });
+    return null;
+  }
+  const privilegedRole = auth.user.role === "platform_owner" || Boolean(auth.session?.impersonatedBy);
+  // Restricted sessions may only reach the endpoint that resolves the
+  // restriction. The public session endpoint still supplies enough metadata
+  // for the UI to show the password/2FA flow, but patient-data reads stay shut.
+  if (!privilegedRole && auth.user.mustChangePassword && !allowPasswordChange) {
+    sendJson(res, 403, { error: "password_change_required" });
+    return null;
+  }
+  if (!privilegedRole && auth.clinic?.require2fa && !auth.user.twoFactorEnabled && !allow2faSetup && !allowPasswordChange) {
+    sendJson(res, 403, { error: "two_factor_enrollment_required" });
     return null;
   }
   // The platform owner — including while impersonating a clinic — has full access
@@ -237,21 +253,27 @@ function login(req, res) {
   const password = String(req.body?.password || "");
   const rateKey = loginRateLimitKey(req, email);
 
-  if (isLoginRateLimited(rateKey)) {
-    // Repeated failures for one email/IP — likely brute force. Alert (cooldown-limited in monitor).
+  // Two independent gates: per-IP+email (fast) AND per-account (holds even if
+  // the source IP / X-Forwarded-For is rotated).
+  if (isLoginRateLimited(rateKey) || isAccountLocked(email)) {
     reportEvent("security", "login_brute_force_suspected", { email, ip: clientIp(req) });
     sendJson(res, 429, { error: "too_many_login_attempts" });
     return;
   }
 
   const row = db.prepare("select * from users where email = ?").get(email);
-  if (!row || row.active !== 1 || !verifyPassword(password, row.password_hash)) {
+  // Always run scrypt (against a dummy hash for unknown emails) so miss and hit
+  // take the same time — no enumeration oracle.
+  const passwordOk = verifyPassword(password, row?.password_hash || DUMMY_PASSWORD_HASH);
+  if (!row || row.active !== 1 || !passwordOk) {
     recordLoginFailure(rateKey);
+    recordAccountFailure(email);
     sendJson(res, 401, { error: "invalid_credentials" });
     return;
   }
 
   clearLoginFailures(rateKey);
+  clearAccountFailures(email);
 
   // Second factor: if the account has 2FA on, stop here and require a code.
   if (row.totp_enabled) {
@@ -371,7 +393,7 @@ function register(req, res) {
 }
 
 function changePassword(req, res) {
-  const auth = requireSession(req, res, { csrf: true });
+  const auth = requireSession(req, res, { csrf: true, allowPasswordChange: true });
   if (!auth) return;
 
   const oldPassword = String(req.body?.oldPassword || "");
@@ -459,10 +481,18 @@ function verifyTwoFactor(req, res) {
   } catch (error) {
     console.error("Unable to decrypt 2FA secret for user", user.id, error?.message || error);
   }
-  const ok = (secret && verifyTotp(secret, code)) || consumeBackupCode(user, code);
+  // Replay guard: a TOTP code is valid for ~90s, so reject any counter already
+  // consumed by this user (a shoulder-surfed code can't be reused).
+  const matchedCounter = secret ? verifyTotpCounter(secret, code) : -1;
+  const totpOk = matchedCounter !== -1 && matchedCounter > (user.totp_last_counter || 0);
+  const ok = totpOk || consumeBackupCode(user, code);
   if (!ok) {
-    sendJson(res, 401, { error: secret ? "invalid_2fa_code" : "invalid_2fa_setup" });
+    const replay = matchedCounter !== -1 && matchedCounter <= (user.totp_last_counter || 0);
+    sendJson(res, 401, { error: replay ? "code_already_used" : (secret ? "invalid_2fa_code" : "invalid_2fa_setup") });
     return;
+  }
+  if (totpOk) {
+    db.prepare("update users set totp_last_counter = ? where id = ?").run(matchedCounter, user.id);
   }
   twoFactorChallenges.delete(challengeId);
   db.prepare("delete from sessions where user_id = ? and expires_at <= ?").run(user.id, nowIso());
@@ -481,7 +511,7 @@ function verifyTwoFactor(req, res) {
 
 // Begin enrollment: issue a fresh secret (kept pending until a code confirms it).
 function setupTwoFactor(req, res) {
-  const auth = requireSession(req, res, { csrf: true });
+  const auth = requireSession(req, res, { csrf: true, allow2faSetup: true });
   if (!auth) return;
   const secret = generateTotpSecret();
   db.prepare("update users set totp_pending_cipher = ?, updated_at = ? where id = ?")
@@ -495,7 +525,7 @@ function setupTwoFactor(req, res) {
 
 // Confirm enrollment with a code, turn 2FA on, and return one-time backup codes.
 function enableTwoFactor(req, res) {
-  const auth = requireSession(req, res, { csrf: true });
+  const auth = requireSession(req, res, { csrf: true, allow2faSetup: true });
   if (!auth) return;
   const user = db.prepare("select * from users where id = ?").get(auth.user.id);
   const pending = decryptSecret(user?.totp_pending_cipher);
@@ -503,7 +533,8 @@ function enableTwoFactor(req, res) {
     sendJson(res, 400, { error: "no_pending_2fa" });
     return;
   }
-  if (!verifyTotp(pending, String(req.body?.code || ""))) {
+  const matchedCounter = verifyTotpCounter(pending, String(req.body?.code || ""));
+  if (matchedCounter === -1) {
     sendJson(res, 401, { error: "invalid_2fa_code" });
     return;
   }
@@ -511,8 +542,8 @@ function enableTwoFactor(req, res) {
   const hashes = backupCodes.map(code => tokenHash(code.toLowerCase()));
   db.prepare(`
     update users set totp_enabled = 1, totp_secret_cipher = ?, totp_pending_cipher = null,
-      totp_backup_codes_json = ?, updated_at = ? where id = ?
-  `).run(encryptSecret(pending), JSON.stringify(hashes), nowIso(), user.id);
+      totp_backup_codes_json = ?, totp_last_counter = ?, updated_at = ? where id = ?
+  `).run(encryptSecret(pending), JSON.stringify(hashes), matchedCounter, nowIso(), user.id);
   audit({
     clinicId: user.clinic_id,
     userId: user.id,
@@ -545,7 +576,7 @@ function disableTwoFactor(req, res) {
   }
   db.prepare(`
     update users set totp_enabled = 0, totp_secret_cipher = null, totp_pending_cipher = null,
-      totp_backup_codes_json = '[]', updated_at = ? where id = ?
+      totp_backup_codes_json = '[]', totp_last_counter = 0, updated_at = ? where id = ?
   `).run(nowIso(), user.id);
   audit({
     clinicId: user.clinic_id,
@@ -573,6 +604,8 @@ function forgotPassword(req, res) {
   const token = randomToken(32);
   const hash = tokenHash(token);
   const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour
+  // Only one live reset token per user — a new request invalidates older ones.
+  db.prepare("delete from password_reset_tokens where user_id = ?").run(user.id);
   db.prepare(`
     insert or replace into password_reset_tokens (token_hash, user_id, expires_at, created_at)
     values (?, ?, ?, ?)
@@ -631,6 +664,7 @@ function resetPassword(req, res) {
   db.prepare("delete from password_reset_tokens where token_hash = ?").run(hash);
   db.prepare("delete from sessions where user_id = ?").run(user.id);
   clearLoginFailures(loginRateLimitKey(req, user.email));
+  clearAccountFailures(user.email);
 
   audit({
     clinicId: user.clinic_id,

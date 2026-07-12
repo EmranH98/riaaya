@@ -18,7 +18,7 @@ import {
   slugifyClinic
 } from "../lib/database.js";
 import { requireSession, impersonateClinic } from "./auth.js";
-import { clientIp, hashPassword, isValidEmail, normalizeEmail, safeText, temporaryPassword, validatePassword } from "../lib/security.js";
+import { clearAccountFailures, clientIp, decryptBlob, encryptBlob, hashPassword, isValidEmail, normalizeEmail, safeText, temporaryPassword, validatePassword } from "../lib/security.js";
 import { storageReadiness } from "../lib/storage-policy.js";
 import { offsiteBackupStatus, testOffsiteConnectivity } from "../lib/offsite-backup.js";
 
@@ -168,7 +168,7 @@ function listClinics(req, res) {
     order by clinics.created_at desc
   `).all();
   const clinics = rows.map(row => {
-    const state = parseJson(row.state_json, {});
+    const state = parseJson(decryptBlob(row.state_json), {});
     return clinicSummary({
       ...row,
       operation_count: state.entries?.length || 0,
@@ -544,7 +544,7 @@ function exportClinicData(req, res, clinicId) {
     return;
   }
   const users = db.prepare("select id, email, name, role, active, created_at from users where clinic_id = ?").all(clinicId);
-  const state = parseJson(clinic.state_json, {});
+  const state = parseJson(decryptBlob(clinic.state_json), {});
   const payload = {
     exportedAt: nowIso(),
     clinic: publicClinic(clinic),
@@ -599,12 +599,15 @@ function resetClinicAdminPassword(req, res, clinicId) {
   // The owner may set a specific password directly (used immediately, no forced
   // change, no old password needed) — or omit it for a random temp that must be changed.
   const provided = String(req.body?.password || "");
-  if (provided && provided.length < 8) { sendJson(res, 400, { error: "weak_password" }); return; }
-  const useProvided = provided.length >= 8;
+  // A directly-set password must meet the same 12-char/4-class policy as any
+  // other password — no weaker back door via the owner console.
+  if (provided && !validatePassword(provided)) { sendJson(res, 400, { error: "weak_password" }); return; }
+  const useProvided = provided.length > 0;
   const password = useProvided ? provided : temporaryPassword();
   db.prepare("update users set password_hash = ?, must_change_password = ?, updated_at = ? where id = ?")
     .run(hashPassword(password), useProvided ? 0 : 1, nowIso(), admin.id);
   db.prepare("delete from sessions where user_id = ?").run(admin.id);
+  clearAccountFailures(admin.email);
   audit({
     userId: auth.user.id,
     clinicId,
@@ -628,12 +631,15 @@ function resetUserPassword(req, res, clinicId) {
   }
   // Owner may set a specific password directly (no forced change), or omit it for a temp.
   const provided = String(req.body?.password || "");
-  if (provided && provided.length < 8) { sendJson(res, 400, { error: "weak_password" }); return; }
-  const useProvided = provided.length >= 8;
+  // A directly-set password must meet the same 12-char/4-class policy as any
+  // other password — no weaker back door via the owner console.
+  if (provided && !validatePassword(provided)) { sendJson(res, 400, { error: "weak_password" }); return; }
+  const useProvided = provided.length > 0;
   const password = useProvided ? provided : temporaryPassword();
   db.prepare("update users set password_hash = ?, must_change_password = ?, updated_at = ? where id = ?")
     .run(hashPassword(password), useProvided ? 0 : 1, nowIso(), user.id);
   db.prepare("delete from sessions where user_id = ?").run(user.id);
+  clearAccountFailures(user.email);
   audit({
     userId: auth.user.id,
     clinicId,
@@ -724,7 +730,8 @@ function overrideClinicSettings(req, res, clinicId) {
     sendJson(res, 404, { error: "clinic_not_found" });
     return;
   }
-  const state = parseJson(clinic.state_json, {});
+  const clinicStateStr = decryptBlob(clinic.state_json);
+  const state = parseJson(clinicStateStr, {});
   if (!state.settings) state.settings = {};
 
   // Allow overriding: activeDate, language
@@ -741,9 +748,9 @@ function overrideClinicSettings(req, res, clinicId) {
   const currentVersion = Number(clinic.state_version) || 0;
   const newVersion = currentVersion + 1;
   const serialized = JSON.stringify(state);
-  if (clinic.state_json) ensureStateSnapshot(clinicId, currentVersion, clinic.state_json);
+  if (clinic.state_json) ensureStateSnapshot(clinicId, currentVersion, clinicStateStr);
   db.prepare("update clinics set state_json = ?, state_version = ?, updated_at = ? where id = ?")
-    .run(serialized, newVersion, nowIso(), clinicId);
+    .run(encryptBlob(serialized), newVersion, nowIso(), clinicId);
   saveStateSnapshot(clinicId, newVersion, serialized);
 
   audit({

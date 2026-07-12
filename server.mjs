@@ -8,6 +8,7 @@ import clinicHandler from "./api/clinic.js";
 import ownerHandler from "./api/owner.js";
 import publicHandler from "./api/public.js";
 import { db } from "./lib/database.js";
+import { clientIp } from "./lib/security.js";
 import { startBackupScheduler } from "./lib/backup-scheduler.js";
 import { reportEvent, startResourceMonitor } from "./lib/monitor.js";
 
@@ -27,11 +28,8 @@ setInterval(() => {
 }, 5 * 60_000).unref();
 
 function getClientIp(req) {
-  return String(
-    req.headers["x-forwarded-for"]?.split(",")[0]?.trim()
-    || req.socket?.remoteAddress
-    || "unknown"
-  ).slice(0, 45);
+  // Shared trusted-proxy logic — never the client-forgeable leftmost XFF entry.
+  return String(clientIp(req) || "unknown").slice(0, 45);
 }
 
 /**
@@ -225,6 +223,8 @@ async function handleRequest(req, res) {
   }
 
   if (url.pathname === "/api/communications") {
+    // This endpoint spends real money (SMS/WhatsApp) — cap it like the rest.
+    if (isRateLimited(req, res, { windowMs: 60_000, maxHits: 30 })) return;
     if (!await attachBody(req, res)) return;
     await communicationsHandler(req, adaptResponse(res));
     return;

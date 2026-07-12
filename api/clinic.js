@@ -3,7 +3,14 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFile
 import { dirname, join } from "node:path";
 import { audit, databasePath, db, defaultClinicModules, listClinicNotifications, nowIso, parseJson, publicClinic, publicUser } from "../lib/database.js";
 import { requireSession } from "./auth.js";
-import { clientIp, encryptSecret, hashPassword, isValidEmail, normalizeEmail, safeText, validatePassword } from "../lib/security.js";
+import { clearAccountFailures, clientIp, decryptBinary, decryptBlob, encryptBinary, encryptBlob, encryptSecret, hashPassword, isValidEmail, normalizeEmail, safeText, validatePassword } from "../lib/security.js";
+
+// clinics.state_json is encrypted at rest (AES-256-GCM). Reads transparently
+// decrypt; a legacy plaintext column still reads unchanged during migration.
+function decodeStateColumn(col) {
+  if (col == null) return "";
+  return decryptBlob(col);
+}
 import { storageReadiness } from "../lib/storage-policy.js";
 import { ensureStateSnapshot, getStateSnapshot, saveStateSnapshot } from "../lib/state-history.js";
 import { threeWayMergeState } from "../lib/state-merge.js";
@@ -135,7 +142,24 @@ function filterClinicState(rawState, user, accountRows, clinic) {
   if (!user.canViewSensitive) {
     state.reconciliations = {};
     state.reconciliationHistory = [];
+    // The real client key is salaryApprovals (salaryStatuses never existed) —
+    // redacting the wrong name leaked approvals AND dropped saves silently.
+    state.salaryApprovals = {};
     state.salaryStatuses = {};
+    // Payroll leaked in the raw response: strip salary/commission from staff
+    // (keep name/role so provider pickers still work), and prices from packages.
+    state.staff = (state.staff || []).map(member => {
+      const safe = { ...member };
+      delete safe.baseSalary; delete safe.base_salary;
+      delete safe.rate; delete safe.model;
+      delete safe.deduction; delete safe.ss_deduction;
+      delete safe.phone; delete safe.mobile; delete safe.email;
+      return safe;
+    });
+    state.packageTemplates = (state.packageTemplates || []).map(t => { const s = { ...t }; delete s.price; return s; });
+    state.patientPackages = (state.patientPackages || []).map(p => { const s = { ...p }; delete s.price; delete s.paid; return s; });
+    // Growth log is a patient-contact ledger — sensitive marketing/retention data.
+    state.growthLog = [];
   }
   if (!can(user, "inventory") || !clinicModuleEnabled(clinic, "inventory")) {
     state.inventory = [];
@@ -167,7 +191,7 @@ function filterClinicState(rawState, user, accountRows, clinic) {
   return state;
 }
 
-function mergeScopedCollection(existing = [], incoming = [], isAllowed, { allowCreate = true, allowUpdate = true, allowDelete = true, preserveSensitive = false, preservePrice = false } = {}) {
+function mergeScopedCollection(existing = [], incoming = [], isAllowed, { allowCreate = true, allowUpdate = true, allowDelete = true, preserveSensitive = false, preservePrice = false, preserveFields = [] } = {}) {
   const incomingMap = new Map(incoming.filter(item => item?.id).map(item => [item.id, item]));
   const existingMap = new Map(existing.filter(item => item?.id).map(item => [item.id, item]));
   const result = [];
@@ -198,6 +222,12 @@ function mergeScopedCollection(existing = [], incoming = [], isAllowed, { allowC
     // Users who can't see prices submit entries without unitPrice; restore it
     // from the stored record so their saves don't wipe it.
     if (preservePrice) next = { ...next, unitPrice: record.unitPrice };
+    // Hidden fields must survive an otherwise-authorized edit. This is used for
+    // patient phone/email when the editor is not allowed to see contact data.
+    if (preserveFields.length) {
+      next = { ...next };
+      preserveFields.forEach(field => { next[field] = record[field]; });
+    }
     result.push(next);
   });
 
@@ -271,7 +301,8 @@ function mergeClinicState(existing, incoming, user, clinic) {
       {
         allowCreate: can(user, "add_patient"),
         allowUpdate: can(user, "edit_patient_information"),
-        allowDelete: can(user, "delete_patient")
+        allowDelete: can(user, "delete_patient"),
+        preserveFields: can(user, "see_mobile") ? [] : ["phone", "email"]
       }
     );
     next.patientPhotos = mergeScopedCollection(
@@ -322,7 +353,9 @@ function mergeClinicState(existing, incoming, user, clinic) {
   if (user.canViewSensitive) {
     next.reconciliations = incoming.reconciliations || existing.reconciliations;
     next.reconciliationHistory = incoming.reconciliationHistory || existing.reconciliationHistory || [];
-    next.salaryStatuses = incoming.salaryStatuses || existing.salaryStatuses;
+    // Correct key — salaryApprovals is what the client reads/writes; the old
+    // salaryStatuses name silently dropped a sensitive user's approval edits.
+    next.salaryApprovals = incoming.salaryApprovals || existing.salaryApprovals;
   }
   if (can(user, "send_role_digests") && clinicModuleEnabled(clinic, "communications")) next.digestRules = incoming.digestRules || existing.digestRules;
   if (can(user, "send_sms_campaigns") && clinicModuleEnabled(clinic, "communications")) {
@@ -365,11 +398,12 @@ function getState(req, res) {
   const auth = requireSession(req, res);
   if (!auth) return;
   const clinicRow = db.prepare("select state_json, state_version from clinics where id = ?").get(auth.user.clinicId);
-  const rawState = parseJson(clinicRow?.state_json, null);
+  const stateStr = decodeStateColumn(clinicRow?.state_json);
+  const rawState = parseJson(stateStr, null);
   const users = clinicUsers(auth.user.clinicId);
   // Keep the version this client is about to edit from available as a merge base.
   if (clinicRow?.state_json) {
-    ensureStateSnapshot(auth.user.clinicId, Number(clinicRow.state_version || 0), clinicRow.state_json);
+    ensureStateSnapshot(auth.user.clinicId, Number(clinicRow.state_version || 0), stateStr);
   }
   sendJson(res, 200, {
     ok: true,
@@ -440,7 +474,7 @@ function exportClinic(req, res) {
     order by created_at desc
     limit 1000
   `).all(auth.user.clinicId);
-  const state = parseJson(clinicRow.state_json, {});
+  const state = parseJson(decodeStateColumn(clinicRow.state_json), {});
   const readiness = storageReadiness({
     databasePath,
     backupPath: process.env.RIAAYA_BACKUP_DIR || ""
@@ -503,7 +537,8 @@ function saveState(req, res) {
     sendJson(res, 409, { error: "clinic_state_conflict", stateVersion: currentVersion });
     return;
   }
-  const existing = parseJson(clinicRow?.state_json, {});
+  const existingStr = decodeStateColumn(clinicRow?.state_json);
+  const existing = parseJson(existingStr, {});
   const users = clinicUsers(auth.user.clinicId);
   let candidate = incoming;
   let mergedFromVersion = null;
@@ -528,9 +563,9 @@ function saveState(req, res) {
     return;
   }
   const nextVersion = currentVersion + 1;
-  if (clinicRow?.state_json) ensureStateSnapshot(auth.user.clinicId, currentVersion, clinicRow.state_json);
+  if (clinicRow?.state_json) ensureStateSnapshot(auth.user.clinicId, currentVersion, existingStr);
   db.prepare("update clinics set state_json = ?, state_version = ?, updated_at = ? where id = ?")
-    .run(serialized, nextVersion, nowIso(), auth.user.clinicId);
+    .run(encryptBlob(serialized), nextVersion, nowIso(), auth.user.clinicId);
   saveStateSnapshot(auth.user.clinicId, nextVersion, serialized);
   audit({
     clinicId: auth.user.clinicId,
@@ -681,6 +716,12 @@ function saveUser(req, res, userId = "") {
       existing.id,
       auth.user.clinicId
     );
+    // A password change must invalidate the target's live sessions, so a
+    // compromised session can't outlive the reset (matches the owner paths).
+    if (password) {
+      db.prepare("delete from sessions where user_id = ?").run(existing.id);
+      clearAccountFailures(existing.email);
+    }
   } else {
     const maxUsers = Number(auth.clinic?.limits?.maxUsers || 0);
     const activeUsers = db.prepare("select count(*) as total from users where clinic_id = ? and active = 1")
@@ -876,6 +917,14 @@ function patientPhotoPath(clinicId, photoId) {
 
 const PHOTO_ID_PATTERN = /^[0-9a-f-]{36}\.(jpg|png|webp)$/;
 
+function validImageBytes(ext, bytes) {
+  if (!bytes?.length) return false;
+  if (ext === "jpg") return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  if (ext === "png") return bytes.length >= 8 && bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+  if (ext === "webp") return bytes.length >= 12 && bytes.subarray(0, 4).toString("ascii") === "RIFF" && bytes.subarray(8, 12).toString("ascii") === "WEBP";
+  return false;
+}
+
 function uploadPatientPhoto(req, res) {
   const auth = requireSession(req, res, { csrf: true });
   if (!auth) return;
@@ -888,6 +937,8 @@ function uploadPatientPhoto(req, res) {
   const match = dataUrl.match(/^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/);
   if (!match) return sendJson(res, 400, { error: "invalid_image" });
   const ext = match[1] === "jpeg" ? "jpg" : match[1];
+  const imageBytes = Buffer.from(match[2], "base64");
+  if (!validImageBytes(ext, imageBytes)) return sendJson(res, 400, { error: "invalid_image" });
   const photoId = `${randomUUID()}.${ext}`;
   const file = patientPhotoPath(auth.user.clinicId, photoId);
   try {
@@ -896,7 +947,7 @@ function uploadPatientPhoto(req, res) {
     if (readdirSync(dirname(file)).length >= 1000) {
       return sendJson(res, 413, { error: "photo_quota_exceeded" });
     }
-    writeFileSync(file, Buffer.from(match[2], "base64"));
+    writeFileSync(file, encryptBinary(imageBytes));
   } catch {
     return sendJson(res, 500, { error: "photo_write_failed" });
   }
@@ -912,10 +963,18 @@ function servePatientPhoto(req, res, photoId) {
   if (!PHOTO_ID_PATTERN.test(id)) return sendJson(res, 404, { error: "photo_not_found" });
   const file = patientPhotoPath(auth.user.clinicId, id);
   if (!existsSync(file)) return sendJson(res, 404, { error: "photo_not_found" });
+  let imageBytes;
+  try {
+    imageBytes = decryptBinary(readFileSync(file));
+  } catch {
+    return sendJson(res, 500, { error: "photo_decrypt_failed" });
+  }
+  // A before/after image is medical data — leave a trace of who viewed it.
+  audit({ clinicId: auth.user.clinicId, userId: auth.user.id, action: "patient_photo_viewed", entity: "patient_photo", entityId: id, ipAddress: clientIp(req) });
   const ext = id.split(".").pop();
   res.setHeader("Content-Type", ext === "jpg" ? "image/jpeg" : `image/${ext}`);
-  res.setHeader("Cache-Control", "private, max-age=86400");
-  res.end(readFileSync(file));
+  res.setHeader("Cache-Control", "private, no-store");
+  res.end(imageBytes);
 }
 
 function deletePatientPhoto(req, res, photoId) {

@@ -22,6 +22,12 @@ services:
         value: /data/backups
       - key: RIAAYA_BACKUP_RETENTION
         value: 30
+      - key: RIAAYA_BACKUP_INTERVAL_HOURS
+        value: 6
+      - key: RIAAYA_PHOTOS_DIR
+        value: /data/photos
+      - key: RIAAYA_TRUSTED_PROXY_HOPS
+        value: 1
       - key: RIAAYA_OWNER_EMAIL
         sync: false
       - key: RIAAYA_OWNER_PASSWORD
@@ -30,3 +36,29 @@ services:
         sync: false
       - key: ALLOWED_ORIGIN
         sync: false
+      - key: RIAAYA_ORIGIN
+        value: https://riaaya.onrender.com
+      - key: RIAAYA_EMAIL_PROVIDER
+        sync: false
+      - key: RIAAYA_EMAIL_FROM
+        sync: false
+      - key: RIAAYA_SMTP_HOST
+        sync: false
+      - key: RIAAYA_SMTP_PORT
+        value: 465
+      - key: RIAAYA_SMTP_USER
+        sync: false
+      - key: RIAAYA_SMTP_PASS
+        sync: false
+      - key: LITESTREAM_BUCKET
+        sync: false
+      - key: LITESTREAM_ENDPOINT
+        sync: false
+      - key: LITESTREAM_ACCESS_KEY_ID
+        sync: false
+      - key: LITESTREAM_SECRET_ACCESS_KEY
+        sync: false
+      - key: LITESTREAM_REGION
+        value: auto
+      - key: LITESTREAM_PREFIX
+        value: riaaya/backups

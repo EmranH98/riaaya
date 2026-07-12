@@ -25,7 +25,8 @@ const runtime = {
   openReceiptId: "",
   operationReturnView: "dashboard",
   stateVersion: 0,
-  serverNotifications: []
+  serverNotifications: [],
+  restrictedBootstrap: false
 };
 
 function storageGet(key) {
@@ -4833,6 +4834,7 @@ document.addEventListener("click", event => {
         }
         closeModal({ force: true });
         showToast("✓ تم تغيير كلمة المرور بنجاح", "success");
+        if (runtime.restrictedBootstrap) setTimeout(() => location.reload(), 350);
       } else if (response.status === 401) {
         showToast("كلمة المرور الحالية غير صحيحة", "error");
       } else {
@@ -4975,8 +4977,13 @@ function submitFollowup() {
 // ── Never-lose-an-entry: live state is mirrored to THIS DEVICE on every edit.
 // If the connection drops and the tab dies, the pending work replays through
 // the server's three-way merge on the next boot.
+// Scoped by clinic AND user: the mirror can only ever replay under the same
+// account that recorded it, so it never lands under a different (more
+// restricted) user who would silently drop records.
 function liveMirrorKey() {
-  return `riaayaLiveMirror:${runtime.session?.clinic?.id || "clinic"}`;
+  const clinicId = runtime.session?.clinic?.id || "clinic";
+  const userId = runtime.session?.user?.id || "user";
+  return `riaayaLiveMirror:${clinicId}:${userId}`;
 }
 
 function writeLiveMirror(pending) {
@@ -4985,15 +4992,67 @@ function writeLiveMirror(pending) {
     state,
     stateVersion: runtime.stateVersion,
     pending: !!pending,
+    userId: runtime.session?.user?.id || "",
     savedAt: new Date().toISOString()
   }));
-  if (!ok) {
-    // Quota exceeded: a stale pending mirror is worse than none — remove it so
-    // it can never replay old data, and never claim on-device safety.
+  if (!ok && pending) {
+    // Quota exceeded while there IS unsent work — don't silently drop it.
+    // Surface a recovery artifact instead of a false safety claim.
+    stashUnsentWork(state, "quota");
+  } else if (!ok) {
     storageRemove(liveMirrorKey());
   }
   return ok;
 }
+
+// Unsent work must never vanish without a trace. When we can't keep mirroring
+// it (quota, 48h expiry, a save the server keeps rejecting), show a persistent
+// banner offering a one-click JSON download so nothing is lost silently.
+function stashUnsentWork(unsentState, reason) {
+  try {
+    const blob = JSON.stringify({ savedAt: new Date().toISOString(), reason, state: unsentState });
+    runtime.unsentWorkBlob = blob;
+    runtime.unsentWorkReason = reason;
+    runtime.unsentWorkDownloaded = false;
+  } catch { return; }
+  let banner = document.querySelector("[data-unsent-work-banner]");
+  if (!banner) {
+    banner = document.createElement("div");
+    banner.className = "unsent-work-banner";
+    banner.setAttribute("data-unsent-work-banner", "");
+    banner.innerHTML = `<span>⚠ تغييرات لم تُرفع للخادم — نزّلها احتياطاً حتى لا تُفقد.</span>
+      <button type="button" data-download-unsent>تنزيل نسخة احتياطية</button>
+      <button type="button" data-reload-after-unsent hidden>تحديث بعد التنزيل</button>`;
+    document.body.appendChild(banner);
+  }
+  const reloadButton = banner.querySelector("[data-reload-after-unsent]");
+  if (reloadButton) reloadButton.hidden = !String(reason || "").includes("409");
+  banner.hidden = false;
+}
+
+function downloadUnsentWork() {
+  const blob = new Blob([runtime.unsentWorkBlob || "{}"], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `riaaya-unsent-${state.settings?.activeDate || "backup"}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  runtime.unsentWorkDownloaded = true;
+}
+
+document.addEventListener("click", event => {
+  if (event.target.closest("[data-download-unsent]")) {
+    downloadUnsentWork();
+    return;
+  }
+  if (!event.target.closest("[data-reload-after-unsent]")) return;
+  if (!runtime.unsentWorkDownloaded) {
+    showToast("نزّل النسخة الاحتياطية أولاً، ثم حدّث الصفحة.", "error");
+    return;
+  }
+  location.reload();
+});
 
 // Auto-retry with backoff: a dropped save re-queues ITSELF — it never waits
 // for the receptionist to notice a chip and click retry.
@@ -5012,8 +5071,13 @@ async function replayLiveMirror() {
     if (!raw) return;
     const mirror = JSON.parse(raw);
     if (!mirror?.pending || !mirror.state) return;
-    // Don't resurrect ancient work — 48h is the honest window.
+    // Only ever replay the CURRENT user's own work (the key is per-user, but
+    // double-check the stamped id in case of a legacy clinic-only mirror).
+    if (mirror.userId && mirror.userId !== (runtime.session?.user?.id || "")) return;
+    // Past the honest 48h window we stop auto-replaying — but never silently
+    // delete: hand it back as a downloadable backup instead.
     if (mirror.savedAt && Date.now() - Date.parse(mirror.savedAt) > 48 * 3600 * 1000) {
+      stashUnsentWork(mirror.state, "expired");
       storageRemove(liveMirrorKey());
       return;
     }
@@ -5038,8 +5102,13 @@ async function replayLiveMirror() {
       }
       writeLiveMirror(false);
       showToast("استُعيدت تعديلات لم تُرفع من هذا الجهاز وحُفظت على الخادم ✓", "success");
+    } else if (response.status === 409 || (response.status >= 400 && response.status < 500 && response.status !== 408 && response.status !== 429)) {
+      // The server permanently rejects this snapshot (too-old base, or 413) —
+      // it will never replay. Surface it for download instead of looping.
+      stashUnsentWork(mirror.state, `replay_${response.status}`);
+      storageRemove(liveMirrorKey());
     }
-    // Non-ok: the mirror stays pending for the next boot.
+    // 5xx/network: the mirror stays pending for the next boot.
   } catch { /* offline again — the mirror stays for next time */ }
 }
 
@@ -5135,18 +5204,25 @@ async function saveStateImmediately() {
       return true;
     }
     if (response.status === 401) { location.href = "/login?expired=1"; return false; }
-    if (response.status === 409) {
-      showConfirm("وصلت نسخة أحدث من بيانات العيادة من جهاز آخر. سنحدّث الشاشة الآن — عملك المحفوظ بأمان.", {
-        title: "تحديث البيانات", icon: "🔄", okLabel: "تحديث الآن", okOnly: true
-      }).then(() => location.reload());
-      return false;
-    }
+    if (response.status === 409) { handleStaleReload(); return false; }
     setSaveIndicator("error");
     throw new Error(result.error || "save_failed");
   } finally {
     runtime.saveInFlight = false;
     if (runtime.savePending) saveState();
   }
+}
+
+// A 409 means our base is too old to merge — reloading discards local edits.
+// It is ONLY reached from a save flush, so there are unsaved edits by
+// definition: always hand them back as a download before reloading. (The old
+// `runtime.savePending` gate was dead code — callers clear it before the PUT.)
+function handleStaleReload() {
+  stashUnsentWork(state, "stale_409");
+  showConfirm(
+    "وصلت نسخة أحدث من جهاز آخر ولا يمكن الدمج تلقائياً. نزّل تعديلاتك من الشريط الأحمر أولاً، ثم اختر «تحديث بعد التنزيل» حتى لا تفقد أي عمل.",
+    { title: "تعارض يحتاج مراجعة", icon: "🔄", okLabel: "فهمت", okOnly: true }
+  );
 }
 
 // Flush a pending (debounced) save when the tab is hidden or closing, so the last
@@ -5200,11 +5276,9 @@ async function flushLiveState() {
       location.href = "/login?expired=1";
       return;
     } else if (response.status === 409) {
-      // Only reachable when our base version is too old for the server to
-      // merge (very stale tab, or a restored backup). Reload the latest.
-      showConfirm("وصلت نسخة أحدث من بيانات العيادة من جهاز آخر. سنحدّث الشاشة الآن — عملك المحفوظ بأمان.", {
-        title: "تحديث البيانات", icon: "🔄", okLabel: "تحديث الآن", okOnly: true
-      }).then(() => location.reload());
+      // Base too old to merge (very stale tab, or a restored backup): stash
+      // unsent edits for download, then reload — never a false "safe" claim.
+      handleStaleReload();
       return;
     } else if (response.status >= 500 || response.status === 408 || response.status === 429) {
       // Transient server trouble: keep the work queued and retry by ourselves.
@@ -5213,8 +5287,11 @@ async function flushLiveState() {
       setSaveIndicator("offline");
       scheduleSaveRetry();
     } else {
+      // A permanent 4xx (e.g. 413 over the 4MB cap) will never succeed on retry
+      // — surface the unsent work for download instead of a dead retry button.
+      stashUnsentWork(state, `save_${response.status}`);
       setSaveIndicator("error");
-      showToast(`تعذّر حفظ التغييرات: ${result.error || "خطأ " + response.status}. أعد المحاولة.`, "error");
+      showToast(`تعذّر حفظ التغييرات: ${result.error || "خطأ " + response.status}. نزّلنا نسخة احتياطية من عملك.`, "error");
     }
   } catch {
     // Network drop: the work is queued AND mirrored on this device — it
@@ -5357,10 +5434,33 @@ async function initializeApp() {
         location.href = "/owner";
         return;
       }
+      // Server reachable but the session is gone/expired → go log in. NEVER
+      // fall through to trial demo data, where real cash would be recorded into
+      // localStorage the server never sees. (Trial is only via explicit ?trial=1.)
+      if (!session.authenticated || !session.clinic) {
+        location.href = "/login?expired=1";
+        return;
+      }
       if (session.authenticated && session.clinic) {
         runtime.mode = "live";
         runtime.session = session;
         runtime.csrfToken = session.csrfToken;
+        const passwordRestricted = Boolean(session.user?.mustChangePassword);
+        const twofaRestricted = Boolean(session.clinic?.require2fa && !session.user?.twoFactorEnabled);
+        if (passwordRestricted || twofaRestricted) {
+          // Build only an empty shell. Restricted sessions cannot fetch clinic
+          // state, so no PHI reaches the browser before password/2FA is fixed.
+          runtime.restrictedBootstrap = true;
+          state = hydrateClinicState(null, session.clinic, [session.user]);
+          runtime.ready = true;
+          applyRuntimeUI();
+          renderImpersonationBanner();
+          render();
+          applyAccountViewMode();
+          enforce2faRequirement();
+          if (passwordRestricted) window.RiaayaOpenRequiredPasswordChange?.();
+          return;
+        }
         const stateResponse = await fetch("/api/clinic-state", { headers: { Accept: "application/json" } });
         if (stateResponse.status === 402) {
           location.href = "/login?expired=1";
@@ -15492,6 +15592,12 @@ els.logoutButton?.addEventListener("click", async () => {
     method: "POST",
     headers: { "X-CSRF-Token": runtime.csrfToken }
   }).catch(() => null);
+  // Patient PII must not linger on a shared clinic device after logout — clear
+  // the device mirror and any trial blob before leaving.
+  try {
+    if (runtime.mode === "live" && runtime.session) storageRemove(liveMirrorKey());
+    storageRemove(STORAGE_KEY);
+  } catch { /* best effort */ }
   location.href = "/login";
 });
 
@@ -15595,14 +15701,19 @@ securityPart("enable-confirm")?.addEventListener("click", async () => {
     if (backupSection) backupSection.hidden = false;
     const statusEl = securityPart("status");
     if (statusEl) { statusEl.textContent = "✅ المصادقة الثنائية مفعّلة على حسابك."; statusEl.classList.add("on"); }
-    // Requirement satisfied — drop the gate (user still sees backup codes in the modal).
-    enforce2faRequirement();
+    // A restricted bootstrap has no clinic data loaded; keep the gate behind
+    // this modal until backup codes are acknowledged, then reload safely.
+    if (!runtime.restrictedBootstrap) enforce2faRequirement();
   } catch (error) {
     if (status) status.textContent = error.message === "invalid_2fa_code" ? "الرمز غير صحيح. حاول مرة أخرى." : "تعذّر التفعيل.";
   }
 });
 
 securityPart("backup-done")?.addEventListener("click", () => {
+  if (runtime.restrictedBootstrap) {
+    location.reload();
+    return;
+  }
   renderSecurityModal();
 });
 

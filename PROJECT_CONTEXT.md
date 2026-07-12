@@ -1,6 +1,6 @@
 # Riaaya Project Context
 
-Updated: June 6, 2026
+Updated: July 11, 2026
 
 ## Product
 
@@ -38,7 +38,7 @@ SQLite tables:
 - `audit_logs`
 - `clinic_integrations`
 
-Clinic operational records are currently stored as versioned JSON in `clinics.state_json`. This preserves the existing frontend data model while adding real tenant isolation and server permission enforcement. `state_version` prevents silent concurrent overwrites.
+Clinic operational records are currently stored as versioned, AES-256-GCM-encrypted JSON in `clinics.state_json`. Encrypted merge-history snapshots support three-way conflict resolution, and `state_version` prevents silent concurrent overwrites. Patient photos are encrypted files on the persistent disk and are included in scheduled local/off-site archives.
 
 The initial production shape is a single Node instance with one persistent SQLite disk. PostgreSQL is the recommended next database step for horizontal scaling.
 
@@ -168,14 +168,7 @@ The initial production shape is a single Node instance with one persistent SQLit
 
 ## Most Recent Work
 
-There is no `.git` directory in the supplied repository, so Git history and recent commits cannot be inspected. The latest work is inferred from file timestamps, backup names, and current source:
-
-1. Clinicame-style granular permissions.
-2. Practical booking calendar and selected-day schedule.
-3. Smart patient files, reports, pagination, and multi-operation visits.
-4. Dashboard command center, next visitor, notifications, WhatsApp/SMS, and JoFotara foundation.
-5. Current launch pass: real registration, multi-tenancy, owner control, SQLite sessions, server permission enforcement, encrypted per-clinic integrations, conflict-safe saves, receipts inside patient/operation workflows, and backup tooling.
-6. Current product pass: practical expenses workspace and local smart import review flow for migrating clinic data from older systems.
+The repository now has active Git history. The July product work added the money center, multi-service packages, session-level performer commissions, mobile navigation, searchable patient workflows, permission presets, and a redesigned landing page. The current production-foundation pass adds encrypted clinic state/photos/history, restricted-session read protection, replay-safe TOTP, contact-field preservation, complete encryption-key rotation, streamed photo archives, and expanded security/concurrency regression tests.
 
 ## Setup
 
@@ -201,10 +194,10 @@ See `README.md` for deployment, provider, backup, and JoFotara instructions.
 ### Required
 
 - Independent penetration/security review.
-- Automated off-site backup scheduling and restore drills.
+- Regular operator-observed restore drills and backup-alert monitoring.
 - Error monitoring and uptime alerts.
 - Email ownership verification.
-- Customer-facing forgotten-password recovery.
+- Production email-provider delivery and monitoring for forgotten-password recovery.
 - Billing/subscription payment integration.
 - Terms of service, privacy notice, data-processing terms, retention policy, and breach-response process reviewed for Jordan.
 - JoFotara validation with the official clinic account and the clinic's accountant/tax specialist.
@@ -218,7 +211,7 @@ See `README.md` for deployment, provider, backup, and JoFotara instructions.
 - Add delivery webhooks and retry/dead-letter handling.
 - Add attachment/document storage for patient files.
 - Save reusable import mappings per clinic and add system-specific import adapters after collecting real export samples.
-- Add automated end-to-end tests and browser CI.
+- Add browser CI around the existing security, E2E, concurrency, build, and smoke scripts.
 
 ### Product
 

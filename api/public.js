@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { db, parseJson, publicLandingSettings } from "../lib/database.js";
 import { ensureStateSnapshot, saveStateSnapshot } from "../lib/state-history.js";
+import { decryptBlob, encryptBlob, safeText } from "../lib/security.js";
 
 function sendJson(res, statusCode, payload) {
   res.statusCode = statusCode;
@@ -78,7 +79,7 @@ function handleGetClinic(slug, res) {
     return;
   }
 
-  const state = parseJson(row.state_json, {});
+  const state = parseJson(decryptBlob(row.state_json), {});
   const settings = state.settings || {};
   const bookings = Array.isArray(state.bookings) ? state.bookings : [];
 
@@ -125,8 +126,10 @@ async function handleCreateBooking(req, slug, res) {
     return;
   }
 
-  const patient = String(body.patient || "").trim();
-  const phone   = String(body.phone   || "").trim();
+  // Unauthenticated input — strip angle brackets/control chars at the boundary
+  // so attacker-controlled strings can never reach an innerHTML sink verbatim.
+  const patient = safeText(body.patient, 120);
+  const phone   = safeText(body.phone, 40);
   const date    = String(body.date    || "").trim();
   const time    = String(body.time    || "").trim();
 
@@ -141,9 +144,9 @@ async function handleCreateBooking(req, slug, res) {
     return;
   }
 
-  const serviceName = String(body.serviceName || "").trim().slice(0, 200);
-  const serviceId   = String(body.serviceId   || "").trim().slice(0, 100);
-  const notes       = String(body.notes       || "").trim().slice(0, 500);
+  const serviceName = safeText(body.serviceName, 200);
+  const serviceId   = safeText(body.serviceId, 100);
+  const notes       = safeText(body.notes, 500);
   const bookingId   = randomUUID();
   const reference   = "RIA-" + bookingId.slice(0, 6).toUpperCase();
   const now         = new Date().toISOString();
@@ -154,7 +157,8 @@ async function handleCreateBooking(req, slug, res) {
   const fresh = db.prepare(
     "select state_json, state_version from clinics where id = ?"
   ).get(row.id);
-  const state    = parseJson(fresh?.state_json, {});
+  const freshStr = decryptBlob(fresh?.state_json);
+  const state    = parseJson(freshStr, {});
   const bookings = Array.isArray(state.bookings) ? state.bookings : [];
   const candidate = { date, time, serviceId, service: serviceName };
 
@@ -176,10 +180,10 @@ async function handleCreateBooking(req, slug, res) {
   const serialized = JSON.stringify(state);
   // Snapshot both sides of this write so logged-in clients editing against the
   // pre-booking version can still merge instead of hitting a conflict.
-  if (fresh?.state_json) ensureStateSnapshot(row.id, currentVersion, fresh.state_json);
+  if (fresh?.state_json) ensureStateSnapshot(row.id, currentVersion, freshStr);
   db.prepare(
     "update clinics set state_json = ?, state_version = ?, updated_at = ? where id = ?"
-  ).run(serialized, nextVersion, now, row.id);
+  ).run(encryptBlob(serialized), nextVersion, now, row.id);
   saveStateSnapshot(row.id, nextVersion, serialized);
 
   sendJson(res, 201, { ok: true, reference, bookingId });

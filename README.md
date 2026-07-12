@@ -10,6 +10,7 @@ Riaaya is an Arabic-first clinic operations SaaS. It includes a public demo, rea
 - HttpOnly session cookies and CSRF protection.
 - Server-side tenant isolation and permission enforcement.
 - Per-clinic encrypted WhatsApp, SMS, and JoFotara credentials.
+- AES-256-GCM encryption for clinic state, merge-history snapshots, and patient photos.
 - Platform-owner dashboard for clinics, plans, trials, status, audit activity, and emergency admin-password reset.
 
 No Supabase account is required. Do not deploy `dist/` by itself for production because authentication and clinic data require `server.mjs`.
@@ -35,7 +36,7 @@ Open:
 - Login and registration: `http://localhost:4174/login`
 - Platform owner: `http://localhost:4174/owner`
 
-Development owner credentials are printed by the server. They are only defaults for local development.
+The local-only default owner is `owner@riaaya.local` / `RiaayaOwner!2026`. The server never prints passwords to logs; set `RIAAYA_OWNER_EMAIL` and `RIAAYA_OWNER_PASSWORD` when testing a specific account.
 
 ## Production Environment
 
@@ -158,7 +159,7 @@ RIAAYA_BACKUP_DIR=/var/backups/riaaya \
 npm run backup
 ```
 
-The command uses SQLite `VACUUM INTO` and retains the newest 30 backups by default.
+The command uses SQLite `VACUUM INTO` and retains the newest 30 backups by default. The automatic scheduler also archives encrypted patient-photo files and streams that archive to the configured off-site bucket without loading the complete archive into server memory.
 
 ## Expenses and Data Import
 
@@ -175,11 +176,25 @@ For migrating clinics from other systems, export Excel sheets as CSV first, impo
 - Mutations require a CSRF token.
 - Clinic data is filtered and merged on the server according to the signed-in user.
 - Clinic state writes use optimistic version checks to prevent silent overwrites.
-- Integration secrets use AES-256-GCM encryption at rest.
+- Clinic state, merge history, integration secrets, 2FA secrets, and patient photos use AES-256-GCM encryption at rest.
 - Audit logs record registration, login, user, clinic, integration, and owner actions.
 - Stored state is size-limited and strips HTML angle brackets and control characters.
+- Required password changes and required 2FA block reads and writes until completed.
+- Patient-photo responses are authenticated, audited, and marked `no-store`.
 
-Before a public commercial launch, add external monitoring, automated off-site backup verification, email verification, and a customer-facing password recovery flow.
+### Encrypt Existing Data Or Rotate The Key
+
+After first deploying state/photo encryption to an existing installation, run once from the host shell:
+
+```bash
+RIAAYA_DB_PATH=/data/riaaya.sqlite \
+RIAAYA_ENCRYPTION_KEY="$RIAAYA_ENCRYPTION_KEY" \
+node scripts/rotate-encryption-key.mjs
+```
+
+For a later key rotation, set the new key as `RIAAYA_ENCRYPTION_KEY`, keep the prior key temporarily as `RIAAYA_ENCRYPTION_KEY_OLD`, run the same script, verify clinic state, integration status, and one patient photo, then remove the old key. The script rotates clinic state, history, 2FA secrets, provider credentials, and patient photos.
+
+Before a public commercial launch, complete an independent security review, production email-domain delivery monitoring, recurring operator restore drills, and legal review of privacy/retention terms.
 
 ## Jordan E-Invoicing
 
@@ -205,6 +220,7 @@ Official references:
 npm run dev
 npm start
 npm run check
+npm test
 npm run build
 npm run backup
 ```

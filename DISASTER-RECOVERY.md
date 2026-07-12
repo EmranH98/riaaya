@@ -1,6 +1,8 @@
 # RIAAYA — Backup & Disaster Recovery Runbook
 
-The clinic database is a single SQLite file at `RIAAYA_DB_PATH` (production: `/data/riaaya.sqlite` on the Render persistent disk). Patient data lives here, so backups and a **tested** restore are mandatory before any real clinic.
+The clinic database is a single SQLite file at `RIAAYA_DB_PATH` (production: `/data/riaaya.sqlite` on the Render persistent disk). Patient photos live as encrypted files in `RIAAYA_PHOTOS_DIR` (production: `/data/photos`). Backups and a **tested** restore are mandatory before any real clinic.
+
+Keep `RIAAYA_ENCRYPTION_KEY` in a separate password manager or secure recovery record. Database and photo backups cannot be decrypted without it.
 
 ## 1. Backups
 
@@ -12,9 +14,9 @@ Set in the Render dashboard env:
 ```
 RIAAYA_BACKUP_INTERVAL_HOURS=6
 ```
-The server then snapshots ~1 min after boot and every 6h. Failures are logged as `[backup-scheduler] ✗ BACKUP FAILED` — wire a log alert to that string.
+The server then snapshots ~1 min after boot and every 6h. It also creates an encrypted patient-photo archive. Failures are logged as `BACKUP FAILED` or `PHOTO BACKUP FAILED` — wire log alerts to both strings.
 
-### Off-site copies (required before 100 clinics)
+### Off-site copies (required for real patient data)
 On-disk backups die with the disk. RIAAYA can upload each verified backup snapshot to an S3-compatible bucket after `VACUUM INTO` and integrity verification succeeds.
 
 Set these in Render:
@@ -38,6 +40,7 @@ RIAAYA_CLOUDFLARE_API_TOKEN=...
 
 Cloudflare R2 works well for a small pilot. Each backup upload writes:
 - `riaaya/backups/riaaya-<timestamp>.sqlite`
+- `riaaya/backups/riaaya-photos-<timestamp>.tar.gz` when photos exist
 - `riaaya/backups/latest.json`
 
 Until off-site is on, **also** download a backup weekly to your own laptop.
@@ -56,15 +59,15 @@ RIAAYA_DB_PATH=/data/riaaya.sqlite RIAAYA_BACKUP_DIR=/data/backups npm run resto
 # Or a specific file
 ... npm run restore -- /data/backups/riaaya-2026-06-20T....sqlite
 ```
-The restore **verifies the backup before overwriting**, snapshots the current DB to `pre-restore-*.sqlite`, swaps the file, clears stale `-wal`/`-shm`, and verifies the result. Then restart the service and confirm `/healthz` returns 200.
+The restore **verifies the backup before overwriting**, snapshots the current DB to `pre-restore-*.sqlite`, swaps the file, clears stale `-wal`/`-shm`, and verifies the result. Restore the matching photo archive into `/data/photos` when recovering from disk loss. Then restart the service, confirm `/healthz` returns 200, open one patient file, and verify one before/after photo.
 
 ## 3. Monthly restore drill (do not skip)
-Once a month, restore the latest backup into a **throwaby** path and boot against it:
+Once a month, restore the latest backup into a **throwaway** path and boot against it:
 ```bash
 cp /data/backups/<newest>.sqlite /tmp/drill.sqlite
 RIAAYA_DB_PATH=/tmp/drill.sqlite PORT=4999 node server.mjs   # expect health 200, then Ctrl-C
 ```
-A backup you have never restored is not a backup. This exact flow is covered by `npm run check` indirectly and was validated with a corrupt-then-restore test.
+A backup you have never restored is not a backup. The automated database round-trip and encrypted-data checks run in `npm test`; the operator drill still verifies the real host, key, and photo archive.
 
 ## 4. What is NOT yet automated (your action)
 - [ ] Set `RIAAYA_BACKUP_INTERVAL_HOURS` in Render.

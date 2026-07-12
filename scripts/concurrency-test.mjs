@@ -60,7 +60,7 @@ async function putState(client, csrf, state, stateVersion) {
   return { status: res.status, body };
 }
 
-async function waitForHealth(timeoutMs = 12000) {
+async function waitForHealth(timeoutMs = 30000) {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     try { if ((await fetch(`${base}/healthz`)).ok) return true; } catch {}
