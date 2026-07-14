@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+import { readFile } from "node:fs/promises";
+
+await import(`../modules/language-domain.js?test=${Date.now()}`);
 await import(`../modules/booking-domain.js?test=${Date.now()}`);
 await import(`../modules/visit-domain.js?test=${Date.now()}`);
 
@@ -8,9 +11,38 @@ function ok(condition, message) {
   passed += 1;
 }
 
+const language = globalThis.RiaayaLanguageDomain;
 const booking = globalThis.RiaayaBookingDomain;
 const visit = globalThis.RiaayaVisitDomain;
-ok(Boolean(booking && visit), "booking and visit domains load independently");
+ok(Boolean(language && booking && visit), "language, booking, and visit domains load independently");
+
+ok(language.resolveLanguage({ userLanguage: "en", clinicLanguage: "ar" }) === "en", "personal language keeps precedence over the clinic default");
+ok(language.resolveLanguage({ clinicLanguage: "en" }) === "en", "clinic language remains the fallback for users without a preference");
+ok(language.resolveLanguage({}) === "ar", "Arabic remains the default language");
+ok(language.translateLiteral("حفظ", "en") === "Save", "known Arabic UI text translates to English");
+ok(language.translateLiteral("Save", "ar") === "حفظ", "known English UI text translates back to Arabic");
+ok(language.translateLiteral("Clinic-specific name", "en") === "Clinic-specific name", "unknown clinic text remains unchanged");
+ok(language.directionFor("ar") === "rtl" && language.directionFor("en") === "ltr", "document direction follows the active language");
+ok(language.localeFor("ar") === "ar-JO-u-nu-latn" && language.localeFor("en") === "en-US", "date and number locales preserve current formatting");
+ok(language.titleFor("en").startsWith("Riaaya") && language.titleFor("ar").startsWith("رعاية"), "document titles remain bilingual");
+ok(Object.isFrozen(language.englishText), "the extracted translation catalog is immutable");
+
+const appHtml = await readFile(new URL("../app.html", import.meta.url), "utf8");
+const arabicText = /[\u0600-\u06FF]/;
+const normalizeMarkupText = value => value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+const untranslatedShellText = new Set();
+const appShell = appHtml
+  .replace(/<script[\s\S]*?<\/script>/gi, "")
+  .replace(/<svg[\s\S]*?<\/svg>/gi, "");
+for (const match of appShell.matchAll(/>([^<>]+)</g)) {
+  const value = normalizeMarkupText(match[1]);
+  if (arabicText.test(value) && !language.englishText[value]) untranslatedShellText.add(value);
+}
+for (const match of appHtml.matchAll(/(?:placeholder|title|aria-label)="([^"]+)"/g)) {
+  const value = normalizeMarkupText(match[1]);
+  if (arabicText.test(value) && !language.englishText[value]) untranslatedShellText.add(value);
+}
+ok(untranslatedShellText.size === 0, `every static app label has an English translation: ${[...untranslatedShellText].join(" | ")}`);
 
 const bookings = [
   { id: "one", date: "2026-07-12", time: "09:00", column: "laser", status: "confirmed" },

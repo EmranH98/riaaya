@@ -189,1739 +189,7 @@ const DEFAULT_FEATURES_BY_ROLE = {
   specialist: ["access_medical", "calendar_page", "patients_page", "patient_history", "patient_bookings"]
 };
 
-const APP_TEXT_EN = {
-  // ── Unified modals: live service search ──
-  "ابحث عن الخدمة": "Search for a service",
-  "ابحث عن الخدمة أو الباقة": "Search for a service or package",
-  "اكتب اسم الخدمة… (مثال: ليزر كامل)": "Type a service name… (e.g. full laser)",
-  "لا نتائج — عدّل البحث": "No results — adjust the search",
-  // ── Phase 1: sidebar nav, groups, chrome, common buttons & headers ──
-  "اليومي": "Daily",
-  "المالية": "Finance",
-  "الإدارة": "Administration",
-  "النظام": "System",
-  "فرص النمو": "Growth Opportunities",
-  "الباقات والجلسات": "Packages & Sessions",
-  "ملفات المرضى والزوار": "Patient & Visitor Files",
-  "المبالغ المستحقة": "Outstanding Balances",
-  "المصروفات": "Expenses",
-  "التواصل والفوترة": "Communications & Billing",
-  "تقرير العمليات": "Operations Report",
-  "تقرير الباقات": "Packages Report",
-  "تقرير الموظفين": "Staff Report",
-  "سجل التعديلات": "Edit History",
-  "التقرير المالي": "Financial Report",
-  "بحث تفصيلي": "Detailed Search",
-  "الخدمات": "Services",
-  "المخزون والموردون": "Inventory & Suppliers",
-  "الموظفون والنسب": "Staff & Commissions",
-  "الحسابات والصلاحيات": "Accounts & Permissions",
-  "استيراد البيانات": "Import Data",
-  "طلبات التجربة": "Trial Requests",
-  "المنتجات": "Products",
-  "الموردون": "Suppliers",
-  "أصناف المخزون": "Inventory Items",
-  "إعدادات اليوم": "Day Settings",
-  "تنقّل سريع": "Quick Navigate",
-  "مركز التقارير": "Reports Center",
-  "حجوزات اليوم": "Today's Bookings",
-  "مدفوعات اليوم": "Today's Payments",
-  "مصروفات اليوم": "Today's Expenses",
-  "صافي اليوم": "Today's Net",
-  "صافي الشهر": "Month Net",
-  "باقات نشطة": "Active Packages",
-  "قيمة المخزون": "Inventory Value",
-  "المطابقة اليومية": "Daily Reconciliation",
-  "تنبيهات": "Notifications",
-  "المدفوعات": "Payments",
-  "تغيير تاريخ العمل أو الفرع": "Change work date or branch",
-  "العودة إلى اليوم": "Back to Today",
-  "تسجيل عملية": "Record Operation",
-  "تسجيل جلسة": "Record Session",
-  "حجز جديد": "New Booking",
-  "فتح المطابقة": "Open Reconciliation",
-  "فتح التقويم": "Open Calendar",
-  "فتح ملف مريض": "Open Patient File",
-  "حفظ": "Save",
-  "إلغاء": "Cancel",
-  "حذف": "Delete",
-  "تعديل": "Edit",
-  "إضافة": "Add",
-  "بحث": "Search",
-  "تصدير": "Export",
-  "طباعة": "Print",
-  "رجوع": "Back",
-  "إغلاق": "Close",
-  "استرجاع": "Restore",
-  "تم الاسترجاع": "Restored",
-  "المستخدم": "User",
-  "الإجراء": "Action",
-  "نوع الإجراء": "Action Type",
-  "التفاصيل": "Details",
-  "التاريخ والوقت": "Date & Time",
-  "كل المستخدمين": "All Users",
-  "كل الإجراءات": "All Actions",
-  "مسح الفلاتر ✕": "Clear Filters ✕",
-  "التوزيع حسب": "Breakdown by",
-  "الفئة": "Category",
-  "الفئة الفرعية": "Subcategory",
-  "الخدمة": "Service",
-  "طريقة الدفع": "Payment Method",
-  "الفريق": "Team",
-  "العدد": "Count",
-  "عدد": "Count",
-  "المحصّل": "Collected",
-  "التكلفة": "Cost",
-  "الربح": "Profit",
-  "الحصة": "Share",
-  "الإجمالي": "Total",
-  "المريض": "Patient",
-  "الطبيب": "Doctor",
-  "الموظف": "Employee",
-  "الحالة": "Status",
-  "السعر": "Price",
-  "الوقت": "Time",
-  "التاريخ": "Date",
-  "الكل": "All",
-  "كل الفئات": "All Categories",
-  "عرض الكل": "View All",
-  // ── Phase 2: dashboard zones, payment/status, security, forms ──
-  "مركز اليوم": "Today Center",
-  "مركز قيادة اليوم": "Today's Command Center",
-  "ما يحتاج انتباهك الآن": "What needs your attention now",
-  "صحة العيادة": "Clinic Health",
-  "مركز التنبيهات": "Notification Center",
-  "مركز التنبيه": "Notification Center",
-  "تحديد كمقروء": "Mark as read",
-  "دخول العيادات": "Enter Clinics",
-  "الأمان": "Security",
-  "🔒 الأمان": "🔒 Security",
-  "تسجيل الخروج": "Log out",
-  "بانتظار": "Pending",
-  "لم يتم إغلاق اليوم بعد": "Day not closed yet",
-  "لا توجد إجراءات عاجلة": "No urgent actions",
-  "وصلوا للعيادة": "Arrived at clinic",
-  "بانتظار الخدمة": "Awaiting service",
-  "من الحجوزات والإدخال المباشر": "From bookings and direct entry",
-  "مواعيد وتنبيهات تشغيلية": "Operational appointments & alerts",
-  "المصروفات المسجلة": "Recorded expenses",
-  "المدفوع بعد المصروفات": "Net after expenses",
-  "جلسات متبقية": "Sessions remaining",
-  "تحصيل": "Collect",
-  "المستحقات على المرضى": "Patient balances",
-  "قادم": "Upcoming",
-  "جلسات اليوم القادمة": "Today's upcoming sessions",
-  "التقويم": "Calendar",
-  "النبض التشغيلي": "Operational pulse",
-  "الحركة والمدفوعات خلال 14 يوماً": "Activity & payments over 14 days",
-  "إجمالي آخر 7 أيام": "Last 7 days total",
-  "ضغط المواعيد حسب الساعة": "Appointment load by hour",
-  "لتوزيع الفريق والغرف قبل الازدحام": "To plan team & rooms before peak",
-  "رحلة الموعد": "Appointment journey",
-  "حالة حجوزات اليوم": "Today's bookings status",
-  "فتح الجدول": "Open schedule",
-  "فتح التقويم": "Open Calendar",
-  "الجدول المباشر": "Live schedule",
-  "القادمون اليوم": "Today's arrivals",
-  "اقتراحات ذكية": "Smart suggestions",
-  "إجراءات عالية الأولوية": "High-priority actions",
-  "الأتمتة": "Automation",
-  "لا توجد مدفوعات بعد.": "No payments yet.",
-  "الإغلاق المالي": "Financial close",
-  "الكاش": "Cash",
-  "البطاقات": "Cards",
-  "الفرق": "Difference",
-  "المستحقات حسب الأداء": "Dues by performance",
-  "قراءة تشغيلية": "Operational reading",
-  "اتجاهات اليوم": "Today's trends",
-  "الدفع": "Payment",
-  "المدفوع": "Paid",
-  "تسجيل سريع": "Quick entry",
-  "إضافة عملية للملف": "Add operation to file",
-  "حالة الدفع": "Payment status",
-  "مدفوع كاملاً": "Paid in full",
-  "دفع جزئي": "Partial payment",
-  "لم يُدفع بعد": "Not paid yet",
-  "المدفوع الآن": "Paid now",
-  "المتبقي على المريض": "Patient remaining balance",
-  "بداية الدوام": "Shift start",
-  "نهاية الدوام": "Shift end",
-  "كلمة المرور": "Password",
-  "المصادقة الثنائية (2FA)": "Two-Factor Authentication (2FA)",
-  "تفعيل المصادقة الثنائية": "Enable two-factor authentication",
-  "تفعيل المصادقة الثنائية الآن": "Enable two-factor now",
-  "إيقاف المصادقة الثنائية": "Disable two-factor authentication",
-  "عيادتك تتطلب المصادقة الثنائية": "Your clinic requires two-factor authentication",
-  "رمز المصادقة (أو رمز احتياط)": "Authentication code (or backup code)",
-  "أدخل الرمز المكوّن من 6 أرقام للتأكيد": "Enter the 6-digit code to confirm",
-  "＋ بيانات اختبار": "＋ Test data",
-  "إنشاء حساب عيادة آمن": "Create a secure clinic account",
-  "أنت داخل النموذج التجريبي العام": "You're in the public demo",
-  "عيادة رعاية": "Riaaya Clinic",
-  "اسم المريض": "Patient Name",
-  "رقم الهاتف": "Phone Number",
-  "الجنس": "Gender",
-  "أنثى": "Female",
-  "ذكر": "Male",
-  "الجنسية": "Nationality",
-  "المدينة": "City",
-  "ملاحظات": "Notes",
-  "ملاحظات سريرية": "Clinical Notes",
-  "المصدر": "Source",
-  "الكمية": "Quantity",
-  "الخصم": "Discount",
-  "المبلغ": "Amount",
-  "التكلفة المباشرة": "Direct Cost",
-  "السعر الافتراضي": "Default Price",
-  "اسم الخدمة": "Service Name",
-  "حفظ التعديل": "Save Changes",
-  "حفظ القاعدة": "Save Rule",
-  "حفظ الخدمة": "Save Service",
-  "حفظ كل الخدمات": "Save All Services",
-  "إضافة الموظف": "Add Employee",
-  "إضافة عمود": "Add Column",
-  "اسم القاعدة": "Rule Name",
-  "طريقة الحساب": "Calculation Method",
-  "تطبق على": "Applies To",
-  "القيمة": "Value",
-  "الموظفون": "Employees",
-  "الطبيب": "Doctor",
-  "الأخصائي": "Specialist",
-  "أخصائي": "Specialist",
-  "طبيب": "Doctor",
-  "رعاية": "Riaaya",
-  "إدارة العيادات": "Clinic Management",
-  "نموذج تجريبي تفاعلي": "Interactive Prototype",
-  "عيادة رعاية التجريبية": "Riaaya Demo Clinic",
-  "اللغة": "Language",
-  "العربية": "Arabic",
-  "الحساب": "Account",
-  "الصفحة الرئيسية": "Home",
-  "طباعة كشف الرواتب": "Print Payroll Report",
-  "اسم العيادة": "Clinic Name",
-  "تاريخ العمل": "Work Date",
-  "الفرع": "Branch",
-  "حفظ الإعدادات": "Save Settings",
-  "الحالة": "Status",
-  "يتم التحديث": "Updating",
-  "تتغير الحالة بعد كل عملية أو مطابقة.": "Status changes after each operation or reconciliation.",
-  "ملخص اليوم": "Today Summary",
-  "عمليات اليوم": "Today Operations",
-  "ملفات المرضى والزوار": "Patients & Visitors",
-  "الحجوزات": "Bookings",
-  "الموظفون والنسب": "Staff & Rates",
-  "الخدمات والقواعد": "Services & Rules",
-  "المخزون والموردون": "Inventory & Suppliers",
-  "المطابقة": "Reconciliation",
-  "الرواتب": "Payroll",
-  "التقارير": "Reports",
-  "التواصل والفوترة": "Communications & Billing",
-  "الحسابات والصلاحيات": "Accounts & Permissions",
-  "طلبات التجربة": "Trial Requests",
-  "نظرة تشغيلية": "Operational View",
-  "صورة العيادة في نهاية اليوم": "The clinic picture at day-end",
-  "يتم تجهيز الملخص من عمليات اليوم والمطابقة والرواتب.": "The summary is built from today's operations, reconciliation, and payroll.",
-  "إيرادات آخر 7 أيام": "Last 7 Days Revenue",
-  "بناءً على العمليات المسجلة": "Based on recorded operations",
-  "إيرادات اليوم": "Today Revenue",
-  "الكاش المسجل": "Recorded Cash",
-  "الفيزا المسجلة": "Recorded Card",
-  "فرق الإغلاق": "Closing Difference",
-  "لا توجد فروقات": "No differences",
-  "الأداء الأسبوعي": "Weekly Performance",
-  "الإيرادات حسب اليوم": "Revenue by Day",
-  "طرق الدفع": "Payment Methods",
-  "توزيع المقبوضات": "Collections Breakdown",
-  "التزامات الفريق": "Team Obligations",
-  "نسب ورواتب اليوم": "Today's Rates & Payroll",
-  "التفاصيل": "Details",
-  "إغلاق اليوم": "Day Closing",
-  "حالة المطابقة": "Reconciliation Status",
-  "آخر ما تم تسجيله": "Latest Entries",
-  "إضافة عملية": "Add Operation",
-  "ملاحظات اليوم": "Today's Notes",
-  "ما يحتاج مراجعة": "Needs Review",
-  "إدخال جديد": "New Entry",
-  "عملية جديدة": "New Operation",
-  "اسم المريض": "Patient Name",
-  "الخدمة": "Service",
-  "الطبيب": "Doctor",
-  "الأخصائي": "Specialist",
-  "الكمية": "Quantity",
-  "السعر": "Price",
-  "التكلفة المباشرة": "Direct Cost",
-  "الخصم": "Discount",
-  "طريقة الدفع": "Payment Method",
-  "حالة العملية": "Operation Status",
-  "مكتملة": "Completed",
-  "بانتظار التعيين": "Pending Assignment",
-  "محجوزة": "Scheduled",
-  "بانتظار الدفع": "Pending Payment",
-  "ملغاة": "Cancelled",
-  "ملاحظات": "Notes",
-  "إضافة العملية": "Add Operation",
-  "سجل اليوم": "Today's Log",
-  "كل العمليات": "All Operations",
-  "تصدير CSV": "Export CSV",
-  "مسح سجل اليوم": "Clear Today's Log",
-  "المريض": "Patient",
-  "الفريق": "Team",
-  "الصافي": "Net",
-  "المستحقات": "Payouts",
-  "كشف قابل للطباعة": "Printable Report",
-  "طباعة التقرير": "Print Report",
-  "الموظف": "Staff Member",
-  "الدور": "Role",
-  "الصيغة": "Formula",
-  "عدد العمليات": "Operations",
-  "المستحق": "Payout",
-  "كشف فردي": "Individual Slip",
-  "تفاصيل راتب الموظف": "Staff Salary Details",
-  "طباعة كشف فردي": "Print Individual Slip",
-  "اختيار الموظف": "Choose Staff Member",
-  "تفاصيل الكشف": "Slip Details",
-  "اعتماد": "Approve",
-  "تم الدفع": "Mark Paid",
-  "معتمد": "Approved",
-  "مدفوع": "Paid",
-  "مسودة": "Draft",
-  "تقارير كاملة الصفحة": "Full Page Reports",
-  "اختيار التقرير": "Choose Report",
-  "طباعة التقرير": "Print Report",
-  "تكبير الشاشة": "Maximize",
-  "إغلاق الشاشة الكاملة": "Close full screen",
-  "ابحث بالاسم أو الهاتف…": "Search by name or phone…",
-  "أضف مريضاً أولاً": "Add a patient first",
-  "تأكيدات الغد": "Tomorrow's confirmations",
-  "ذُكّر الجميع ✓": "All reminded ✓",
-  "ذُكّر ✓": "Reminded ✓",
-  "تم التأكيد": "Confirmed",
-  "💬 تذكير": "💬 Remind",
-  "لا رقم": "No number",
-  "صور قبل / بعد": "Before / After photos",
-  "＋ إضافة صورة": "＋ Add photo",
-  "المنطقة / ملاحظة (اختياري)": "Area / note (optional)",
-  "تُحفظ الصور بموافقة المريض وتبقى داخل حساب العيادة فقط.": "Photos are saved with the patient's consent and stay inside the clinic account only.",
-  "لا صور بعد — أول صورة «قبل» هي بداية قصة النتيجة.": "No photos yet — the first \"before\" photo starts the result story.",
-  "عربون مدفوع الآن": "Deposit paid now",
-  "اختياري — يُخصم من سعر الزيارة": "Optional — deducted from the visit price",
-  "طريقة دفع العربون": "Deposit payment method",
-  "طريقة الدفع": "Payment method",
-  "هاتف المالك (واتساب)": "Owner phone (WhatsApp)",
-  "📱 ملخص للمالك": "📱 Owner summary",
-  "قبل": "Before",
-  "بعد": "After",
-  "الموظف": "Employee",
-  "قوالب جاهزة:": "Presets:",
-  "طبيب / أخصائي": "Doctor / Specialist",
-  "محاسبة": "Accounting",
-  "كل الصلاحيات": "All permissions",
-  "مسح الكل": "Clear all",
-  "حفظ الصلاحيات": "Save permissions",
-  "بحث في الصلاحيات": "Search permissions",
-  "هاتف، خصم، مواعيد، تقارير...": "Phone, discount, appointments, reports...",
-  "اختر الموظف، فعّل ما يحتاجه، واحفظ — كل صلاحية مكتوبة بلغة واضحة، والحسّاسة معلّمة بـ 💰.": "Pick the employee, enable what they need, and save — every permission is in plain language; sensitive ones are marked 💰.",
-  "تعديلات غير محفوظة — لا تنسَ الحفظ": "Unsaved changes — don't forget to save",
-  "تنظيم الكتالوج": "Organize the catalog",
-  "الفئات والفئات الفرعية": "Categories & subcategories",
-  "اسحب أي خدمة إلى فئة أو فئة فرعية أخرى — تماماً كما تسحب المواعيد في التقويم. اسحب عنوان فئة فرعية كاملاً لنقله إلى فئة أخرى.": "Drag any treatment into another category or subcategory — exactly like dragging appointments in the calendar. Drag a subcategory header to move it whole.",
-  "فئة جديدة…": "New category…",
-  "＋ إضافة فئة": "＋ Add category",
-  "بدون فئة": "No category",
-  "بدون فئة فرعية": "No subcategory",
-  "أفلت خدمة هنا": "Drop a treatment here",
-  "＋ فئة فرعية…": "＋ Subcategory…",
-  "مؤقتة — تثبت عند أول خدمة": "Temporary — becomes permanent with its first treatment",
-  "📦 بيع باقة": "📦 Sell Package",
-  "خيارات إضافية — إيصال، ملاحظات، حالة خاصة، حجز، بيع باقة": "More options — receipt, notes, special status, booking, package sale",
-  "اكتب اسم الخدمة — السعر والفئة يُملآن تلقائياً": "Type the treatment name — price and category fill in automatically",
-  "لا باقات لهذا الملف بعد — «بيع باقة» تبدأ من هنا.": "No packages on this file yet — start with \"Sell Package\".",
-  "لا دفعات بعد.": "No payments yet.",
-  "دفعات سابقة قبل تفعيل سجل الدفعات": "Earlier payments, before the payment log existed",
-  "العلاج": "Treatment",
-  "ملاحظة": "Note",
-  "عرض كامل": "Full View",
-  "إغلاق": "Close",
-  "من": "From",
-  "إلى": "To",
-  "اليوم": "Today",
-  "مطابقة المرضى والمدفوعات": "Patient & Payment Reconciliation",
-  "حسب المريض": "By Patient",
-  "كل عملية": "Every Procedure",
-  "الحجوزات والجدول": "Bookings & Schedule",
-  "قائمة التكاليف": "Cost List",
-  "تعيين الأخصائيين": "Specialist Assignments",
-  "إضافة عضو للفريق": "Add Team Member",
-  "النسب والقواعد": "Rates & Rules",
-  "الاسم": "Name",
-  "طبيب": "Doctor",
-  "أخصائي": "Specialist",
-  "النسبة": "Rate",
-  "إضافة الموظف": "Add Staff Member",
-  "الفريق الحالي": "Current Team",
-  "كتالوج الخدمات": "Service Catalog",
-  "إضافة خدمة وتسعيرها": "Add and Price Service",
-  "اسم الخدمة": "Service Name",
-  "السعر الافتراضي": "Default Price",
-  "الحالة": "Status",
-  "فعالة": "Active",
-  "متوقفة": "Inactive",
-  "حفظ الخدمة": "Save Service",
-  "الخدمات الحالية": "Current Services",
-  "الخدمات المتاحة للعمليات": "Services Available for Operations",
-  "قواعد المستحقات": "Payout Rules",
-  "قاعدة جديدة": "New Rule",
-  "اسم القاعدة": "Rule Name",
-  "تطبق على": "Applies To",
-  "الشخص": "Person",
-  "طريقة الحساب": "Calculation Method",
-  "القيمة": "Value",
-  "حفظ القاعدة": "Save Rule",
-  "أولوية الحساب": "Calculation Priority",
-  "القواعد الحالية": "Current Rules",
-  "أصناف المخزون": "Inventory Items",
-  "تنبيهات منخفضة": "Low Alerts",
-  "الموردون": "Suppliers",
-  "قيمة المخزون": "Inventory Value",
-  "إدارة المخزون": "Inventory Management",
-  "حجوزات اليوم": "Today's Bookings",
-  "بانتظار التأكيد": "Pending Confirmation",
-  "تم الوصول": "Arrived",
-  "قيمة متوقعة": "Expected Value",
-  "حسب تاريخ العمل": "Based on work date",
-  "حجوزات تحتاج متابعة": "Bookings need follow-up",
-  "جاهزة للتحويل إلى عملية": "Ready to convert to operation",
-  "من الحجوزات غير الملغاة": "From non-cancelled bookings",
-  "تقويم الحجوزات": "Bookings Calendar",
-  "الشهر الحالي": "Current Month",
-  "اختر يوماً لعرض حجوزاته.": "Choose a day to view its bookings.",
-  "الشهر السابق": "Previous Month",
-  "الشهر التالي": "Next Month",
-  "إدارة المواعيد": "Appointment Management",
-  "إضافة مريض أو زائر": "Add Patient or Visitor",
-  "نوع الملف": "File Type",
-  "الاسم الكامل": "Full Name",
-  "البريد الإلكتروني": "Email",
-  "الجنس": "Gender",
-  "الجنسية": "Nationality",
-  "الفئة": "Category",
-  "ملاحظات الملف": "File Notes",
-  "حفظ الملف": "Save File",
-  "المرضى والزوار": "Patients & Visitors",
-  "بحث ذكي": "Smart Search",
-  "رقم الملف": "File Number",
-  "آخر نشاط": "Last Activity",
-  "فتح الملف": "Open File",
-  "مركز التقارير": "Report Center",
-  "البحث الشامل": "Universal Search",
-  "حجز جديد": "New Booking",
-  "الهاتف": "Phone",
-  "التاريخ": "Date",
-  "الوقت": "Time",
-  "محجوز": "Scheduled",
-  "مؤكد": "Confirmed",
-  "وصل": "Arrived",
-  "تمت العملية": "Operation Completed",
-  "لم يحضر": "No Show",
-  "ملغي": "Cancelled",
-  "القيمة المتوقعة": "Expected Amount",
-  "ملاحظات الحجز": "Booking Notes",
-  "حفظ الحجز": "Save Booking",
-  "الجدول": "Schedule",
-  "تقرير الحجوزات": "Bookings Report",
-  "الموردون": "Suppliers",
-  "إضافة مورد للعيادة": "Add Clinic Supplier",
-  "اسم المورد": "Supplier Name",
-  "التواصل": "Contact",
-  "المدينة": "City",
-  "التصنيف": "Category",
-  "حفظ المورد": "Save Supplier",
-  "دليل الطلب": "Ordering Directory",
-  "من أين يمكن الطلب؟": "Where Can We Order From?",
-  "المخزون": "Inventory",
-  "إضافة صنف وحد التنبيه": "Add Item & Alert Level",
-  "اسم الصنف": "Item Name",
-  "رمز الصنف": "SKU",
-  "الوحدة": "Unit",
-  "الكمية الحالية": "Current Quantity",
-  "حد الطلب المنخفض": "Low Order Limit",
-  "آخر تكلفة للوحدة": "Last Unit Cost",
-  "المورد المفضل": "Preferred Supplier",
-  "حفظ الصنف": "Save Item",
-  "تنبيهات المخزون": "Inventory Alerts",
-  "أصناف تحتاج طلب": "Items Need Ordering",
-  "قائمة المخزون": "Inventory List",
-  "الأصناف الحالية": "Current Items",
-  "الطلبات": "Orders",
-  "تسجيل طلب أو استلام": "Record Order or Receipt",
-  "الصنف": "Item",
-  "المورد": "Supplier",
-  "تاريخ الطلب": "Order Date",
-  "تكلفة الوحدة": "Unit Cost",
-  "حفظ الطلب": "Save Order",
-  "من أين طلبنا؟": "Where Did We Order From?",
-  "سجل الموردين والتكاليف": "Supplier & Cost Log",
-  "النتيجة": "Result",
-  "هل الإغلاق متطابق؟": "Is Closing Matched?",
-  "إدارة الوصول": "Access Management",
-  "حساب جديد": "New Account",
-  "اسم الحساب": "Account Name",
-  "نوع الحساب": "Account Type",
-  "إدخال بيانات": "Data Entry",
-  "مدير": "Admin",
-  "ربط بموظف": "Link to Staff",
-  "يرى عملياته فقط": "Own Operations Only",
-  "يرى المبالغ والنسب": "Can View Money & Rates",
-  "إضافة الحساب": "Add Account",
-  "الصلاحيات الحالية": "Current Permissions",
-  "من يرى ماذا؟": "Who Sees What?",
-  "من صفحة التعريف": "From Landing Page",
-  "طلبات التجربة المحفوظة": "Saved Trial Requests",
-  "مسح الطلبات": "Clear Requests",
-  "كاش": "Cash",
-  "فيزا": "Card",
-  "تحويل": "Transfer",
-  "بدون طبيب": "No Doctor",
-  "بدون أخصائي": "No Specialist",
-  "اختياري": "Optional",
-  // ── Phase 3: login & two-factor ──
-  "رعاية — النموذج التجريبي للعيادات": "Riaaya — Clinic Management Prototype",
-  "نظام إدارة العيادات": "Clinic Management System",
-  "التقرير": "Report",
-  "رعاية — نظام إدارة العيادات": "Riaaya — Clinic Management System",
-  "الملخص": "Summary",
-  "الاستقبال": "Reception",
-  "العمليات": "Operations",
-  "المرضى": "Patients",
-  "الباقات": "Packages",
-  "النمو": "Growth",
-  "إضافة خدمة": "Add Service",
-  "تتغير بعد كل عملية أو مطابقة": "Updates after each operation or reconciliation",
-  "التنبيهات": "Notifications",
-  "طبقة حماية إضافية: بعد كلمة المرور يُطلب رمز من تطبيق المصادقة على هاتفك، فلا يكفي تسريب كلمة المرور لاختراق الحساب.": "An extra layer of protection: after your password, a code from the authenticator app on your phone is required — a leaked password alone cannot compromise the account.",
-  "افتح تطبيق مصادقة مثل": "Open an authenticator app such as",
-  "أو": "or",
-  "أضف حساباً جديداً يدوياً وأدخل هذا المفتاح:": "Add a new account manually and enter this key:",
-  "أو استخدم الرابط:": "Or use the link:",
-  "✅ تم التفعيل. احفظ رموز الاحتياط التالية في مكان آمن — كل رمز يُستخدم مرة واحدة عند فقدان هاتفك.": "✅ Enabled. Store the following backup codes somewhere safe — each code works once if you lose your phone.",
-  "لن تظهر مرة أخرى.": "They will not be shown again.",
-  "حفظت الرموز — إغلاق": "I saved the codes — close",
-  "المصادقة الثنائية مفعّلة على حسابك. لإيقافها أدخل كلمة المرور ورمزاً حالياً:": "Two-factor authentication is enabled on your account. To disable it, enter your password and a current code:",
-  "طلبت إدارة المنصة تفعيل المصادقة الثنائية (2FA) لجميع مستخدمي هذه العيادة لحماية بيانات المرضى. فعّلها الآن للمتابعة — تحتاج فقط تطبيق مصادقة على هاتفك.": "The platform requires two-factor authentication (2FA) for all users of this clinic to protect patient data. Enable it now to continue — you only need an authenticator app on your phone.",
-  "البيانات محفوظة على هذا الجهاز فقط ولا تخص عيادة حقيقية.": "Data is stored on this device only and does not belong to a real clinic.",
-  // ── Phase 3: dashboard & today center ──
-  "0 د.أ": "0 JOD",
-  "0 عملية": "0 operations",
-  "يتم تجهيز صورة اليوم من الحجوزات والعمليات والتنبيهات.": "Today's picture is built from bookings, operations, and alerts.",
-  "الإغلاق قيد المراجعة": "Closing under review",
-  "الخصومات 0 د.أ": "Discounts 0 JOD",
-  "متوسط العملية 0 د.أ": "Avg ticket 0 JOD",
-  "0 مؤكدة": "0 confirmed",
-  "تحتاج متابعة": "Needs follow-up",
-  "من 0 عملية": "From 0 operations",
-  "يوم العيادة": "Clinic Day",
-  "لوحة الاستقبال": "Reception Board",
-  "＋ تسجيل عملية": "＋ Record Operation",
-  "＋ حجز": "＋ Booking",
-  "التقويم الكامل": "Full Calendar",
-  // ── Phase 3: visit & operation entry ──
-  "سجّل الخدمة والدفع والفريق من شاشة واحدة. التكلفة تُحتسب من إعدادات الخدمة ولا تظهر هنا.": "Record the service, payment, and team from one screen. Cost comes from the service settings and is not shown here.",
-  "اكتب المبلغ الذي دفعه المريض الآن — المتبقي يُحسب تلقائياً.": "Enter what the patient paid now — the remaining balance is calculated automatically.",
-  "دفع بأكثر من طريقة؟ (اختياري)": "Paid with more than one method? (optional)",
-  "إذا ملأت هذه الخانات، تُحسب بدلاً من خانة \"المدفوع الآن\".": "If you fill these boxes, they are used instead of the \"Paid now\" box.",
-  "ملاحظات إضافية للحالة": "Additional case notes",
-  "ستُضاف هذه الزيارة إلى التقويم كحجز.": "This visit will be added to the calendar as a booking.",
-  "تاريخ الحجز": "Booking Date",
-  "العمود / الغرفة": "Column / Room",
-  "إصدار إيصال لهذه الزيارة": "Issue a receipt for this visit",
-  "رقم مرجع / ملاحظة الإيصال": "Receipt reference / note",
-  "سعر الوحدة": "Unit Price",
-  "اختياري — من إعداد الخدمة": "Optional — from service settings",
-  "إضافة للقائمة": "Add to List",
-  "إضافة خدمة أخرى": "Add another service",
-  "تعديل الكمية أو السعر، أو إضافة خدمة أخرى": "Adjust quantity or price, or add another service",
-  "+ بيع باقة لهذا المريض (اختياري)": "+ Sell this patient a package (optional)",
-  "الباقة": "Package",
-  "اختر الباقة": "Choose a package",
-  "بيع الباقة": "Sell Package",
-  "أضف خدمة واحدة أو أكثر إلى نفس الزيارة.": "Add one or more services to the same visit.",
-  "حفظ الزيارة": "Save Visit",
-  // ── Phase 3: operations center ──
-  "مركز العمليات": "Operations Center",
-  "سجل العمليات": "Operations Log",
-  "كل زيارة تُسجّل هنا بخدمتها ودفعها — التقارير والنسب والمطابقة تُبنى من هذا السجل.": "Every visit is recorded here with its service and payment — reports, commissions, and reconciliation are built from this log.",
-  "كل الخدمات": "All Services",
-  "كل الفريق": "All Team",
-  "كل الحالات": "All Statuses",
-  "كل طرق الدفع": "All Payment Methods",
-  "في الصفحة": "Per page",
-  // ── Phase 3: patient files ──
-  "ملف جديد": "New File",
-  "تفريغ": "Clear",
-  "مريض": "Patient",
-  "زائر": "Visitor",
-  "غير محدد": "Not specified",
-  "كيف عرف عنا؟ (مصدر الإحالة)": "How did they hear about us? (referral source)",
-  "— غير محدد —": "— Not specified —",
-  "إنستغرام": "Instagram",
-  "فيسبوك": "Facebook",
-  "تيك توك": "TikTok",
-  "بحث جوجل": "Google Search",
-  "صديق / توصية": "Friend / Referral",
-  "مرّ بالعيادة": "Walk-in",
-  "إحالة طبيب": "Doctor Referral",
-  "مريض سابق": "Returning Patient",
-  "أخرى": "Other",
-  "موافقة على رسائل التذكير والحملات": "Consents to reminders and campaign messages",
-  "الدليل": "Directory",
-  "＋ ملف جديد": "＋ New File",
-  "مرضى": "Patients",
-  "زوار": "Visitors",
-  "الترتيب": "Sort",
-  "الأحدث": "Newest",
-  "الأكثر نشاطاً": "Most Active",
-  "0 محدد": "0 selected",
-  "حذف المحدد": "Delete Selected",
-  "النوع": "Type",
-  "اختر مريضاً أو زائراً لفتح ملفه ومراجعة الحجوزات والعمليات.": "Choose a patient or visitor to open their file and review bookings and operations.",
-  // ── Phase 3: calendar & columns ──
-  "⛶ تكبير": "⛶ Maximize",
-  "⚙ الإعدادات": "⚙ Settings",
-  "＋ حجز جديد": "＋ New Booking",
-  "مكتمل": "Completed",
-  "عمود جديد": "New Column",
-  "الفئة المرتبطة (اختياري)": "Linked category (optional)",
-  "مدة الخانة": "Slot Duration",
-  "10 دقائق": "10 minutes",
-  "15 دقيقة": "15 minutes",
-  "20 دقيقة": "20 minutes",
-  "30 دقيقة": "30 minutes",
-  "45 دقيقة": "45 minutes",
-  "60 دقيقة": "60 minutes",
-  "عمود التقويم": "Calendar Column",
-  // ── Phase 3: staff & commissions ──
-  "معلومات العضو": "Member Details",
-  "الاحتساب الافتراضي": "Default Calculation",
-  "نموذج الاحتساب": "Calculation Model",
-  "بدون عمولة (راتب فقط)": "No commission (salary only)",
-  "نسبة من الربح — بعد خصم التكلفة": "Percent of profit — after cost",
-  "نسبة من المقبوض — قبل التكلفة": "Percent of collected — before cost",
-  "مبلغ ثابت لكل عملية": "Fixed amount per operation",
-  "النسبة %": "Rate %",
-  "تُحتسب من صافي الربح بعد خصم تكلفة الخدمة": "Calculated from net profit after the service cost",
-  "قواعد خاصة بخدمات بعينها": "Service-specific rules",
-  "(اختياري)": "(optional)",
-  "— اختر الخدمة —": "— Choose a service —",
-  "من الربح": "Of profit",
-  "من المقبوض": "Of collected",
-  "مبلغ ثابت": "Fixed amount",
-  "⊞ جدول العمولات": "⊞ Commission Grid",
-  "الموظفون (اضغط لاختيار من تُطبَّق عليهم — بدون اختيار = الكل)": "Staff (click to choose who it applies to — none selected = everyone)",
-  "الخدمات (اختر خدمة أو أكثر تشترك في نفس النسبة — بدون اختيار = كل الخدمات)": "Services (pick one or more that share the same rate — none selected = all services)",
-  "نسبة من الربح بعد التكلفة": "Percent of profit after cost",
-  "نسبة من المقبوض": "Percent of collected",
-  "نسبة العضو الافتراضية": "Member default rate",
-  "الأولوية: شخص + خدمة، ثم شخص فقط، ثم خدمة فقط، ثم قاعدة عامة.": "Priority: person + service, then person only, then service only, then general rule.",
-  // ── Phase 3: services admin ──
-  "⊞ إضافة بالجملة": "⊞ Bulk Add",
-  "الفئة (لتجميع الخدمات)": "Category (to group services)",
-  "— بدون فئة —": "— No category —",
-  "اسم الفئة الجديدة": "New category name",
-  "الفئة الفرعية / العلامة (اختياري)": "Subcategory / brand (optional)",
-  "السعر الافتراضي (اختياري)": "Default price (optional)",
-  "المخزون المستهلك لكل عملية": "Inventory consumed per operation",
-  "— اختر صنفاً من المخزون —": "— Choose an inventory item —",
-  // ── Phase 3: packages & sessions ──
-  "كتالوج الباقات": "Package Catalog",
-  "تعريف باقة (عدد جلسات وسعر)": "Define a package (sessions and price)",
-  "اسم الباقة": "Package Name",
-  "الفئة (اختياري)": "Category (optional)",
-  "الخدمة المرتبطة (اختياري)": "Linked service (optional)",
-  "— بدون ربط —": "— Not linked —",
-  "عدد الجلسات": "Number of Sessions",
-  "سعر الباقة": "Package Price",
-  "صلاحية بالأيام (اختياري)": "Validity in days (optional)",
-  "حفظ الباقة": "Save Package",
-  "بيع ومتابعة": "Sell & Track",
-  "بيع باقة لمريض ومتابعة الجلسات المتبقية": "Sell a patient a package and track remaining sessions",
-  "اختر المريض": "Choose a patient",
-  "البائع (الموظف)": "Seller (staff member)",
-  "جدولة الجلسات": "Schedule Sessions",
-  "حجز جلسة باقة على التقويم": "Book a package session on the calendar",
-  "الباقة (المريض)": "Package (patient)",
-  "جدولة الجلسة": "Schedule Session",
-  "الجلسات القادمة": "Upcoming Sessions",
-  // ── Phase 3: collections & point of sale ──
-  "التحصيل": "Collections",
-  "المبالغ المستحقة على المرضى": "Outstanding patient balances",
-  "إجمالي المستحقات": "Total Outstanding",
-  "من العمليات": "From operations",
-  "من الباقات": "From packages",
-  "الإجمالي المستحق": "Total Due",
-  "إجراءات": "Actions",
-  "نقطة البيع": "Point of Sale",
-  "المنتجات للبيع": "Products for Sale",
-  "منتجات تُباع للمرضى وتُخصم من المخزون مباشرة. لإضافة منتج، فعّل «منتج للبيع» على الصنف في صفحة المخزون.": "Products sold to patients and deducted directly from inventory. To add a product, enable \"Sellable product\" on the item in the Inventory page.",
-  // ── Phase 3: inventory & stock count ──
-  "📦 المخزون": "📦 Inventory",
-  "🏭 الموردون": "🏭 Suppliers",
-  "📋 الطلبات": "📋 Orders",
-  "🔢 الجرد الفعلي": "🔢 Stock Count",
-  "الجرد الفعلي": "Stock Count",
-  "جرد المخزون": "Inventory Count",
-  "أدخل العدد الفعلي لكل صنف. يقارنه النظام مع المسجّل ومع ما استهلكته العمليات، يسجّل الفروقات، ويُحدّث الكمية للواقع.": "Enter the actual count for each item. The system compares it with what's recorded and what operations consumed, logs the differences, and updates quantities to reality.",
-  "السجل والمطابقة": "History & Reconciliation",
-  "عمليات الجرد السابقة": "Previous stock counts",
-  "الأصناف الفعالة": "Active Items",
-  "حسب حد الطلب لكل صنف": "Based on each item's reorder level",
-  "جهات يمكن الطلب منها": "Sources you can order from",
-  "حسب آخر تكلفة للصنف": "Based on each item's last cost",
-  "منتج للبيع (يظهر في صفحة المنتجات)": "Sellable product (appears in the Products page)",
-  "سعر البيع للوحدة": "Selling price per unit",
-  "عمولة البائع (كم يأخذ من باع المنتج)": "Seller commission (what the seller earns per sale)",
-  "% من قيمة البيع": "% of sale value",
-  "مبلغ ثابت لكل وحدة": "Fixed amount per unit",
-  "صورة المنتج (اختياري)": "Product image (optional)",
-  "اكتب 0 في حد الطلب إذا كان الصنف لا يحتاج تنبيهات، حتى لا تظهر إشعارات بلا سبب.": "Set the reorder level to 0 if the item doesn't need alerts, so no pointless notifications appear.",
-  "إلغاء التعديل": "Cancel Edit",
-  "التنبيه يظهر فقط عندما يكون حد الطلب أكبر من 0 والكمية الحالية أقل أو تساوي ذلك الحد.": "The alert appears only when the reorder level is above 0 and the current quantity is at or below it.",
-  "تم الطلب": "Ordered",
-  "تم الاستلام": "Received",
-  "مخطط": "Planned",
-  // ── Phase 3: expenses ──
-  "هذا الشهر": "This Month",
-  "0 حركة": "0 entries",
-  "أكبر مجموعة": "Largest Group",
-  "لا توجد بيانات": "No data",
-  "المدفوعات ناقص المصروفات": "Payments minus expenses",
-  "تسجيل مالي": "Financial Entry",
-  "إضافة مصروف": "Add Expense",
-  "مصروف جديد": "New Expense",
-  "المجموعة": "Group",
-  "المجموعة الفرعية": "Subgroup",
-  "المورد / المستفيد": "Vendor / Payee",
-  "رقم الإيصال أو المرجع": "Receipt or reference number",
-  "الملاحظة": "Note",
-  "مصروف متكرر": "Recurring expense",
-  "حفظ المصروف": "Save Expense",
-  "تنظيم المصروفات": "Organize Expenses",
-  "المجموعات والفئات": "Groups & Categories",
-  "اسم المجموعة": "Group Name",
-  "إضافة التصنيف": "Add Category",
-  "سجل المصروفات": "Expense Log",
-  "البحث والتحليل": "Search & Analysis",
-  "كل المجموعات": "All Groups",
-  "الفرعية": "Subgroup",
-  "كل الطرق": "All Methods",
-  "المرجع": "Reference",
-  // ── Phase 3: reconciliation ──
-  "مطابقة الإغلاق": "Closing Reconciliation",
-  "الكاش الموجود فعلياً": "Cash actually on hand",
-  "المتوقع:": "Expected:",
-  "نسخ المتوقع": "Copy expected",
-  "اعتماد المتوقع بعد المراجعة": "Use expected totals after review",
-  "مجموع الفيزا من الجهاز": "Card total from the terminal",
-  "التحويلات المؤكدة": "Confirmed transfers",
-  "ملاحظة الإغلاق / سبب الفرق": "Closing note / reason for difference",
-  "حفظ الإغلاق": "Save Closing",
-  "المطابقة = عدّ ما في الدرج والجهاز فعلياً ومقارنته بما سجّله النظام — أي فرق يظهر هنا فوراً.": "Reconciliation = counting what's actually in the drawer and terminal and comparing it with what the system recorded — any difference shows up here immediately.",
-  // ── Phase 3: growth & report navigation ──
-  "محرّك النمو": "Growth Engine",
-  "مهامك اليومية لإعادة المرضى وزيادة الحجوزات — كل فرصة مع رسالة واتساب جاهزة للإرسال.": "Your daily tasks to bring patients back and grow bookings — every opportunity comes with a ready-to-send WhatsApp message.",
-  "تشغيلي": "Operational",
-  "🔍 بحث شامل": "🔍 Universal Search",
-  "⚖️ ميزان المريض": "⚖️ Patient Balance",
-  "✓ الإغلاق اليومي": "✓ Daily Close",
-  "👤 حسب المريض": "👤 By Patient",
-  "📋 كل عملية": "📋 Every Procedure",
-  "📦 الباقات": "📦 Packages",
-  "👤 حسب الموظف": "👤 By Staff",
-  "📝 سجل التعديلات": "📝 Edit History",
-  "مالي": "Financial",
-  "💵 الكاش": "💵 Cash",
-  "💰 الربح": "💰 Profit",
-  "💳 المصروفات": "💳 Expenses",
-  "📦 التكاليف": "📦 Costs",
-  "تحليلات": "Analytics",
-  "📈 الاحتفاظ": "📈 Retention",
-  "📅 الحجوزات": "📅 Bookings",
-  "🗂 المرضى": "🗂 Patients",
-  "👥 التعيينات": "👥 Assignments",
-  "بحث شامل في العيادة": "Universal Clinic Search",
-  "التقرير الشهري — المدفوع مقابل الإجراءات": "Monthly Report — Paid vs Procedures",
-  "ميزان المريض — تكملة الحسابات": "Patient Balance — Account Follow-ups",
-  "الاحتفاظ بالمرضى — LTV والتسرب": "Patient Retention — LTV & Churn",
-  "ربح العيادة": "Clinic Profit",
-  "الكاش والمقبوضات": "Cash & Collections",
-  "سجل المطابقة اليومية": "Daily Reconciliation Log",
-  "حسب الموظف": "By Staff",
-  "دليل المرضى والزوار": "Patients & Visitors Directory",
-  "الأسبوع": "Week",
-  "الشهر": "Month",
-  "السنة": "Year",
-  "تصدير XLS": "Export XLS",
-  "سجل العلاجات": "Treatment Log",
-  "🖨 طباعة": "🖨 Print",
-  "الفئة / الغرفة": "Category / Room",
-  "كل البيانات": "All Data",
-  "الإغلاق اليومي": "Daily Close",
-  "دفع جزئي — تكملة حساب": "Partial payment — follow-up",
-  "مطابقة يومية: مطابق": "Daily reconciliation: matched",
-  "مطابقة يومية: يحتاج مراجعة": "Daily reconciliation: needs review",
-  "كل الأطباء": "All Doctors",
-  // ── Phase 3: data security & accounts ──
-  "أمان البيانات": "Data Security",
-  "التخزين والنسخ الاحتياطي": "Storage & Backups",
-  "يتم الفحص": "Checking",
-  "فحص التخزين": "Storage Check",
-  "يتم التحقق من مكان حفظ بيانات العيادة.": "Verifying where clinic data is stored.",
-  "⬇ تنزيل نسخة JSON": "⬇ Download JSON Backup",
-  "🔐 تغيير كلمة المرور": "🔐 Change Password",
-  "استرجاع JSON": "Restore JSON",
-  "قائمة التحقق قبل بيانات حقيقية": "Checklist before real data",
-  "نزّل نسخة JSON كاملة للعيادة قبل أي تعديل كبير.": "Download a full JSON backup of the clinic before any major change.",
-  "تأكد أن آخر نسخة احتياطية موجودة في مسار النسخ أو في قاعدة البيانات المدارة.": "Make sure the latest backup exists in the backup path or the managed database.",
-  "جرّب الاسترجاع على نسخة اختبار، وليس على الحساب الحقيقي أولاً.": "Test the restore on a test copy first, not on the real account.",
-  "قارن أعداد المرضى، العمليات، الحجوزات، الإيصالات، والمستخدمين بعد الاسترجاع.": "Compare patient, operation, booking, receipt, and user counts after restoring.",
-  "وثّق وقت الاختبار والشخص الذي نفذه قبل إدخال بيانات مرضى حقيقية.": "Document the test time and who ran it before entering real patient data.",
-  "إدارة المستخدمين": "User Management",
-  "الحسابات": "Accounts",
-  "اسم المستخدم": "Username",
-  "الاسم الأول": "First Name",
-  "اسم العائلة": "Last Name",
-  "الاسم الأول (إنجليزي)": "First Name (English)",
-  "اسم العائلة (إنجليزي)": "Last Name (English)",
-  "رقم الجوال": "Mobile Number",
-  "الصلاحية": "Role",
-  "مساعد / استقبال": "Assistant / Reception",
-  "نمط العرض لهذا الحساب": "Display mode for this account",
-  "عادي — كل الأقسام المسموحة": "Standard — all permitted sections",
-  "التقويم فقط (تظهر القائمة عند الحاجة)": "Calendar only (menu appears when needed)",
-  "التقويم فقط — مغلق (صفوف فقط، بدون قائمة)": "Calendar only — locked (rows only, no menu)",
-  "نشط": "Active",
-  "موقوف": "Suspended",
-  "نطاق التقويم": "Calendar Range",
-  "كل التواريخ": "All dates",
-  "اليوم الحالي فقط": "Current day only",
-  "عدد أيام قبل وبعد اليوم": "Days before and after today",
-  "أيام العمل المحددة فقط": "Selected working days only",
-  "مواعيده المسندة فقط": "Assigned appointments only",
-  "أيام سابقة مسموحة": "Allowed past days",
-  "أيام قادمة مسموحة": "Allowed future days",
-  "أيام العمل المرئية": "Visible working days",
-  "الأحد": "Sunday",
-  "الاثنين": "Monday",
-  "الثلاثاء": "Tuesday",
-  "الأربعاء": "Wednesday",
-  "الخميس": "Thursday",
-  "الجمعة": "Friday",
-  "السبت": "Saturday",
-  "أعمدة الجدول المرئية": "Visible schedule columns",
-  "اختر الأعمدة المسموح له برؤيتها. اتركها كلها فارغة لرؤية كل الأعمدة.": "Choose the columns this account may see. Leave all empty to show every column.",
-  "حفظ الحساب": "Save Account",
-  "— الكل —": "— All —",
-  "الاسم (إنجليزي)": "Name (English)",
-  "المعرّف": "ID",
-  "الاسم (إنج)": "First (EN)",
-  "العائلة (إنج)": "Last (EN)",
-  "عضو منذ": "Member since",
-  "آخر دخول": "Last login",
-  "صلاحيات الميزات": "Feature Permissions",
-  "الصلاحيات": "Permissions",
-  "اضغط داخل القائمة لاختيار أكثر من مستخدم": "Click inside the list to select more than one user",
-  "القسم": "Section",
-  "— كل الأقسام —": "— All sections —",
-  "بحث في الصلاحيات": "Search permissions",
-  "الميزة": "Feature",
-  // ── Phase 3: data import ──
-  "نقل آمن للبيانات": "Safe Data Migration",
-  "استيراد من نظام عيادة آخر": "Import from another clinic system",
-  "المعالجة داخل المتصفح": "Processed inside the browser",
-  "1 رفع الملف": "1 Upload file",
-  "2 مطابقة الأعمدة": "2 Map columns",
-  "3 مراجعة الأخطاء": "3 Review errors",
-  "4 اعتماد الاستيراد": "4 Approve import",
-  "النظام السابق": "Previous System",
-  "نوع البيانات": "Data Type",
-  "ملف CSV أو JSON": "CSV or JSON file",
-  "يقبل CSV و JSON وملفات Excel/XLS المُصدَّرة من Clinica وغيرها مباشرةً. الملف لا يُرسل إلى أي خدمة خارجية.": "Accepts CSV, JSON, and Excel/XLS files exported from Clinica and others directly. The file is never sent to any external service.",
-  "إسناد كل السجلات إلى موظف واحد (اختياري)": "Assign all records to one staff member (optional)",
-  "— حسب العمود المستورد —": "— From the imported column —",
-  "عند الاختيار، تُنسب كل العمليات/الحجوزات المستوردة لهذا الموظف بدلاً من عمود الطبيب/الأخصائي.": "When selected, all imported operations/bookings are attributed to this staff member instead of the doctor/specialist column.",
-  "اختيار ملف آخر": "Choose another file",
-  "اعتماد السجلات الصالحة": "Approve valid records",
-  "سجل النقل": "Migration Log",
-  "عمليات الاستيراد السابقة": "Previous imports",
-  // ── Phase 3: communications & billing ──
-  "تقارير يومية مفعلة": "Active daily reports",
-  "حسب الدور والموظف": "By role and staff member",
-  "رسائل في الانتظار": "Messages queued",
-  "واتساب وSMS": "WhatsApp & SMS",
-  "حملات هذا الشهر": "Campaigns this month",
-  "بموافقة المرضى": "With patient consent",
-  "فواتير JoFotara": "JoFotara Invoices",
-  "جاهزة أو بانتظار الإرسال": "Ready or awaiting submission",
-  "تقارير الفريق": "Team Reports",
-  "ملخص يومي مخصص لكل دور": "A daily summary tailored to each role",
-  "المستلم": "Recipient",
-  "القناة": "Channel",
-  "وقت الإرسال": "Send Time",
-  "نوع الملخص": "Summary Type",
-  "ملخص الدور اليومي": "Daily role summary",
-  "جدول الغد": "Tomorrow's Schedule",
-  "حفظ التقرير اليومي": "Save Daily Report",
-  "التنبيهات التشغيلية": "Operational Alerts",
-  "إشعارات قابلة للتنفيذ": "Actionable notifications",
-  "حملات المرضى": "Patient Campaigns",
-  "حملة SMS موجهة داخل الأردن": "Targeted SMS campaigns within Jordan",
-  "الجمهور": "Audience",
-  "كل المرضى الموافقين": "All consenting patients",
-  "من لم يحضروا": "No-shows",
-  "لم يزوروا منذ 60 يوماً": "No visit in 60 days",
-  "الزوار غير المحولين": "Unconverted visitors",
-  "حسب الخدمة أو الفئة": "By service or category",
-  "الخدمة أو الفئة": "Service or Category",
-  "موعد الإرسال": "Send Schedule",
-  "نص الرسالة": "Message Text",
-  "أرسل فقط لمن لديهم موافقة تسويقية فعالة": "Send only to patients with active marketing consent",
-  "إضافة الحملة إلى قائمة الإرسال": "Add campaign to the send queue",
-  "سجل الحملات": "Campaign Log",
-  "الأداء وحالة التسليم": "Performance & delivery status",
-  "رابط الحجز الإلكتروني": "Online Booking Link",
-  "صفحة الحجز الخاصة بعيادتك": "Your clinic's booking page",
-  "شارك هذا الرابط مع مرضاك ليحجزوا مواعيدهم مباشرة. الحجوزات تظهر في قسم الحجوزات بانتظار تأكيدك.": "Share this link with your patients so they can book directly. Bookings appear in the Bookings section awaiting your confirmation.",
-  "📋 نسخ": "📋 Copy",
-  "فتح ↗": "Open ↗",
-  "قوالب معتمدة وتقارير يومية حسب الدور": "Approved templates and role-based daily reports",
-  "غير متصل": "Not connected",
-  "رقم WhatsApp Business": "WhatsApp Business number",
-  "قالب التقرير اليومي": "Daily report template",
-  "نسخة Graph API": "Graph API version",
-  "يحفظ Access Token مشفراً على الخادم ولا يعاد عرضه في المتصفح.": "The access token is stored encrypted on the server and never shown in the browser again.",
-  "حفظ إعداد الاتصال": "Save Connection Settings",
-  "بوابة SMS الأردن": "Jordan SMS Gateway",
-  "مزود محلي أو REST API مع تقارير تسليم": "A local provider or REST API with delivery reports",
-  "المزود": "Provider",
-  "مزود أردني محلي": "Local Jordanian provider",
-  "REST API مخصص": "Custom REST API",
-  "اسم المرسل": "Sender Name",
-  "رابط API": "API URL",
-  "مفتاح API": "API Key",
-  "يحفظ مفتاح المزود مشفراً على الخادم. قائمة الإرسال لا تشمل أي مريض دون موافقة فعالة.": "The provider key is stored encrypted on the server. The send queue never includes a patient without active consent.",
-  "الفوترة الإلكترونية الوطنية الأردنية": "Jordan's national e-invoicing",
-  "غير مهيأ": "Not configured",
-  "الرقم الضريبي": "Tax Number",
-  "تسلسل مصدر الدخل": "Income source sequence",
-  "تفعيل الإرسال الحقيقي بعد اعتماد الربط": "Enable live submission after the integration is approved",
-  "يحفظ Secret Key مشفراً على الخادم. فعّل الإرسال الحقيقي فقط بعد اختبار واعتماد حساب العيادة لدى JoFotara.": "The secret key is stored encrypted on the server. Enable live submission only after the clinic's JoFotara account is tested and approved.",
-  "حفظ جاهزية الربط": "Save Integration Readiness",
-  "الفواتير والإيصالات": "Invoices & Receipts",
-  "قائمة JoFotara": "JoFotara Queue",
-  "رقم الفاتورة": "Invoice Number",
-  "البنود": "Line Items",
-  "طباعة الإيصال": "Print Receipt",
-  "إرسال إلى JoFotara": "Send to JoFotara",
-  // ── Phase 3: mobile nav & shared dialogs ──
-  "عمليات": "Operations",
-  "حجوزات": "Bookings",
-  "مطابقة": "Reconciliation",
-  "المزيد": "More",
-  "القائمة الكاملة": "Full Menu",
-  "تكملة الدفع": "Payment Follow-up",
-  "إكمال الحساب": "Settle the balance",
-  "التحصيل الآن — وزّع على طرق الدفع": "Collect now — split across payment methods",
-  "فيزا / بطاقة": "Card / Visa",
-  "تحويل بنكي": "Bank Transfer",
-  "املأ المتبقي كاش": "Fill remainder as cash",
-  "إجمالي التحصيل:": "Total collected:",
-  "ملاحظة (اختياري)": "Note (optional)",
-  "تأكيد التحصيل ←": "Confirm Collection →",
-  "تأكيد العملية": "Confirm Operation",
-  "تأكيد الحذف": "Confirm Deletion",
-  "تغيير كلمة المرور": "Change Password",
-  "كلمة المرور الحالية": "Current Password",
-  "كلمة المرور الجديدة": "New Password",
-  "تأكيد كلمة المرور الجديدة": "Confirm New Password",
-  "12 حرفاً على الأقل مع أرقام وحروف": "At least 12 characters with letters and numbers",
-  "حفظ كلمة المرور": "Save Password",
-  "حجز موعد": "Book Appointment",
-  "المنفّذ — طبيب أو أخصائي": "Provider — doctor or specialist",
-  "تأكيد الحجز": "Confirm Booking",
-  "فئة جديدة:": "New category:",
-  "أين تظهر خدمات هذه الفئة في التقويم؟": "Where should this category's services appear in the calendar?",
-  "عمود جديد بهذه الفئة": "A new column for this category",
-  "إضافتها لعمود موجود": "Add to an existing column",
-  "لاحقاً": "Later",
-  "إضافة خدمات بالجملة": "Bulk Add Services",
-  "املأ صفاً لكل خدمة (الاسم مطلوب). الصفوف الفارغة تُتجاهل.": "Fill one row per service (name required). Empty rows are ignored.",
-  "＋ إضافة صف": "＋ Add Row",
-  "جدول العمولات — عمولة لكل خدمة دفعة واحدة": "Commission grid — set every service's commission at once",
-  "الموظفون (اختر من تُطبَّق عليهم — بدون اختيار = الكل):": "Staff (choose who it applies to — none selected = everyone):",
-  "حفظ كل العمولات": "Save All Commissions",
-  "بيع منتج:": "Sell product:",
-  "المنتج": "Product",
-  "اختر المنتج": "Choose a product",
-  "البائع (من باع المنتج)": "Seller (who sold the product)",
-  "— بدون —": "— None —",
-  "المريض / الملف (اختياري)": "Patient / file (optional)",
-  "الإجمالي:": "Total:",
-  "تأكيد البيع": "Confirm Sale",
-  "تعديل الخدمة": "Edit Service",
-  "الفئة الفرعية / العلامة": "Subcategory / Brand",
-  // ── Phase 3: tooltips & placeholders ──
-  "العودة إلى الصفحة الرئيسية": "Back to home page",
-  "أقسام لوحة التحكم": "Dashboard sections",
-  "لوحة الاستقبال — يوم العيادة": "Reception board — clinic day",
-  "فرص النمو والتسويق": "Growth & marketing opportunities",
-  "مركز التقارير — كل التقارير كجدول": "Report center — every report as a table",
-  "التقرير المالي (الكاش)": "Financial report (cash)",
-  "بحث تفصيلي شامل": "Detailed universal search",
-  "إخفاء القائمة تلقائياً": "Auto-hide the sidebar",
-  "إخفاء القائمة الجانبية تلقائياً (تظهر عند تحريك الفأرة لحافة اليمين) — اضغط للتبديل": "Auto-hide the sidebar (it reappears when the mouse touches the right edge) — click to toggle",
-  "تنقّل سريع بين الأقسام": "Quick navigation between sections",
-  "ابحث في العيادة...": "Search the clinic...",
-  "البحث في العيادة": "Search the clinic",
-  "حالة الحفظ": "Save status",
-  "تعبئة العيادة بحجوزات وعمليات ومرضى للاختبار": "Fill the clinic with test bookings, operations, and patients",
-  "الفرع الرئيسي": "Main Branch",
-  "تسجيل عملية (F2)": "Record operation (F2)",
-  "حجز جديد (F4)": "New booking (F4)",
-  "ابحث بالاسم أو اكتب اسماً جديداً": "Search by name or type a new name",
-  "رقم الهاتف (اختياري — للتذكير والمتابعة)": "Phone number (optional — for reminders and follow-up)",
-  "عرض جدول العمليات بملء الشاشة": "View the operations table in full screen",
-  "المريض، الخدمة، الطبيب، الملاحظات...": "Patient, service, doctor, notes...",
-  "سارة أحمد": "Sara Ahmad",
-  "الأردن": "Jordan",
-  "عمّان": "Amman",
-  "ليزر، أسنان، متابعة...": "Laser, dental, follow-up...",
-  "حساسية للأدوية، ملاحظات الطبيب، تفضيلات المريض، أو أي معلومات مهمة...": "Medication allergies, doctor notes, patient preferences, or any important information...",
-  "الاسم، الرقم، الهاتف، المدينة، الملاحظات...": "Name, number, phone, city, notes...",
-  "تحديد كل الصفحة": "Select entire page",
-  "تكبير التقويم وإخفاء القائمة (تظهر عند تحريك الفأرة لحافة اليمين)": "Maximize the calendar and hide the sidebar (it reappears when the mouse touches the right edge)",
-  "إظهار/إخفاء إعدادات وإدارة التقويم": "Show/hide calendar settings and management",
-  "اليوم السابق": "Previous day",
-  "اختر التاريخ": "Choose a date",
-  "اليوم التالي": "Next day",
-  "تظهر خدماتها عند الحجز من خانة فارغة": "Its services appear when booking from an empty slot",
-  "سبب الزيارة، تعليمات قبل الموعد، أو ملاحظات اتصال": "Visit reason, pre-appointment instructions, or contact notes",
-  "د. ليلى منصور": "Dr. Laila Mansour",
-  "جدول كامل: عمولة لكل خدمة مرة واحدة": "Full grid: one commission per service in one go",
-  "د. ليلى — 60% ليزر": "Dr. Laila — 60% laser",
-  "تكبير قائمة الخدمات": "Maximize the services list",
-  "اسم الخدمة أو الفئة...": "Service or category name...",
-  "إضافة عدة خدمات دفعة واحدة": "Add several services at once",
-  "جلسة ليزر": "Laser session",
-  "مثال: ليزر، فيشل، بوتوكس": "e.g. laser, facial, Botox",
-  "مثال: ستايلج، كيسينس — تحت فئة فيلر": "e.g. Stylage, Kysense — under the filler category",
-  "اتركه فارغاً إن لم يكن ثابتاً": "Leave empty if not fixed",
-  "الكمية المستهلكة": "Quantity consumed",
-  "6 جلسات ليزر كامل": "6 full-body laser sessions",
-  "ليزر، فيشل...": "Laser, facial...",
-  "يُملأ تلقائياً": "Filled automatically",
-  "هاتف أو بريد": "Phone or email",
-  "مواد طبية": "Medical supplies",
-  "شروط الطلب، أيام التوصيل، أو الأسعار": "Ordering terms, delivery days, or prices",
-  "قفازات نيتريل": "Nitrile gloves",
-  "علبة": "Box",
-  "عرض جدول المخزون بملء الشاشة": "View the inventory table in full screen",
-  "رقم الفاتورة أو شروط التوصيل": "Invoice number or delivery terms",
-  "شركة، موظف، أو جهة": "Company, employee, or entity",
-  "سبب المصروف أو تفاصيله": "Expense reason or details",
-  "تشغيل، رواتب، تسويق...": "Operations, payroll, marketing...",
-  "مواصلات، إيجار، مواد...": "Transport, rent, supplies...",
-  "المجموعة، المورد، المرجع، الملاحظة...": "Group, vendor, reference, note...",
-  "عُدّ الدرج ثم أدخل المبلغ": "Count the drawer, then enter the amount",
-  "اقرأ تقرير الجهاز ثم أدخل المبلغ": "Read the terminal report, then enter the amount",
-  "راجع الحساب البنكي ثم أدخل المبلغ": "Check the bank account, then enter the amount",
-  "اختياري: سبب الفرق، رقم تقرير الجهاز، من راجع الإغلاق...": "Optional: reason for the difference, terminal report number, who reviewed the closing...",
-  "نوع التقرير": "Report type",
-  "عرض التقرير بملء الشاشة": "View the report in full screen",
-  "تصدير سجل العلاجات بصيغة Clinica (يُستورد في عيادة أخرى)": "Export the treatment log in Clinica format (importable in another clinic)",
-  "اكتب اسم مريض، خدمة، طبيب، حالة، دفعة، ملاحظة، مورد أو صنف...": "Type a patient, service, doctor, status, payment, note, supplier, or item...",
-  "اتركها فارغة عند التعديل": "Leave empty when editing",
-  "سارة": "Sara",
-  "خالد": "Khaled",
-  "مريض، تقويم، مالية...": "Patient, calendar, finance...",
-  "اسم النظام أو الشركة": "System or company name",
-  "ليزر، أسنان...": "Laser, dental...",
-  "مرحباً {{name}}، نود تذكيرك...": "Hi {{name}}, we'd like to remind you...",
-  "اتركه فارغاً للاحتفاظ بالمفتاح الحالي": "Leave empty to keep the current key",
-  "التنقل السريع": "Quick navigation",
-  "مثال: دفع باقي الجلسة": "e.g. paid the session balance",
-  "التنقل السريع بين الأقسام": "Quick navigation between sections",
-  "اكتب اسم قسم للانتقال إليه…": "Type a section name to jump to it…",
-  "بحث سريع": "Quick search",
-  "عمود الفئة الجديدة": "New category's column",
-  "تعديل العملية": "Edit Operation",
-  "جدول العمولات": "Commission Grid",
-  "عمولات الليزر": "Laser commissions",
-  "بيع منتج": "Product Sale",
-  "اختياري — اربط البيع بملف مريض": "Optional — link the sale to a patient file",
-  "ستايلج، كيسينس...": "Stylage, Kysense...",
-  // ── Phase 3: reception & product widgets ──
-  "لا يُخصم أي صنف من المخزون عند تنفيذ هذه الخدمة.": "No inventory item is consumed when this service is performed.",
-  "لا توجد منتجات بعد. فعّل خيار «منتج للبيع» على أي صنف في المخزون لإظهاره هنا.": "No products yet. Enable \"Sellable product\" on any inventory item to show it here.",
-  "بيع": "Sell",
-  "المتوفر": "Available",
-  "سعر البيع": "Selling Price",
-  "الربح/وحدة": "Profit/unit",
-  "عمولة البائع": "Seller Commission",
-  "↩ إرجاع": "↩ Return",
-  "تأكيد": "Confirm",
-  "لا مواعيد متبقية اليوم.": "No appointments left today.",
-  "تسجيل العملية": "Record the operation",
-  "لا يوجد مرضى في الانتظار.": "No patients waiting.",
-  "مدفوعة ✓": "Paid ✓",
-  "لا عمليات بعد اليوم.": "No operations yet today.",
-  "مواعيد اليوم": "Today's Appointments",
-  "بالانتظار": "Waiting",
-  "في العيادة": "In Clinic",
-  "المحصّل اليوم": "Collected Today",
-  "مستحقات اليوم": "Due Today",
-  "المواعيد القادمة": "Upcoming Appointments",
-  "في العيادة الآن": "In the clinic now",
-  "أعد المحاولة": "Retry",
-  "قيمة الجلسة": "Session Value",
-  "المتبقي": "Remaining",
-  "بيانات هذه العيادة معزولة ومحمية بحسابك.": "This clinic's data is isolated and protected by your account.",
-  "كشف الراتب الفردي مخفي لهذا الحساب.": "The individual salary slip is hidden for this account.",
-  "لا يوجد موظفون": "No staff members",
-  "أضف موظفين وعمليات لإظهار كشف فردي.": "Add staff and operations to show an individual slip.",
-  "غير مرتبط بموظف": "Not linked to a staff member",
-  "لا توجد أعمدة في الجدول بعد.": "No columns in the schedule yet.",
-  "— اختر ميزة —": "— Choose a feature —",
-  "هذا الحساب لا يملك صلاحية إدارة الحسابات.": "This account does not have permission to manage accounts.",
-  "لا يوجد مستخدمون مطابقون للفلاتر.": "No users match the filters.",
-  "لا توجد صلاحيات محفوظة بعد.": "No permissions saved yet.",
-  "لا أعمدة مسموح بها": "No columns allowed",
-  "➕ فئة جديدة…": "➕ New category…",
-  "أضف خدمات أولاً.": "Add services first.",
-  "أضف مورد أولاً": "Add a supplier first",
-  "أضف صنف أولاً": "Add an item first",
-  "لا توجد أعمدة تقويم متاحة لهذا الحساب": "No calendar columns are available for this account",
-  "اختصارات تسرّع يومك": "Shortcuts that speed up your day",
-  "مهارات مخفية:": "Hidden skills:",
-  "فهمت": "Got it",
-  "فريق العمود:": "Column team:",
-  "اختر من ينفّذ حجوزات هذا العمود. شخص واحد → يُسند تلقائياً ولا يمكن اختيار غيره؛ أكثر من شخص → يُختار من بينهم فقط عند الحجز؛ بدون تحديد → اختيار حر من كل الطاقم.": "Choose who performs this column's bookings. One person → auto-assigned and locked; several → only they can be chosen at booking; none → free choice from the whole team.",
-  "الأطباء": "Doctors",
-  "الأخصائيون": "Specialists",
-  "فئات الخدمات:": "Service categories:",
-  "اختر ما يظهر عند الحجز في هذا العمود. اترك الكل بدون تحديد ليعرض العمود كل الخدمات.": "Choose what appears when booking in this column. Leave all unselected to show every service.",
-  "لا توجد فئات بعد — أضف فئات الخدمات من شاشة «إضافة خدمة».": "No categories yet — add service categories from the \"Add Service\" screen.",
-  "الموعد القادم": "Next Appointment",
-  "لا يوجد موعد قادم": "No upcoming appointment",
-  "الجدول المتبقي لليوم فارغ.": "The rest of today's schedule is empty.",
-  "اتصال": "Call",
-  "تسجيل الوصول": "Check-in",
-  "محرك المتابعة": "Recall Engine",
-  // ── Phase 3: recall, checklist & day widgets ──
-  "جلسات مدفوعة بلا موعد قادم": "Paid sessions with no upcoming booking",
-  "هؤلاء دفعوا باقاتهم وجلساتهم متبقية — رسالة واحدة تعيد ملء التقويم.": "These patients paid for their packages and have sessions left — one message refills the calendar.",
-  "آخر جلسة": "Last Session",
-  "💬 تذكير": "💬 Remind",
-  "حجز": "Booking",
-  "تجهيز العيادة": "Clinic Setup",
-  "إخفاء": "Hide",
-  "سير العمل اليومي": "Daily Workflow",
-  "تابع سير العمل وأكمل كل خطوة بسلاسة": "Follow the workflow and complete each step smoothly",
-  "لا توجد تنبيهات تشغيلية حالياً.": "No operational alerts right now.",
-  "اليوم تحت السيطرة": "The day is under control",
-  "لا توجد إجراءات عاجلة في الوقت الحالي.": "No urgent actions at the moment.",
-  "الإيرادات": "Revenue",
-  "يمكن للمدير تفعيل عرض المعلومات المالية من شاشة الصلاحيات.": "The admin can enable financial information from the permissions screen.",
-  "النسب والمستحقات مخفية لهذا الحساب.": "Rates and payouts are hidden for this account.",
-  "لا توجد مستحقات بعد لهذا التاريخ.": "No payouts yet for this date.",
-  "مطابقة الإغلاق مخفية لهذا الحساب.": "Closing reconciliation is hidden for this account.",
-  "لا توجد عمليات مسجلة لهذا التاريخ.": "No operations recorded for this date.",
-  "لا توجد عمليات مطابقة للفلاتر الحالية.": "No operations match the current filters.",
-  "إيصال": "Receipt",
-  "لا توجد ملفات مطابقة للبحث.": "No files match the search.",
-  "لا توجد ملفات مرضى أو زوار بعد.": "No patient or visitor files yet.",
-  "مدفوعة بالكامل ✓": "Paid in full ✓",
-  "رقم العملية": "Operation #",
-  "المنفّذ": "Performed by",
-  "عرض الإيصال": "View receipt",
-  "حذف العملية": "Delete operation",
-  "فتح الإيصال": "Open receipt",
-  "تنبيه حساسية / سلامة المريض": "Allergy / patient safety alert",
-  "＋ باقة": "＋ Package",
-  "＋ منتج": "＋ Product",
-  "رجوع للملفات": "Back to files",
-  "إجمالي المدفوع": "Total Paid",
-  "البريد": "Email",
-  "موافقة الرسائل": "Messaging consent",
-  "رقم": "No.",
-  "الإيصالات والفواتير": "Receipts & Invoices",
-  "سجل الحجوزات": "Bookings Log",
-  "لا توجد خدمات مطابقة للفلتر.": "No services match the filter.",
-  "اضغط على أي خدمة لتعديل الاسم أو الفئة أو السعر أو التكلفة.": "Click any service to edit its name, category, price, or cost.",
-  "لا توجد خدمات مطابقة. أضف خدمة لتظهر في الشجرة.": "No matching services. Add a service to show it in the tree.",
-  "عرّف باقاتك (مثل 6 جلسات ليزر) لتبيعها للمرضى وتتابع جلساتهم.": "Define your packages (like 6 laser sessions) to sell them to patients and track their sessions.",
-  "↺ تراجع": "↺ Undo",
-  "لا توجد باقات مُباعة بعد. اختر مريضاً وباقة ثم اضغط «بيع الباقة».": "No packages sold yet. Choose a patient and a package, then click \"Sell Package\".",
-  "تمت": "Done",
-  "لا توجد جلسات مجدولة. اختر باقة وحدد تاريخاً لجدولتها على التقويم.": "No sessions scheduled. Choose a package and pick a date to schedule it on the calendar.",
-  "مصادر الإحالة:": "Referral sources:",
-  "لا توجد تعديلات مطابقة للفلاتر.": "No edits match the filters.",
-  "لا مستحقات — كل الحسابات مسددة.": "No outstanding balances — all accounts are settled.",
-  "لا جلسات باقات مجدولة اليوم.": "No package sessions scheduled today.",
-  "المبالغ المستحقة مخفية لهذا الحساب.": "Outstanding balances are hidden for this account.",
-  "💬 واتساب": "💬 WhatsApp",
-  "لا رقم — أضِفه من الملف": "No number — add it from the file",
-  "لا توجد مبالغ مستحقة — كل العمليات والباقات مدفوعة بالكامل. 🎉": "No outstanding balances — all operations and packages are fully paid. 🎉",
-  "قواعد النسب والمستحقات مخفية لهذا الحساب.": "Rate and payout rules are hidden for this account.",
-  "لا توجد قواعد مستحقات بعد.": "No payout rules yet.",
-  "أضف مورداً حتى يظهر في دليل الطلب.": "Add a supplier so it appears in the ordering directory.",
-  "لا توجد أصناف تحت حد الطلب الآن.": "No items are below their reorder level right now.",
-  "طلب": "Order",
-  "أضف أول صنف للمخزون.": "Add the first inventory item.",
-  "لا يوجد سجل طلبات بعد.": "No order history yet.",
-  "استلام": "Receive",
-  "اختر الفئة": "Choose a category",
-  "أضف مجموعة أولاً": "Add a group first",
-  "أضف أول مجموعة وفئة لبدء تسجيل المصروفات.": "Add the first group and category to start recording expenses.",
-  "التوزيع حسب المجموعة": "Breakdown by group",
-  "لا توجد مصروفات ضمن الفلاتر الحالية.": "No expenses within the current filters.",
-  "لا توجد بيانات دفع.": "No payment data.",
-  "متكرر": "Recurring",
-  "لا توجد مصروفات مطابقة.": "No matching expenses.",
-  // ── Phase 3: import review & booking widgets ──
-  "راجع الحقول المطلوبة قبل الاعتماد": "Review the required fields before approving",
-  "تجاهل / غير موجود": "Ignore / not present",
-  "إجمالي الصفوف": "Total rows",
-  "جاهزة للاستيراد": "Ready to import",
-  "مكررة وستتخطى": "Duplicates (will be skipped)",
-  "تحتاج تصحيح": "Needs correction",
-  "حذف الاستيراد": "Delete Import",
-  "لم تنفذ أي عملية استيراد بعد.": "No imports have been run yet.",
-  "حجوزات إلكترونية بانتظار التأكيد": "Online bookings pending confirmation",
-  "✓ تأكيد": "✓ Confirm",
-  "رفض": "Decline",
-  "لا توجد حجوزات لهذا التاريخ بعد.": "No bookings for this date yet.",
-  "📋 واتساب": "📋 WhatsApp",
-  "تسجيل كعملية": "Record as operation",
-  "🖨 طباعة / PDF": "🖨 Print / PDF",
-  "لا توجد بيانات خدمات ضمن النطاق.": "No service data within the range.",
-  "لا توجد حالات ضمن النطاق.": "No statuses within the range.",
-  "نتائج البحث": "Search Results",
-  "غير مدفوع": "Unpaid",
-  "الخدمات حسب المدفوع": "Services by paid amount",
-  "توزيع الحالات": "Status breakdown",
-  "لا توجد بيانات للتوزيع.": "No data to break down.",
-  // ── Phase 3: reports center & tables ──
-  "🏆 أعلى 10 مرضى بقيمة مدى الحياة (LTV)": "🏆 Top 10 patients by lifetime value (LTV)",
-  "الزيارات": "Visits",
-  "متوسط الزيارة": "Avg per visit",
-  "آخر زيارة": "Last Visit",
-  "منذ": "Since",
-  "لا يوجد مرضى في خطر التسرب حالياً. 🎉": "No patients at risk of churning right now. 🎉",
-  "جاهز": "Ready",
-  "فتح": "Open",
-  "لا توجد تقارير مطابقة.": "No matching reports.",
-  "كل تقرير يظهر كصف واضح — افتحه لتظهر النتائج كجدول قابل للفلترة والتصدير.": "Every report appears as a clear row — open it to see results as a filterable, exportable table.",
-  "عدد التقارير": "Reports",
-  "تشغيلية": "Operational",
-  "مالية": "Financial",
-  "تحليلية": "Analytical",
-  "الفترة الحالية": "Current Period",
-  "الفترة": "Period",
-  "الأعمدة الرئيسية": "Key Columns",
-  "آخر تحديث": "Last Updated",
-  "هذا التقرير يحتوي على معلومات مالية ويحتاج صلاحية مالية.": "This report contains financial information and requires financial permission.",
-  "→ مركز التقارير": "→ Report Center",
-  "تظهر العمليات المستوردة على تواريخها الأصلية — وسّع نطاق التاريخ (من/إلى أو «السنة») ليشملها.": "Imported operations appear on their original dates — widen the date range (from/to or \"Year\") to include them.",
-  "كل الموظفين": "All Staff",
-  "لا توجد عمليات — راتب فقط.": "No operations — salary only.",
-  "صافي المستحق هذه الفترة": "Net due this period",
-  "إجمالي العمولة": "Total commission",
-  "الراتب الأساسي": "Base salary",
-  "خصومات": "Deductions",
-  "العملية": "Operation",
-  "العمولة": "Commission",
-  "لا توجد باقات مبيعة في هذه الفترة.": "No packages sold in this period.",
-  "اضغط على أي صف لتعديل السعر أو التكلفة أو الفئة أو الدفع.": "Click any row to edit the price, cost, category, or payment.",
-  "الجلسات": "Sessions",
-  "لا توجد حركات نقدية في هذه الفترة.": "No cash movements in this period.",
-  "اضغط على أي صف لتعديل السعر أو الخصم أو الدفع أو الفئة.": "Click any row to edit the price, discount, payment, or category.",
-  "لا توجد خدمات في الزيارة بعد": "No services in the visit yet",
-  "اختر الخدمة واضغط إضافة للقائمة. يمكنك إضافة أكثر من خدمة قبل الحفظ.": "Choose a service and click Add to List. You can add more than one service before saving.",
-  "سيتم حفظ الخدمة المختارة تلقائياً. افتح الخيارات فقط لتعديلها أو لإضافة خدمة أخرى.": "The selected service is saved automatically. Open the options only to adjust it or add another service.",
-  "تنبيه: المدفوع أعلى من الإجمالي بـ": "Warning: paid exceeds the total by",
-  "لن تُحتسب النسب — اختر الطبيب": "Rates will not be calculated — choose the doctor",
-  "مستحقات الفريق": "Team Payouts",
-  "كشف الرواتب والنسب مخفي لهذا الحساب.": "The payroll and rates report is hidden for this account.",
-  "أضف موظفين وعمليات لإظهار الرواتب.": "Add staff and operations to show payroll.",
-  "لا يوجد إغلاق محفوظ لهذا اليوم بعد.": "No closing saved for this day yet.",
-  "سجل إغلاقات اليوم": "Day closing history",
-  "المتوقع": "Expected",
-  "الموجود": "Counted",
-  "بواسطة": "By",
-  "لا توجد طلبات تجربة محفوظة بعد. جرّب النموذج في صفحة التعريف.": "No saved trial requests yet. Try the form on the landing page.",
-  // ── Phase 3: digest, invoices & growth widgets ──
-  "معاينة التقرير": "Report Preview",
-  "لا توجد تقارير يومية مفعلة.": "No active daily reports.",
-  "إضافة للإرسال": "Add to Queue",
-  "المستلمون": "Recipients",
-  "الأحرف": "Characters",
-  "مقاطع SMS": "SMS segments",
-  "الإجمالي المتوقع": "Expected total",
-  "لا توجد حملات بعد.": "No campaigns yet.",
-  "المريض / المشتري": "Patient / Buyer",
-  "الرقم الوطني / الضريبي": "National / tax number",
-  "المجموع قبل الضريبة": "Subtotal before tax",
-  "المرجع:": "Reference:",
-  "ملاحظات:": "Notes:",
-  "ستظهر الفاتورة هنا بعد حفظ زيارة تحتوي على عملية واحدة أو أكثر.": "The invoice will appear here after saving a visit with one or more operations.",
-  "وضع معاينة، لم ترسل ضريبياً": "Preview mode, not submitted for tax",
-  "عرض": "View",
-  "إجمالي الفرص اليوم": "Total opportunities today",
-  "بدون موافقة": "No consent",
-  "واتساب": "WhatsApp",
-  "لا يوجد رقم": "No number",
-  "تم": "Done",
-  "لا توجد فرص ضمن هذه الفئة حالياً 🎉": "No opportunities in this category right now 🎉",
-  "إعدادات الفرص": "Opportunity Settings",
-  "ذكّر بالجلسة القادمة بعد": "Remind about the next session after",
-  "يوم": "days",
-  "اعتبر المريض منقطعاً بعد": "Consider a patient lapsed after",
-  "لا يوجد ملف.": "No file.",
-  "لا توجد عمليات في هذا الملف.": "No operations in this file.",
-  "لا توجد أعمدة": "No columns",
-  "لا توجد خدمات في هذه الفئة": "No services in this category",
-  "أضف أصنافاً للمخزون أولاً.": "Add inventory items first.",
-  "المسجّل في النظام": "Recorded in system",
-  "استُهلك منذ آخر جرد": "Consumed since last count",
-  "العدد الفعلي": "Actual count",
-  "حفظ الجرد ومطابقته": "Save & Reconcile Count",
-  "لا توجد عمليات جرد بعد.": "No stock counts yet.",
-  "↪ أنت تتصفّح عيادة": "↪ You are browsing clinic",
-  "كمالك المنصّة — كل إجراء يُسجَّل.": "as the platform owner — every action is logged.",
-  "خروج والعودة للمالك": "Exit and return to owner",
-  "الخدمة / الفئة": "Service / Category",
-  "مستحقات متبقية": "Remaining balances",
-  "الطريقة": "Method",
-  "🖨 طباعة الملخص": "🖨 Print Summary",
-  // ── Phase 3: template tooltips ──
-  "إعادة إلى المواعيد": "Return to appointments",
-  "تحديد فئات الخدمات التي تظهر عند الحجز في هذا العمود": "Choose the service categories shown when booking in this column",
-  "حذف العمود": "Delete column",
-  "الاختصارات والمهارات": "Shortcuts & skills",
-  "إعدادات عمود التقويم": "Calendar column settings",
-  "إخفاء هذه القائمة نهائياً": "Hide this list permanently",
-  "اتجاه الإيرادات والمصروفات خلال أربعة عشر يوماً": "Revenue and expense trend over fourteen days",
-  "بحث في العمليات (خدمة، تاريخ، حالة)…": "Search operations (service, date, status)…",
-  "بحث في عمليات المريض": "Search the patient's operations",
-  "عرض العمليات بملء الشاشة": "View operations in full screen",
-  "ملء الشاشة": "Full screen",
-  "اضغط للتعديل": "Click to edit",
-  "حذف الخدمة": "Delete service",
-  "تراجع عن آخر جلسة": "Undo the last session",
-  "فتح قائمة المستحقات": "Open the outstanding balances list",
-  "حذف المصروف": "Delete expense",
-  "حذف هذا الاستيراد وكل ما أنشأه": "Delete this import and everything it created",
-  "فتح واتساب برسالة التذكير": "Open WhatsApp with the reminder message",
-  "نسخ رسالة تذكير واتساب": "Copy the WhatsApp reminder message",
-  "إرسال SMS تذكير": "Send SMS reminder",
-  "اضغط لتعديل الخدمة": "Click to edit the service",
-  "ابحث عن تقرير...": "Search for a report...",
-  "لم يسجّل موافقة تسويق": "No marketing consent recorded",
-  "تقييم المريض — اضغط لتغييره": "Patient rating — click to change",
-  "بحث (خدمة، تاريخ، منفّذ، حالة)…": "Search (service, date, provider, status)…",
-  "بحث في العمليات": "Search operations",
-  "تعبئة كل الفئة": "Fill the whole category",
-  "تعبئة كل القسم": "Fill the whole section",
-  "ملخص إغلاق اليوم": "Day closing summary",
-  // ── Phase 4: fallback names & entity labels ──
-  "مجموعة مصروفات": "Expense group",
-  "فئة فرعية": "Subcategory",
-  "خدمة بدون اسم": "Unnamed service",
-  "صنف محذوف": "Deleted item",
-  "مخفي": "Hidden",
-  "باقة بدون اسم": "Unnamed package",
-  "باقة": "Package",
-  "بيع باقة": "Package sale",
-  "إضافة ملف مريض": "Add patient file",
-  "قاعدة بدون اسم": "Unnamed rule",
-  "عضو فريق": "Team member",
-  "حساب مستخدم": "User account",
-  "ملف بدون اسم": "Unnamed file",
-  "خدمة": "Service",
-  "مورد بدون اسم": "Unnamed supplier",
-  "عام": "General",
-  "صنف بدون اسم": "Unnamed item",
-  // ── Phase 4: dialogs, saving & password ──
-  "متابعة": "Continue",
-  "💾 جاري الحفظ...": "💾 Saving...",
-  "✓ محفوظ": "✓ Saved",
-  "اختر كلمة مرور دائمة": "Choose a permanent password",
-  "أدخل كلمة المرور المؤقتة، ثم اختر كلمة مرور دائمة قوية قبل استخدام النظام.": "Enter the temporary password, then choose a strong permanent password before using the system.",
-  "تغيير كلمة المرور متاح فقط في الحسابات الحقيقية": "Password change is only available on real accounts",
-  "كلمتا المرور غير متطابقتين": "The passwords do not match",
-  "كلمة المرور الجديدة يجب أن تكون 12 حرفاً على الأقل": "The new password must be at least 12 characters",
-  "جاري الحفظ...": "Saving...",
-  "✓ تم تغيير كلمة المرور بنجاح": "✓ Password changed successfully",
-  "كلمة المرور الحالية غير صحيحة": "The current password is incorrect",
-  "تعذر تغيير كلمة المرور": "Could not change the password",
-  "خطأ في الاتصال بالخادم": "Error connecting to the server",
-  "يرجى إدخال مبلغ التحصيل على طريقة دفع واحدة على الأقل.": "Enter a collection amount for at least one payment method.",
-  "تكملة دفع": "Payment follow-up",
-  "وصلت نسخة أحدث من بيانات العيادة من جهاز آخر. سنحدّث الشاشة الآن — عملك المحفوظ بأمان.": "A newer copy of the clinic data arrived from another device. The screen will refresh now — your saved work is safe.",
-  "تحديث البيانات": "Data Update",
-  "تحديث الآن": "Refresh Now",
-  "مساحة عيادة آمنة": "Secure clinic workspace",
-  "اشتراك العيادة فعال": "Clinic subscription active",
-  // ── Phase 4: statuses & rule labels ──
-  "لا توجد نتائج": "No results",
-  "متوقف": "Inactive",
-  "بدون تنبيه": "No alert",
-  "يحتاج طلب": "Needs reorder",
-  "مطمئن": "Healthy",
-  "حجز إلكتروني — بانتظار التأكيد": "Online booking — pending confirmation",
-  "نسبة متدرجة": "Tiered rate",
-  "نسبة مخصوصة للزيارة": "Based on member rate",
-  "مطابق": "Matched",
-  "يحتاج مراجعة": "Needs review",
-  "إغلاق محفوظ من نسخة أقدم.": "Closing saved from an older version.",
-  "لا خدمات في هذه الفئة": "No services in this category",
-  "أضف خدمة أولاً": "Add a service first",
-  "بدون فئة": "Uncategorized",
-  // ── Phase 4: shortcuts & tips ──
-  "تسجيل عملية جديدة": "Record a new operation",
-  "حجز جديد (أول خانة متاحة)": "New booking (first available slot)",
-  "قائمة المبالغ المستحقة": "Outstanding balances list",
-  "تنقّل سريع + تنفيذ إجراءات + البحث عن مريض": "Quick navigation + actions + patient search",
-  "إغلاق أي نافذة": "Close any window",
-  "؟": "?",
-  "هذه القائمة": "This list",
-  "اضغط أي خانة فارغة في التقويم لحجز موعد فيها مباشرة.": "Click any empty calendar slot to book an appointment there directly.",
-  "اضغط اسم أي عمود في «الإعدادات» داخل التقويم لتحديد فريقه وفئات خدماته.": "Click any column name in the calendar's \"Settings\" to set its team and service categories.",
-  "أزرار «وصل / لم يحضر» في الاستقبال قابلة للتراجع من التنبيه الذي يظهر.": "The \"Arrived / No show\" buttons in Reception can be undone from the toast that appears.",
-  "اكتب اسم مريض في ⌘K للانتقال إلى ملفه فوراً.": "Type a patient name in ⌘K to jump to their file instantly.",
-  // ── Phase 4: KPIs & day-close status ──
-  "يعرض كل الخدمات": "Shows all services",
-  "صلاحية مالية مطلوبة": "Financial permission required",
-  "بانتظار الإغلاق": "Awaiting closing",
-  "أدخل الكاش والفيزا والتحويلات الفعلية": "Enter the actual cash, card, and transfers",
-  "الإغلاق متطابق": "Closing matched",
-  "يوجد فرق يحتاج مراجعة": "There is a difference that needs review",
-  "الإغلاق غير محفوظ": "Closing not saved",
-  "الإغلاق يحتاج مراجعة": "Closing needs review",
-  "لا توجد عمليات ظاهرة لهذا الحساب في هذا التاريخ.": "No operations visible to this account for this date.",
-  "الإغلاق مخفي": "Closing hidden",
-  "الخصومات مخفية": "Discounts hidden",
-  "المتوسط مخفي": "Average hidden",
-  "اليوم فارغ.": "The day is empty.",
-  // ── Phase 4: setup checklist & journey ──
-  "أضف خدماتك وأسعارها": "Add your services and prices",
-  "ما تقدمه العيادة يظهر في الحجز والعمليات": "What the clinic offers appears in booking and operations",
-  "أضف فريقك ونسبهم": "Add your team and their rates",
-  "الأطباء والأخصائيون ومستحقاتهم": "Doctors, specialists, and their payouts",
-  "جهّز أعمدة التقويم": "Set up calendar columns",
-  "افتح الحجوزات ثم «الإعدادات» — خصص لكل عمود فريقه وفئاته": "Open Bookings then \"Settings\" — assign each column its team and categories",
-  "سجّل أول حجز": "Record your first booking",
-  "اضغط أي خانة فارغة في التقويم أو F4": "Click any empty calendar slot or press F4",
-  "سجّل أول عملية": "Record your first operation",
-  "زيارة مكتملة بدفعها — أساس التقارير والنسب": "A completed, paid visit — the basis of reports and commissions",
-  "أغلق أول يوم": "Close your first day",
-  "عدّ الدرج وطابق الإغلاق — عادة النجاح اليومية": "Count the drawer and reconcile — the daily success habit",
-  "أهلاً بك — لنجهّز عيادتك في دقائق": "Welcome — let's set up your clinic in minutes",
-  "موعد": "Appointment",
-  "حجز وتأكيد الموعد": "Book and confirm the appointment",
-  "وصول المريض": "Patient arrival",
-  "الخدمة / العملية": "Service / Operation",
-  "تقديم الخدمة أو العملية": "Deliver the service or operation",
-  "تحصيل المبلغ": "Collect payment",
-  "الإغلاق": "Closing",
-  "إغلاق الملف والمطابقة": "Close out and reconcile",
-  // ── Phase 4: notifications ──
-  "لا حجوزات لهذا اليوم بعد.": "No bookings for this day yet.",
-  "أضف أول حجز": "Add the first booking",
-  "غير معين": "Unassigned",
-  "الحساب موقوف مؤقتاً": "Account temporarily suspended",
-  "تواصل مع الدعم لإعادة تفعيل العيادة.": "Contact support to reactivate the clinic.",
-  "موعد إغلاق الحساب وصل": "The account closure date has arrived",
-  "تواصل معنا للاشتراك قبل انتهاء الفترة.": "Contact us to subscribe before the trial ends.",
-  "تواصل مع المرضى قبل موعدهم لتقليل عدم الحضور.": "Contact patients before their appointment to reduce no-shows.",
-  "أرسل متابعة أو اعرض موعداً بديلاً.": "Send a follow-up or offer an alternative time.",
-  "جلسات مدفوعة تنتظر التذكير — افتح قائمة المتابعة وأرسل رسالة.": "Paid sessions awaiting a reminder — open the recall list and send a message.",
-  "راجع السجل المالي قبل إغلاق اليوم.": "Review the financial log before closing the day.",
-  "جاهزة للإرسال.": "Ready to send.",
-  "أكمل إعداد الربط أولاً.": "Complete the integration setup first.",
-  "دخل اليوم بعد المصروفات": "Today's income after expenses",
-  "كما أمس": "Same as yesterday",
-  // ── Phase 4: dashboard readings ──
-  "متوازنة": "Balanced",
-  "فرق": "Mismatch",
-  "حسب صلاحيات هذا الحساب": "Based on this account's permissions",
-  "الإغلاق المالي غير ظاهر لهذا الدور": "Financial close is not visible for this role",
-  "طرق الدفع والمبالغ مخفية لهذا الحساب.": "Payment methods and amounts are hidden for this account.",
-  "لا توجد مدفوعات مسجلة لهذا التاريخ.": "No payments recorded for this date.",
-  "الفيزا": "Card",
-  "التحويل": "Transfer",
-  "غير محفوظ": "Not saved",
-  "لا توجد خدمة بارزة بعد": "No standout service yet",
-  "ستظهر الخدمة الأعلى تكراراً بعد إدخال العمليات.": "The most frequent service will appear after operations are entered.",
-  "يعرض هذا الرقم العمليات المسموح لهذا الحساب برؤيتها فقط.": "This number shows only the operations this account may see.",
-  "ستظهر الخدمة الأعلى دخلاً بعد إدخال العمليات.": "The highest-earning service will appear after operations are entered.",
-  "يساعدك هذا الرقم على فهم جودة الحجوزات اليومية.": "This number helps you understand the quality of daily bookings.",
-  "أضف عمليات اليوم لاحتساب المتوسط.": "Add today's operations to calculate the average.",
-  "لا توجد خصومات مسجلة لهذا التاريخ.": "No discounts recorded for this date.",
-  "لا يوجد": "None",
-  // ── Phase 4: empty states & permissions ──
-  "لم يُسجّل أي مريض بعد. أول عملية تُنشئ ملف المريض تلقائياً.": "No patients recorded yet. The first operation creates the patient file automatically.",
-  "حذف ملفات مرضى بالجملة": "Bulk delete patient files",
-  "بدون تعيين": "No assignment",
-  "لا توجد صلاحية لعرض سجل العمليات.": "No permission to view the operations log.",
-  "لا توجد حجوزات في هذا الملف.": "No bookings in this file.",
-  "لا توجد صلاحية لعرض سجل الحجوزات.": "No permission to view the bookings log.",
-  "لا توجد إيصالات لهذا الملف.": "No receipts for this file.",
-  "لا توجد صلاحية لعرض الإيصالات.": "No permission to view receipts.",
-  "غير متوفرة": "Not available",
-  "أضف أعضاء الفريق ونسبهم لبدء حساب المستحقات.": "Add team members and their rates to start calculating payouts.",
-  "إضافة موظف": "Add Staff Member",
-  "بدون سعر ثابت": "No fixed price",
-  "أضف الخدمات حتى تظهر في نموذج العمليات.": "Add services so they appear in the operations form.",
-  "منتهية": "Expired",
-  "نشطة": "Active",
-  // ── Phase 4: entity labels & fallbacks ──
-  "جوجل": "Google",
-  "صديق/توصية": "Friend/Referral",
-  "ملف مريض": "Patient file",
-  "قالب باقة": "Package template",
-  "مورد": "Supplier",
-  "صنف مخزون": "Inventory item",
-  "مصروف": "Expense",
-  "استرجاع محذوف": "Restore deleted",
-  "بدون مدينة": "No city",
-  "لا يوجد تواصل": "No contact",
-  "غير مصنف": "Unclassified",
-  "تحديث المصروف": "Update Expense",
-  // ── Phase 4: import validation ──
-  "موافقة التسويق": "Marketing Consent",
-  "المبلغ المتوقع": "Expected amount",
-  "صيغة التاريخ غير صحيحة": "Invalid date format",
-  "المبلغ يجب أن يكون أكبر من صفر": "Amount must be greater than zero",
-  "البريد غير صحيح": "Invalid email",
-  "سجل مكرر": "Duplicate record",
-  "مصروفات مستوردة": "Imported service",
-  "إضافة موظفين بالاستيراد": "Imported expenses",
-  "مطابقة تقريبية بالاستيراد": "Staff added via import",
-  "نظام سابق غير محدد": "Fuzzy match during import",
-  "هذا العمود": "Another patient",
-  // ── Phase 4: retention report & report catalog ──
-  "فعال": "Active",
-  "تحليل قيمة كل مريض على المدى البعيد، نسبة العائدين، والمرضى المعرضين للتسرب.": "Long-term value of each patient, the share who return, and patients at risk of churning.",
-  "معدل الاحتفاظ": "Retention rate",
-  "معدل التسرب": "Churn rate",
-  "متوسط LTV": "Average LTV",
-  "متوسط الإيراد لكل مريض": "Average revenue per patient",
-  "إجمالي المرضى": "Total patients",
-  "دفتر العمل الشهري: الملخص، وحسب المريض، وحسب مقدّم الخدمة، وكل عملية — لكل العيادة أو لطبيب/أخصائي واحد، مع تصدير Excel بأربع أوراق.": "The monthly workbook: summary, by patient, by provider, and every procedure — for the whole clinic or a single doctor/specialist, with a 4-sheet Excel export.",
-  "المدفوع، الإجراءات، الفرق، نسبة التحصيل، حصة التغذية": "Paid, procedures, difference, collection rate, nutrition share",
-  "نتائج موحّدة من العمليات والحجوزات والمرضى والمصروفات والخدمات.": "Unified results from operations, bookings, patients, expenses, and services.",
-  "من / إلى": "From / To",
-  "المصدر، الحالة، الدفع، الطبيب": "Source, status, payment, doctor",
-  "قائمة عمليات تفصيلية مع الخدمة والفريق والدفع والمستحقات.": "A detailed list of operations with service, team, payment, and payouts.",
-  "الوقت، المريض، الخدمة، الفريق، الحالة": "Time, patient, service, team, status",
-  "تقرير الباقات والجلسات": "Packages & Sessions Report",
-  "بيع الباقات والجلسات المستخدمة والمتبقية وأداء كل موظف.": "Package sales, used and remaining sessions, and each staff member's performance.",
-  "الموظف، الباقة، الجلسات، المدفوع": "Staff, package, sessions, paid",
-  "مستحقات ونسب كل أخصائي حسب العمليات المنفّذة.": "Each specialist's payouts and rates based on performed operations.",
-  "الموظف، العمليات، المحصّل، المستحق": "Staff, operations, collected, payout",
-  "تجميع العمليات والمبالغ والزيارات لكل مريض.": "Operations, amounts, and visits grouped per patient.",
-  "المريض، الزيارات، المحصّل": "Patient, visits, collected",
-  "من عدّل، ماذا تغيّر، ومتى — مع فلاتر التاريخ والبحث.": "Who edited, what changed, and when — with date filters and search.",
-  "المستخدم، الإجراء، التفاصيل، الوقت": "User, action, details, time",
-  "التقرير المالي (الأرباح والخسائر)": "Financial Report (P&L)",
-  "الإيراد ناقص التكلفة والمستحقات والمصروفات = صافي الربح.": "Revenue minus cost, payouts, and expenses = net profit.",
-  "الإيراد، التكلفة، المصروف، الصافي": "Revenue, cost, expenses, net",
-  "المقبوضات حسب كاش وفيزا وتحويل وحالة المطابقة.": "Collections by cash, card, and transfer, with reconciliation status.",
-  "طريقة الدفع، المبلغ، المريض، المطابقة": "Payment method, amount, patient, reconciliation",
-  "ميزان المريض": "Patient Balance",
-  "المدفوع والمتبقي وآخر تكملة حساب لكل مريض.": "Paid, remaining, and the last follow-up payment per patient.",
-  "المريض، المدفوع، المستحق، آخر دفعة": "Patient, paid, due, last payment",
-  "مطابقة الكاش والبطاقة والتحويل لكل يوم عمل.": "Cash, card, and transfer reconciliation for every working day.",
-  "اليوم، المتوقع، الفعلي، الفرق": "Day, expected, counted, difference",
-  "مصروفات العيادة حسب البند والتاريخ والفئة.": "Clinic expenses by line item, date, and category.",
-  "البند، المبلغ، التاريخ، الفئة": "Item, amount, date, category",
-  "تكلفة كل خدمة وحالتها (فعّالة/متوقفة).": "Each service's cost and status (active/inactive).",
-  "الخدمة، التكلفة، الحالة": "Service, cost, status",
-  "قيمة المريض والزيارات المتكررة ونسبة الانقطاع.": "Patient value, repeat visits, and churn rate.",
-  "LTV، آخر زيارة، الزيارات، التسرب": "LTV, last visit, visits, churn",
-  "الحجوزات وحالاتها والفريق المتوقع لكل موعد.": "Bookings, their statuses, and the expected team for each appointment.",
-  "الوقت، المريض، الخدمة، الحالة": "Time, patient, service, status",
-  "كل الملفات مع التصنيف ومعلومات التواصل.": "All files with category and contact information.",
-  "المريض، الهاتف، الفئة، النوع": "Patient, phone, category, type",
-  "العمليات بانتظار تعيين طبيب أو أخصائي.": "Operations awaiting a doctor or specialist assignment.",
-  "المريض، الخدمة، الحالة": "Patient, service, status",
-  "كل التقارير": "All Reports",
-  // ── Phase 4: visit form & storage status ──
-  "حفظ الزيارة (عملية واحدة)": "Save Visit (one operation)",
-  "كامل المبلغ": "Full amount",
-  "اختر خدمة وأضفها إلى الزيارة.": "Choose a service and add it to the visit.",
-  "لم يتم حفظ إغلاق لهذا اليوم": "No closing saved for this day",
-  "عيادة بدون اسم": "Unnamed clinic",
-  "محلي": "Local",
-  "التفاصيل المالية غير متاحة لهذا الدور": "Financial details are not available for this role",
-  "جاهز لتجربة عيادة حقيقية بحذر": "Ready for a careful real-clinic trial",
-  "هذه نسخة تجربة داخل المتصفح": "This is an in-browser trial copy",
-  "التخزين يحتاج تأكيد قبل البيانات الحقيقية": "Storage needs confirmation before real data",
-  "بيانات التجربة محفوظة على هذا المتصفح فقط. استخدم تنزيل JSON قبل أي تجربة مهمة.": "Trial data is saved on this browser only. Download a JSON backup before any important test.",
-  "لم يتم فحص التخزين بعد.": "Storage has not been checked yet.",
-  "الوضع: Trial محلي | النسخ الاحتياطي: تنزيل يدوي": "Mode: local trial | Backup: manual download",
-  "آمن للبيانات": "Safe for data",
-  "تجربة فقط": "Trial only",
-  "غير آمن للبيانات": "Not safe for data",
-  "رقم مطلوب": "Number required",
-  // ── Phase 4: campaign & invoice statuses ──
-  "في الانتظار": "Queued",
-  "مجدولة": "Scheduled",
-  "تم الإرسال": "Sent",
-  "فشل": "Failed",
-  "جاهزة": "Ready",
-  "قيد الإرسال": "Sending",
-  "مرسلة": "Submitted",
-  "شركة / جهة": "Company / Organization",
-  "فرد": "Individual",
-  "يخضع الإرسال الضريبي لإعداد JoFotara المعتمد للعيادة.": "Tax submission is subject to the clinic's approved JoFotara setup.",
-  "متصل بالخادم": "Connected to server",
-  "جاهز للمعاينة": "Ready for preview",
-  "إعداد الخادم مطلوب": "Server setup required",
-  "سجّل الدخول لرؤية رابط العيادة": "Sign in to see the clinic link",
-  "✓ تم النسخ": "✓ Copied",
-  "لا توجد عمليات لهذا التاريخ": "No operations for this date",
-  "أضف عملية من قسم عمليات اليوم حتى تظهر الإيرادات والنسب.": "Add an operation from Today Operations so revenue and commissions appear.",
-  "أضف عملية من قسم عمليات اليوم حتى تظهر ضمن صلاحيات هذا الحساب.": "Add an operation from Today Operations so it appears within this account's permissions.",
-  "إغلاق اليوم غير محفوظ": "Day closing not saved",
-  "أدخل الموجود فعلياً من كاش وفيزا وتحويلات قبل اعتماد ملخص اليوم.": "Enter the actual cash, card, and transfer amounts before approving the day summary.",
-  "يوجد فرق في الإغلاق": "There is a closing difference",
-  "المبالغ المسجلة تطابق الكاش والفيزا والتحويلات الفعلية.": "Recorded amounts match the actual cash, card, and transfers.",
-  "هناك خصومات مسجلة": "Discounts were recorded",
-  "أصناف مخزون تحتاج طلب": "Inventory items need reordering",
-  "طلبات تجربة جديدة": "New trial requests",
-  "صلاحيات محدودة": "Limited permissions",
-  "هذا الحساب يرى العمليات المسموح بها فقط.": "This account sees only permitted operations.",
-  "الإغلاق المالي متطابق ولا توجد فروقات.": "Financial close matches with no differences.",
-  "احفظ مطابقة الإغلاق لاعتماد اليوم.": "Save the closing reconciliation to finalize the day.",
-  // ── Phase 4: growth segments ──
-  "حان وقت الجلسة": "Session due",
-  "تجديد باقة": "Package renewal",
-  "استعادة مريض": "Win-back",
-  "تحصيل مستحق": "Collect balance",
-  "تواصل تسويقي": "Marketing outreach",
-  "حان وقت الجلسة القادمة": "Next session is due",
-  "مرضى لديهم جلسات متبقية ولم يزوروا مؤخراً — ادعهم للحجز.": "Patients with sessions remaining who haven't visited recently — invite them to book.",
-  "باقات شارفت على الانتهاء": "Packages nearing completion",
-  "جدّد الباقة قبل أن تنتهي وحافظ على الإيراد المتكرر.": "Renew the package before it runs out and keep the recurring revenue.",
-  "استعدهم برسالة ترحيبية وعرض خاص.": "Win them back with a welcome message and a special offer.",
-  "مبالغ مستحقة للتحصيل": "Balances to collect",
-  "تذكير ودّي بالسداد في الزيارة القادمة.": "A friendly reminder to settle on the next visit.",
-  // ── Phase 4: 2FA & account forms ──
-  "تقييم مريض": "Patient rating",
-  "تسجيل عملية — F2": "Record operation — F2",
-  "حجز جديد — F4": "New booking — F4",
-  "المبالغ المستحقة — F8": "Outstanding balances — F8",
-  "الاختصارات والمهارات — ؟": "Shortcuts & skills — ?",
-  "✅ المصادقة الثنائية مفعّلة على حسابك.": "✅ Two-factor authentication is enabled on your account.",
-  "المصادقة الثنائية غير مفعّلة.": "Two-factor authentication is not enabled.",
-  "الرمز غير صحيح. حاول مرة أخرى.": "Incorrect code. Try again.",
-  "تعذّر التفعيل.": "Could not enable.",
-  "كلمة المرور غير صحيحة.": "Incorrect password.",
-  "الرمز غير صحيح.": "Incorrect code.",
-  "تعذّر الإيقاف.": "Could not disable.",
-  "تعديل الحساب": "Edit Account",
-  "تحديث الملف": "Update File",
-  "تعديل الملف": "Edit File",
-  "تحديث بيانات المريض": "Update patient details",
-  "تعديل ملف مريض": "Edit patient file",
-  // ── Phase 4: toasts, confirms & audit actions ──
-  "هذا الحساب لا يملك صلاحية الحجز في عمود التقويم المختار.": "This account may not book in the selected calendar column.",
-  "هذا التاريخ خارج نطاق التقويم المسموح لهذا الحساب.": "This date is outside the calendar range allowed for this account.",
-  "أدخل اسم المريض واختر الخدمة.": "Enter the patient name and choose a service.",
-  "جرد مخزون": "Stock count",
-  "تم الجرد — كل الأصناف مطابقة ✓": "Stock count done — all items match ✓",
-  "تعبئة بيانات اختبار": "Generate test data",
-  "سيتم إضافة مرضى وحجوزات وعمليات تجريبية لتعبئة العيادة للاختبار. متابعة؟": "Test patients, bookings, and operations will be added to populate the clinic. Continue?",
-  "تعديل عملية": "Edit operation",
-  "لا تملك صلاحية إضافة الحجوزات.": "You do not have permission to add bookings.",
-  "تمت إضافة الحجز إلى التقويم.": "Booking added to the calendar.",
-  "حُفظت بانتظار تعيين الطبيب — أكملها من العمليات": "Saved pending doctor assignment — complete it from Operations",
-  "تنبيه: هذا اليوم مُغلق ومُطابق — العملية الجديدة ستغيّر أرقام الإغلاق.": "Note: this day is closed and reconciled — the new operation will change the closing numbers.",
-  "هذا الموظف على راتب فقط — لا تُحتسب له عمولة افتراضية (يمكن إضافة قاعدة لخدمة بعينها لاحقاً)": "This staff member is salary-only — no default commission is calculated (a service-specific rule can be added later)",
-  "تُحتسب النسبة من صافي الربح = المقبوض − التكلفة": "The rate is calculated from net profit = collected − cost",
-  "تُحتسب النسبة من كامل المبلغ المقبوض قبل خصم التكلفة": "The rate is calculated from the full collected amount before cost",
-  "مبلغ ثابت بالدينار لكل عملية بصرف النظر عن السعر": "A fixed amount in dinars per operation regardless of price",
-  "المبلغ الثابت (د.أ)": "Fixed amount (JOD)",
-  "— اختر الخدمة أو الفئة —": "— Choose a service or category —",
-  "اختر الخدمة أو الفئة وأدخل القيمة أولاً": "Choose the service or category and enter a value first",
-  "منتج": "Product",
-  "لم تُدخل أي خدمة بعد": "No services entered yet",
-  "أدخل اسم خدمة واحدة على الأقل": "Enter at least one service name",
-  "لم تُدخل أي عمولة بعد": "No commissions entered yet",
-  "جدول عمولات": "Commission grid",
-  "أدخل عمولة لخدمة واحدة على الأقل": "Enter a commission for at least one service",
-  "تعديل خدمة": "Edit service",
-  "إضافة قالب باقة": "Add package template",
-  "حجز جلسة باقة": "Book package session",
-  "اكتب اسم المريض في الأعلى أولاً.": "Type the patient name above first.",
-  "اختر الباقة.": "Choose a package.",
-  "حذف قالب باقة": "Delete package template",
-  "حذف باقة": "Delete package",
-  "تراجع جلسة": "Undo session",
-  "تعديل قاعدة": "Edit rule",
-  "إضافة قاعدة": "Add rule",
-  "تحديث القاعدة": "Update Rule",
-  "إضافة مورد": "Add supplier",
-  "تعذّر الحفظ: هذا الصنف لم يعد موجوداً.": "Could not save: this item no longer exists.",
-  "تعديل صنف مخزون": "Edit inventory item",
-  "إضافة صنف مخزون": "Add inventory item",
-  "تحديث الصنف": "Update Item",
-  "تعديل مصروف": "Edit expense",
-  "يوم مُغلق ومطابق. تصبحون على خير.": "Day closed and matched. Good night.",
-  "يوم مُغلق مع فروقات — راجع الملاحظة والسجل.": "Day closed with differences — review the note and the log.",
-  "⏳ جاري الإرسال...": "⏳ Sending...",
-  "📱 SMS (معاينة)": "📱 SMS (preview)",
-  "✓ أُرسل": "✓ Sent",
-  "تعذّر إرسال SMS — تحقق من إعدادات المزوّد": "Could not send SMS — check the provider settings",
-  "✓ تم نسخ رسالة التذكير — الصقها في واتساب": "✓ Reminder message copied — paste it in WhatsApp",
-  "📋 تذكير": "📋 Reminder",
-  "تعذّر النسخ — انسخ الرسالة يدوياً": "Could not copy — copy the message manually",
-  "هل تريد حذف هذا المصروف؟": "Delete this expense?",
-  "حذف مصروف": "Delete expense",
-  "هذه الفئة مستخدمة في مصروفات سابقة. هل تريد إخفاء الفئة من القائمة؟ لن تحذف المصروفات.": "This category is used by earlier expenses. Hide it from the list? Expenses will not be deleted.",
-  "إخفاء الفئة": "Hide Category",
-  "هل تريد حذف ملف المريض أو الزائر؟ ستبقى العمليات والحجوزات محفوظة بدون رابط الملف.": "Delete this patient or visitor file? Operations and bookings remain saved without the file link.",
-  "حذف ملف مريض": "Delete patient file",
-  "حذف عملية": "Delete operation",
-  "هذا الموظف مرتبط بعمليات سابقة. هل تريد حذفه؟": "This staff member is linked to earlier operations. Delete anyway?",
-  "حذف موظف": "Delete staff member",
-  "هذه الخدمة مرتبطة بعمليات سابقة. هل تريد حذفها؟": "This service is linked to earlier operations. Delete it?",
-  "حذف خدمة": "Delete service",
-  "هذا المورد مرتبط بأصناف أو طلبات. هل تريد حذفه؟": "This supplier is linked to items or orders. Delete anyway?",
-  "حذف مورد": "Delete supplier",
-  "هذا الصنف مرتبط بسجل طلبات. هل تريد حذفه من قائمة المخزون؟": "This item is linked to order history. Remove it from the inventory list?",
-  "حذف صنف مخزون": "Delete inventory item",
-  "هل تريد حذف سجل الطلب؟ لن يتم تعديل كمية المخزون تلقائياً.": "Delete this order record? Inventory quantity will not be adjusted automatically.",
-  "هل تريد حذف هذا الحجز؟": "Delete this booking?",
-  "حذف حجز": "Delete booking",
-  "تغيير حالة حجز": "Change booking status",
-  "تراجع": "Undo",
-  "تراجع عن تغيير حالة حجز": "Undo booking status change",
-  "هل تريد حذف هذا المستخدم نهائياً؟": "Permanently delete this user?",
-  "حذف المستخدم": "Delete User",
-  "حذف نهائي": "Delete Permanently",
-  "هل تريد حذف هذه الصلاحية من المستخدمين المرتبطين بها؟": "Remove this permission from the users linked to it?",
-  "حذف الصلاحية": "Delete Permission",
-  "سيتم مسح سجل التاريخ المحدد فقط. هل أنت متأكد؟": "Only the selected date's log will be cleared. Are you sure?",
-  "مسح السجل": "Clear Log",
-  "استرجاع نسخة احتياطية": "Restore Backup",
-  "استرجاع الآن": "Restore Now",
-  "✓ تم استرجاع نسخة JSON وحفظها": "✓ JSON backup restored and saved",
-  "هل تريد مسح طلبات التجربة المحفوظة على هذا الجهاز؟": "Clear the trial requests saved on this device?",
-  "مسح طلبات التجربة": "Clear Trial Requests",
-  "لا تملك صلاحية نقل الحجز إلى هذا العمود.": "You do not have permission to move the booking to this column."
-};
+
 
 function dateOffset(days, baseDate = today) {
   const date = new Date(`${baseDate}T12:00:00`);
@@ -5502,7 +3770,14 @@ async function loadServerNotifications() {
 }
 
 function currentLanguage() {
-  return state?.settings?.language || storageGet("riaayaLanguage") || "ar";
+  return window.RiaayaLanguageDomain.resolveLanguage({
+    userLanguage: storageGet("riaayaLanguage"),
+    clinicLanguage: state?.settings?.language,
+  });
+}
+
+function uiText(arabic, english) {
+  return currentLanguage() === "en" ? english : arabic;
 }
 
 function money(value) {
@@ -5566,10 +3841,7 @@ function displayDate(date) {
 }
 
 function translateLiteral(text, language) {
-  if (!text) return text;
-  if (language === "en") return APP_TEXT_EN[text] || text;
-  const arabicMap = Object.fromEntries(Object.entries(APP_TEXT_EN).map(([arabic, english]) => [english, arabic]));
-  return arabicMap[text] || text;
+  return window.RiaayaLanguageDomain.translateLiteral(text, language);
 }
 
 function translateElementText(root, language) {
@@ -5605,14 +3877,23 @@ function translateElementText(root, language) {
 function applyLanguage() {
   const language = currentLanguage();
   document.documentElement.lang = language;
-  document.documentElement.dir = language === "ar" ? "rtl" : "ltr";
+  document.documentElement.dir = window.RiaayaLanguageDomain.directionFor(language);
   document.body.classList.toggle("english-ui", language === "en");
-  document.title = language === "en"
-    ? "Riaaya — Clinic Management Prototype"
-    : "رعاية — النموذج التجريبي للعيادات";
+  document.title = window.RiaayaLanguageDomain.titleFor(language);
   if (els.languageSelect) els.languageSelect.value = language;
   translateElementText(document.body, language);
 }
+
+let languageRefreshQueued = false;
+const languageMutationObserver = new MutationObserver(() => {
+  if (languageRefreshQueued) return;
+  languageRefreshQueued = true;
+  requestAnimationFrame(() => {
+    languageRefreshQueued = false;
+    applyLanguage();
+  });
+});
+languageMutationObserver.observe(document.body, { childList: true, characterData: true, subtree: true });
 
 function getStaffMember(id) {
   return state.staff.find(member => member.id === id);
@@ -6042,13 +4323,21 @@ function packageSessionPayLabel(entry) {
 }
 
 function ruleModelLabel(model) {
-  const labels = {
-    member_rate: "نسبة العضو الافتراضية",
-    pct_net: "نسبة من الربح بعد التكلفة",
-    pct_gross: "نسبة من المقبوض",
-    fixed: "مبلغ ثابت لكل عملية",
-    tiered: "نسبة متدرجة"
-  };
+  const labels = currentLanguage() === "en"
+    ? {
+      member_rate: "Default staff rate",
+      pct_net: "Share of profit after cost",
+      pct_gross: "Share of collected revenue",
+      fixed: "Fixed amount per operation",
+      tiered: "Tiered rate"
+    }
+    : {
+      member_rate: "نسبة العضو الافتراضية",
+      pct_net: "نسبة من الربح بعد التكلفة",
+      pct_gross: "نسبة من المقبوض",
+      fixed: "مبلغ ثابت لكل عملية",
+      tiered: "نسبة متدرجة"
+    };
   return labels[model] || model;
 }
 
@@ -6056,12 +4345,12 @@ function ruleDescription(rule) {
   const people = rule.personIds?.length ? rule.personIds : (rule.personId ? [rule.personId] : []);
   const services = rule.serviceIds?.length ? rule.serviceIds : (rule.serviceId ? [rule.serviceId] : []);
   const personLabel = people.length
-    ? people.map(id => getStaffMember(id)?.name).filter(Boolean).join("، ")
-    : "كل الفريق";
+    ? people.map(id => getStaffMember(id)?.name).filter(Boolean).join(uiText("، ", ", "))
+    : uiText("كل الفريق", "All staff");
   const serviceLabelText = rule.category
-    ? `كل فئة: ${rule.category}`
-    : (services.length ? services.map(id => getService(id)?.name).filter(Boolean).join("، ") : "كل الخدمات");
-  const value = rule.model === "member_rate" ? "حسب نسبة الموظف" : `${rule.value}%`;
+    ? uiText(`كل فئة: ${rule.category}`, `Entire category: ${rule.category}`)
+    : (services.length ? services.map(id => getService(id)?.name).filter(Boolean).join(uiText("، ", ", ")) : uiText("كل الخدمات", "All services"));
+  const value = rule.model === "member_rate" ? uiText("حسب نسبة الموظف", "uses staff rate") : `${rule.value}%`;
   const fixedValue = rule.model === "fixed" ? money(rule.value) : value;
   return `${roleLabel(rule.appliesTo)} | ${personLabel} | ${serviceLabelText} | ${ruleModelLabel(rule.model)} (${fixedValue})`;
 }
@@ -7971,30 +6260,49 @@ function renderMoneyCenter() {
 
 function renderDashboardSummary(entries, totals, diffs, weekEntries, weekTotals) {
   const avg = averageTicket(totals);
-  const closeLabel = !diffs ? "الإغلاق غير محفوظ" : Math.abs(diffs.totalDiff) < 0.01 ? "الإغلاق متطابق" : "الإغلاق يحتاج مراجعة";
+  const closeLabel = !diffs
+    ? uiText("الإغلاق غير محفوظ", "Close not saved")
+    : Math.abs(diffs.totalDiff) < 0.01
+      ? uiText("الإغلاق متطابق", "Closing matched")
+      : uiText("الإغلاق يحتاج مراجعة", "Closing needs review");
 
   if (!canViewSensitive()) {
     els.dashboardSummary.textContent = entries.length
-      ? `يعرض هذا الحساب ${entries.length} عملية ضمن صلاحياته لهذا التاريخ. التفاصيل المالية مخفية.`
-      : "لا توجد عمليات ظاهرة لهذا الحساب في هذا التاريخ.";
-    els.closeChip.textContent = "الإغلاق مخفي";
-    els.discountChip.textContent = "الخصومات مخفية";
-    els.averageChip.textContent = "المتوسط مخفي";
-    document.querySelector('[data-kpi="weekRevenue"]').textContent = "مخفي";
-    document.querySelector('[data-kpi-note="weekRevenue"]').textContent = `${weekEntries.length} عملية ظاهرة خلال آخر 7 أيام`;
+      ? uiText(
+        `يعرض هذا الحساب ${entries.length} عملية ضمن صلاحياته لهذا التاريخ. التفاصيل المالية مخفية.`,
+        `This account can see ${entries.length} ${entries.length === 1 ? "operation" : "operations"} on this date. Financial details are hidden.`
+      )
+      : uiText("لا توجد عمليات ظاهرة لهذا الحساب في هذا التاريخ.", "No operations are visible to this account on this date.");
+    els.closeChip.textContent = uiText("الإغلاق مخفي", "Closing hidden");
+    els.discountChip.textContent = uiText("الخصومات مخفية", "Discounts hidden");
+    els.averageChip.textContent = uiText("المتوسط مخفي", "Average hidden");
+    document.querySelector('[data-kpi="weekRevenue"]').textContent = uiText("مخفي", "Hidden");
+    document.querySelector('[data-kpi-note="weekRevenue"]').textContent = uiText(
+      `${weekEntries.length} عملية ظاهرة خلال آخر 7 أيام`,
+      `${weekEntries.length} visible ${weekEntries.length === 1 ? "operation" : "operations"} in the last 7 days`
+    );
     return;
   }
 
   els.dashboardSummary.textContent = entries.length
-    ? `تم تسجيل ${totals.count} عملية اليوم بمدفوعات ${money(totals.paid)}. إجمالي آخر 7 أيام ${money(weekTotals.paid)} عبر ${weekEntries.length} عملية.`
-    : `لا توجد عمليات لهذا التاريخ بعد. يعرض هذا القسم الإيرادات، طرق الدفع، النسب، وحالة الإغلاق بمجرد إدخال العمليات.`;
+    ? uiText(
+      `تم تسجيل ${totals.count} عملية اليوم بمدفوعات ${money(totals.paid)}. إجمالي آخر 7 أيام ${money(weekTotals.paid)} عبر ${weekEntries.length} عملية.`,
+      `${totals.count} ${totals.count === 1 ? "operation" : "operations"} recorded today, with ${money(totals.paid)} collected. The last 7 days total ${money(weekTotals.paid)} across ${weekEntries.length} ${weekEntries.length === 1 ? "operation" : "operations"}.`
+    )
+    : uiText(
+      "لا توجد عمليات لهذا التاريخ بعد. يعرض هذا القسم الإيرادات، طرق الدفع، النسب، وحالة الإغلاق بمجرد إدخال العمليات.",
+      "No operations have been recorded for this date. Revenue, payment methods, commissions, and closing status will appear here once work is entered."
+    );
 
   els.closeChip.textContent = closeLabel;
-  els.discountChip.textContent = `الخصومات ${money(totals.discount)}`;
-  els.averageChip.textContent = `متوسط العملية ${money(avg)}`;
+  els.discountChip.textContent = uiText(`الخصومات ${money(totals.discount)}`, `Discounts ${money(totals.discount)}`);
+  els.averageChip.textContent = uiText(`متوسط العملية ${money(avg)}`, `Average visit ${money(avg)}`);
 
   document.querySelector('[data-kpi="weekRevenue"]').textContent = money(weekTotals.paid);
-  document.querySelector('[data-kpi-note="weekRevenue"]').textContent = `${weekEntries.length} عملية خلال آخر 7 أيام`;
+  document.querySelector('[data-kpi-note="weekRevenue"]').textContent = uiText(
+    `${weekEntries.length} عملية خلال آخر 7 أيام`,
+    `${weekEntries.length} ${weekEntries.length === 1 ? "operation" : "operations"} in the last 7 days`
+  );
 }
 
 function phoneDigits(phone) {
@@ -8333,6 +6641,24 @@ function renderDashboardSchedule() {
   }).join("");
 }
 
+function localizeOperationalNotification(notification) {
+  if (currentLanguage() !== "en") return notification;
+  const count = Number(notification.title.match(/\d+/)?.[0] || 0);
+  let title = translateLiteral(notification.title, "en");
+  let body = translateLiteral(notification.body, "en");
+  if (notification.id.startsWith("next-")) title = `Next appointment at ${notification.title.replace(/^الموعد القادم\s*/, "")}`;
+  if (notification.id.startsWith("confirm-")) title = `${count} ${count === 1 ? "booking" : "bookings"} awaiting confirmation`;
+  if (notification.id.startsWith("no-show-")) title = `${count} ${count === 1 ? "patient was" : "patients were"} marked as no-show`;
+  if (notification.id === "package-recall-due") title = "Paid package sessions need a follow-up booking";
+  if (notification.id === "partial-payments-outstanding") title = `${count} ${count === 1 ? "patient has" : "patients have"} an outstanding balance`;
+  if (notification.id.startsWith("pending-payment-")) title = `${count} ${count === 1 ? "operation is" : "operations are"} awaiting payment`;
+  if (notification.id.startsWith("low-stock-")) title = `${count} low-stock ${count === 1 ? "item" : "items"}`;
+  if (notification.id.startsWith("receipts-")) title = `${count} ${count === 1 ? "invoice is" : "invoices are"} awaiting JoFotara`;
+  if (notification.id.startsWith("count-discrepancy-")) title = `Stock-count variances in ${count} ${count === 1 ? "item" : "items"}`;
+  if (notification.id.startsWith("trial-ending-")) title = `Trial ends in ${count} ${count === 1 ? "day" : "days"}`;
+  return { ...notification, title, body };
+}
+
 function operationalNotifications() {
   const bookings = activeBookings();
   const scheduled = bookings.filter(booking => booking.status === "scheduled");
@@ -8509,7 +6835,7 @@ function operationalNotifications() {
       });
     }
   }
-  return notifications;
+  return notifications.map(localizeOperationalNotification);
 }
 
 function renderNotificationCenters() {
@@ -8565,12 +6891,14 @@ function renderDashboardCommandCenter(entries) {
     if (valueElement) valueElement.textContent = value;
     if (noteElement && note) noteElement.textContent = note;
   };
-  setDashboardMetric("bookings", bookings.length, `${bookings.filter(booking => booking.status === "confirmed").length} مؤكدة`);
-  setDashboardMetric("arrived", bookings.filter(booking => booking.status === "arrived").length, "بانتظار الخدمة");
-  setDashboardMetric("operations", entries.length, `${new Set(entries.map(entry => entry.visitId || entry.id)).size} زيارة`);
-  setDashboardMetric("expenses", canViewSensitive() ? money(expenseAmount) : "مخفي", `${expenses.length} حركة اليوم`);
-  setDashboardMetric("net", canViewSensitive() ? money(revenue - expenseAmount) : "مخفي", "دخل اليوم بعد المصروفات");
-  setDashboardMetric("attention", attention, "مواعيد وتنبيهات تشغيلية");
+  const confirmed = bookings.filter(booking => booking.status === "confirmed").length;
+  const visits = new Set(entries.map(entry => entry.visitId || entry.id)).size;
+  setDashboardMetric("bookings", bookings.length, uiText(`${confirmed} مؤكدة`, `${confirmed} confirmed`));
+  setDashboardMetric("arrived", bookings.filter(booking => booking.status === "arrived").length, uiText("بانتظار الخدمة", "Awaiting service"));
+  setDashboardMetric("operations", entries.length, uiText(`${visits} زيارة`, `${visits} ${visits === 1 ? "visit" : "visits"}`));
+  setDashboardMetric("expenses", canViewSensitive() ? money(expenseAmount) : uiText("مخفي", "Hidden"), uiText(`${expenses.length} حركة اليوم`, `${expenses.length} ${expenses.length === 1 ? "entry" : "entries"} today`));
+  setDashboardMetric("net", canViewSensitive() ? money(revenue - expenseAmount) : uiText("مخفي", "Hidden"), uiText("دخل اليوم بعد المصروفات", "Today's income after expenses"));
+  setDashboardMetric("attention", attention, uiText("مواعيد وتنبيهات تشغيلية", "Appointments and operational alerts"));
   renderNextVisitor();
   renderBookingFunnel();
   renderDashboardSchedule();
@@ -8595,8 +6923,11 @@ function renderDailyCommandCenter(entries, totals, diffs) {
   const yBookings = (state.bookings || []).filter(booking => booking.date === yesterday);
   const deltaLabel = (now, before) => {
     const diff = now - before;
-    if (!diff) return "كما أمس";
-    return `${diff > 0 ? "▲ +" : "▼ "}${Math.abs(diff)} عن أمس`;
+    if (!diff) return uiText("كما أمس", "Same as yesterday");
+    return uiText(
+      `${diff > 0 ? "▲ +" : "▼ "}${Math.abs(diff)} عن أمس`,
+      `${diff > 0 ? "▲ +" : "▼ "}${Math.abs(diff)} vs yesterday`
+    );
   };
 
   if (revenueVisible) {
@@ -8604,17 +6935,21 @@ function renderDailyCommandCenter(entries, totals, diffs) {
     const pct = paidY > 0 ? Math.round((totals.paid - paidY) / paidY * 100) : null;
     els.dailyCommandRevenue.textContent = money(totals.paid);
     els.dailyCommandRevenueNote.textContent = pct === null
-      ? `${totals.count} ${totals.count === 1 ? "عملية" : "عمليات"} اليوم`
-      : `${pct >= 0 ? "▲ +" : "▼ "}${Math.abs(pct)}% عن أمس`;
-    els.dailyCommandReconcileStatus.textContent = !diffs ? "بانتظار" : Math.abs(diffs.totalDiff) < 0.01 ? "متوازنة" : "فرق";
+      ? uiText(`${totals.count} ${totals.count === 1 ? "عملية" : "عمليات"} اليوم`, `${totals.count} ${totals.count === 1 ? "operation" : "operations"} today`)
+      : uiText(`${pct >= 0 ? "▲ +" : "▼ "}${Math.abs(pct)}% عن أمس`, `${pct >= 0 ? "▲ +" : "▼ "}${Math.abs(pct)}% vs yesterday`);
+    els.dailyCommandReconcileStatus.textContent = !diffs
+      ? uiText("بانتظار", "Pending")
+      : Math.abs(diffs.totalDiff) < 0.01 ? uiText("متوازنة", "Balanced") : uiText("فرق", "Variance");
     els.dailyCommandReconcileNote.textContent = !diffs
-      ? "لم يتم إغلاق اليوم بعد"
-      : Math.abs(diffs.totalDiff) < 0.01 ? "الإغلاق متطابق" : `الفرق ${money(diffs.totalDiff)}`;
+      ? uiText("لم يتم إغلاق اليوم بعد", "The day has not been closed yet")
+      : Math.abs(diffs.totalDiff) < 0.01
+        ? uiText("الإغلاق متطابق", "Closing matched")
+        : uiText(`الفرق ${money(diffs.totalDiff)}`, `Variance ${money(diffs.totalDiff)}`);
   } else {
-    els.dailyCommandRevenue.textContent = "مخفي";
-    els.dailyCommandRevenueNote.textContent = "حسب صلاحيات هذا الحساب";
-    els.dailyCommandReconcileStatus.textContent = "مخفي";
-    els.dailyCommandReconcileNote.textContent = "الإغلاق المالي غير ظاهر لهذا الدور";
+    els.dailyCommandRevenue.textContent = uiText("مخفي", "Hidden");
+    els.dailyCommandRevenueNote.textContent = uiText("حسب صلاحيات هذا الحساب", "Based on this account's permissions");
+    els.dailyCommandReconcileStatus.textContent = uiText("مخفي", "Hidden");
+    els.dailyCommandReconcileNote.textContent = uiText("الإغلاق المالي غير ظاهر لهذا الدور", "Financial closing is hidden for this role");
   }
 
   if (els.dailyCommandOps) {
@@ -8628,8 +6963,8 @@ function renderDailyCommandCenter(entries, totals, diffs) {
 
   els.dailyCommandAlerts.textContent = urgent.length;
   els.dailyCommandAlertsNote.textContent = urgent.length
-    ? urgent.slice(0, 2).map(notification => notification.title).join("، ")
-    : "لا توجد إجراءات عاجلة";
+    ? urgent.slice(0, 2).map(notification => notification.title).join(uiText("، ", ", "))
+    : uiText("لا توجد إجراءات عاجلة", "No urgent actions");
 }
 
 function renderWeekChart(series) {
@@ -10163,8 +8498,11 @@ function renderLowStockList() {
       <div class="staff-card low-stock-card">
         <div>
           <strong>${esc(item.name)}</strong>
-          <p>المتوفر ${item.quantity} ${item.unit} | حد الطلب ${item.lowThreshold} ${item.unit}</p>
-          <p>المورد المقترح: ${esc(supplier?.name || "غير محدد")}${supplier?.contact ? ` | ${supplier.contact}` : ""}</p>
+          <p>${uiText(
+            `المتوفر ${item.quantity} ${item.unit} | حد الطلب ${item.lowThreshold} ${item.unit}`,
+            `Available: ${item.quantity} ${item.unit} | Reorder at: ${item.lowThreshold} ${item.unit}`
+          )}</p>
+          <p>${uiText("المورد المقترح:", "Suggested supplier:")} ${esc(supplier?.name || uiText("غير محدد", "Not specified"))}${supplier?.contact ? ` | ${supplier.contact}` : ""}</p>
         </div>
         <button class="text-button" type="button" data-fill-order="${item.id}">طلب</button>
       </div>
@@ -10182,13 +8520,18 @@ function renderInventoryList() {
   els.inventoryList.innerHTML = state.inventory.map(item => {
     const supplier = getSupplier(item.supplierId);
     const status = stockStatus(item);
-    const lastOrder = item.lastOrderedAt ? new Date(`${item.lastOrderedAt}T12:00:00`).toLocaleDateString("ar-JO-u-nu-latn") : "لا يوجد";
+    const lastOrder = item.lastOrderedAt
+      ? new Date(`${item.lastOrderedAt}T12:00:00`).toLocaleDateString(currentLanguage() === "en" ? "en-US" : "ar-JO-u-nu-latn")
+      : uiText("لا يوجد", "None");
     return `
       <div class="staff-card inventory-card">
         <div>
           <strong>${esc(item.name)}</strong>
-          <p>${item.sku ? `${esc(item.sku)} | ` : ""}${item.quantity} ${item.unit} | حد التنبيه ${item.lowThreshold || "معطل"}</p>
-          <p>المورد: ${esc(supplier?.name || "غير محدد")}${canViewSensitive() ? ` | التكلفة ${money(item.unitCost)}` : ""} | آخر طلب ${lastOrder}</p>
+          <p>${uiText(
+            `${item.sku ? `${esc(item.sku)} | ` : ""}${item.quantity} ${item.unit} | حد التنبيه ${item.lowThreshold || "معطل"}`,
+            `${item.sku ? `${esc(item.sku)} | ` : ""}${item.quantity} ${item.unit} | Alert threshold: ${item.lowThreshold || "Disabled"}`
+          )}</p>
+          <p>${uiText("المورد:", "Supplier:")} ${esc(supplier?.name || uiText("غير محدد", "Not specified"))}${canViewSensitive() ? ` | ${uiText("التكلفة", "Cost")} ${money(item.unitCost)}` : ""} | ${uiText("آخر طلب", "Last order")} ${lastOrder}</p>
         </div>
         <div class="row-actions">
           <span class="status-pill ${status.className}">${status.label}</span>
@@ -10368,8 +8711,11 @@ function renderExpenseKpis() {
   });
   const monthNote = document.querySelector('[data-expense-note="month"]');
   const topNote = document.querySelector('[data-expense-note="top"]');
-  if (monthNote) monthNote.textContent = `${monthExpenses.length} حركة`;
-  if (topNote) topNote.textContent = top ? money(top[1]) : "لا توجد بيانات";
+  if (monthNote) monthNote.textContent = uiText(
+    `${monthExpenses.length} حركة`,
+    `${monthExpenses.length} ${monthExpenses.length === 1 ? "entry" : "entries"}`
+  );
+  if (topNote) topNote.textContent = top ? money(top[1]) : uiText("لا توجد بيانات", "No data");
 }
 
 function renderExpenseVisuals(expenses = filteredExpenses()) {
@@ -10397,7 +8743,7 @@ function renderExpenseVisuals(expenses = filteredExpenses()) {
       `).join("") : `<div class="empty-state">لا توجد مصروفات ضمن الفلاتر الحالية.</div>`}
     </div>
     <div class="expense-payment-summary">
-      <div class="mini-panel-header"><strong>طرق الدفع</strong><span>${expenses.length} حركة</span></div>
+      <div class="mini-panel-header"><strong>طرق الدفع</strong><span>${uiText(`${expenses.length} حركة`, `${expenses.length} ${expenses.length === 1 ? "entry" : "entries"}`)}</span></div>
       ${payments.length ? payments.map(([name, value]) => `
         <div><span>${name}</span><strong>${money(value)}</strong></div>
       `).join("") : `<div class="empty-state">لا توجد بيانات دفع.</div>`}
@@ -13544,7 +11890,8 @@ function renderReportCenter() {
   if (catalogCategory !== "all") rows = rows.filter(report => report.cat === catalogCategory);
   if (catalogQuery) rows = rows.filter(report => matchesSmartQuery([report.name, report.desc, report.columns, CATALOG_TAGS[report.cat]], catalogQuery));
   const now = new Date();
-  const updated = `اليوم ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  const reportTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  const updated = uiText(`اليوم ${reportTime}`, `Today ${reportTime}`);
   const tabs = CATALOG_CATS.map(cat => `<button type="button" class="catalog-tab${cat.key === catalogCategory ? " active" : ""}" data-catalog-cat="${cat.key}">${cat.label}</button>`).join("");
   const body = rows.length ? rows.map(report => `
     <tr>
@@ -14302,8 +12649,11 @@ function updateEntryPreview() {
 
   if (!canViewSensitive()) {
     els.entryPreview.textContent = unpaid > 0.009
-      ? `المدفوع ${money(paid)} | المتبقي ${money(unpaid)}.`
-      : `${lines.length} ${lines.length === 1 ? "عملية" : "عمليات"} في هذه الزيارة. المدفوع ${money(paid)}.`;
+      ? uiText(`المدفوع ${money(paid)} | المتبقي ${money(unpaid)}.`, `Paid ${money(paid)} | Remaining ${money(unpaid)}.`)
+      : uiText(
+        `${lines.length} ${lines.length === 1 ? "عملية" : "عمليات"} في هذه الزيارة. المدفوع ${money(paid)}.`,
+        `${lines.length} ${lines.length === 1 ? "operation" : "operations"} in this visit. Paid ${money(paid)}.`
+      );
     return;
   }
 
@@ -14314,10 +12664,13 @@ function updateEntryPreview() {
   const missingProvider = previewStatus === "completed" && !doctorId && !specialistId;
   if (missingProvider) els.entryPreview.classList.add("warning");
   els.entryPreview.innerHTML = `
-    <span>${lines.length} ${lines.length === 1 ? "عملية" : "عمليات"}</span>
+    <span>${uiText(
+      `${lines.length} ${lines.length === 1 ? "عملية" : "عمليات"}`,
+      `${lines.length} ${lines.length === 1 ? "operation" : "operations"}`
+    )}</span>
     <span>الإجمالي <strong>${money(net)}</strong></span>
-    <span>المدفوع <strong>${money(paid)}</strong>${unpaid ? ` | المتبقي ${money(unpaid)}` : ""}</span>
-    ${overpaid ? `<span>تنبيه: المدفوع أعلى من الإجمالي بـ <strong>${money(paid - net)}</strong></span>` : ""}
+    <span>المدفوع <strong>${money(paid)}</strong>${unpaid ? uiText(` | المتبقي ${money(unpaid)}`, ` | Remaining ${money(unpaid)}`) : ""}</span>
+    ${overpaid ? `<span>${uiText("تنبيه: المدفوع أعلى من الإجمالي بـ", "Warning: payment exceeds the total by")} <strong>${money(paid - net)}</strong></span>` : ""}
     ${missingProvider ? `<span>لن تُحتسب النسب — اختر الطبيب</span>` : ""}
     <span>مستحقات الفريق <strong>${money(payoutTotal)}</strong></span>
   `;
@@ -14398,8 +12751,11 @@ function renderReconciliation(totals, reconciliation, diffs) {
     return `
       <div class="result-card">
         <strong>${label}</strong>
-        <p>المتوقع: ${money(expected)} | الموجود: ${reconciliation ? money(counted) : "لم يحفظ بعد"}</p>
-        <p><span class="status-pill ${status}">${statusText}</span> ${reconciliation ? `الفرق: ${money(diff)}` : ""}</p>
+        <p>${uiText(
+          `المتوقع: ${money(expected)} | الموجود: ${reconciliation ? money(counted) : "لم يحفظ بعد"}`,
+          `Expected: ${money(expected)} | Counted: ${reconciliation ? money(counted) : "Not saved yet"}`
+        )}</p>
+        <p><span class="status-pill ${status}">${statusText}</span> ${reconciliation ? uiText(`الفرق: ${money(diff)}`, `Variance: ${money(diff)}`) : ""}</p>
       </div>
     `;
   }).join("");
@@ -14417,7 +12773,9 @@ function renderReconciliation(totals, reconciliation, diffs) {
 
   els.reconcileResult.innerHTML = `
     <div class="reconciliation-latest">
-      <h3>${reconciliation ? `آخر إغلاق: ${displayDateTimeMinute(reconciliation.createdAt)}` : "لم يتم حفظ إغلاق لهذا اليوم"}</h3>
+      <h3>${reconciliation
+        ? uiText(`آخر إغلاق: ${displayDateTimeMinute(reconciliation.createdAt)}`, `Last close: ${displayDateTimeMinute(reconciliation.createdAt)}`)
+        : uiText("لم يتم حفظ إغلاق لهذا اليوم", "No close has been saved for this day")}</h3>
       ${latestCards}
     </div>
     <div class="reconciliation-history">
@@ -14456,12 +12814,19 @@ function renderLeads() {
 }
 
 function digestTemplateLabel(template) {
-  const labels = {
-    role_daily: "ملخص الدور اليومي",
-    tomorrow_schedule: "جدول الغد",
-    financial_close: "الإغلاق المالي",
-    inventory_alerts: "تنبيهات المخزون"
-  };
+  const labels = currentLanguage() === "en"
+    ? {
+      role_daily: "Daily Role Summary",
+      tomorrow_schedule: "Tomorrow's Schedule",
+      financial_close: "Financial Close",
+      inventory_alerts: "Inventory Alerts"
+    }
+    : {
+      role_daily: "ملخص الدور اليومي",
+      tomorrow_schedule: "جدول الغد",
+      financial_close: "الإغلاق المالي",
+      inventory_alerts: "تنبيهات المخزون"
+    };
   return labels[template] || template;
 }
 
@@ -14479,15 +12844,27 @@ function ownerPulseText() {
   const diffs = reconciliationDiffs(totals, reconciliation);
   const visits = new Set(entries.filter(e => isBillableEntry(e) && e.kind !== "deposit").map(e => e.visitId || e.id)).size;
   return [
-    `رعاية | ${state.settings.clinicName}`,
-    `ملخص يوم ${displayDate(date)}`,
-    `الزيارات: ${visits} · المواعيد: ${bookings.length}${arrived ? ` (حضر ${arrived}${noShow ? ` · لم يحضر ${noShow}` : ""})` : ""}`,
-    `المقبوض: ${money(totals.paid)} — كاش ${money(totals.cash)} · فيزا ${money(totals.card)} · تحويل ${money(totals.transfer)}`,
-    outstanding > 0.009 ? `ذمم جديدة اليوم: ${money(outstanding)}` : "لا ذمم جديدة اليوم ✓",
-    diffs ? `فرق الإغلاق: ${money(diffs.totalDiff)}` : "الإغلاق لم يُحفظ بعد",
+    uiText(`رعاية | ${state.settings.clinicName}`, `Riaaya | ${state.settings.clinicName}`),
+    uiText(`ملخص يوم ${displayDate(date)}`, `Daily summary for ${displayDate(date)}`),
+    uiText(
+      `الزيارات: ${visits} · المواعيد: ${bookings.length}${arrived ? ` (حضر ${arrived}${noShow ? ` · لم يحضر ${noShow}` : ""})` : ""}`,
+      `Visits: ${visits} · Bookings: ${bookings.length}${arrived ? ` (${arrived} arrived${noShow ? ` · ${noShow} no-show` : ""})` : ""}`
+    ),
+    uiText(
+      `المقبوض: ${money(totals.paid)} — كاش ${money(totals.cash)} · فيزا ${money(totals.card)} · تحويل ${money(totals.transfer)}`,
+      `Collected: ${money(totals.paid)} — Cash ${money(totals.cash)} · Card ${money(totals.card)} · Transfer ${money(totals.transfer)}`
+    ),
+    outstanding > 0.009
+      ? uiText(`ذمم جديدة اليوم: ${money(outstanding)}`, `New balances due today: ${money(outstanding)}`)
+      : uiText("لا ذمم جديدة اليوم ✓", "No new balances due today ✓"),
+    diffs
+      ? uiText(`فرق الإغلاق: ${money(diffs.totalDiff)}`, `Closing variance: ${money(diffs.totalDiff)}`)
+      : uiText("الإغلاق لم يُحفظ بعد", "Closing has not been saved yet"),
     (() => {
       const recovered = moneyRecoveredStats(date.slice(0, 7));
-      return recovered.total > 0.009 ? `أعادته رسائل رعاية هذا الشهر: ${money(recovered.total)}` : "";
+      return recovered.total > 0.009
+        ? uiText(`أعادته رسائل رعاية هذا الشهر: ${money(recovered.total)}`, `Recovered through Riaaya messages this month: ${money(recovered.total)}`)
+        : "";
     })()
   ].filter(Boolean).join("\n");
 }
@@ -14514,10 +12891,13 @@ function roleDigestText(account, template = "role_daily") {
     )
   ));
   const totals = totalsFor(ownEntries);
-  const lines = [`رعاية | ${esc(state.settings.clinicName)}`, `${accountDisplayName(account)} - ${roleLabel(account.role)}`];
+  const lines = [uiText(`رعاية | ${esc(state.settings.clinicName)}`, `Riaaya | ${esc(state.settings.clinicName)}`), `${accountDisplayName(account)} - ${roleLabel(account.role)}`];
 
   if (template === "tomorrow_schedule") {
-    lines.push(`جدول الغد: ${tomorrowBookings.length} موعد`);
+    lines.push(uiText(
+      `جدول الغد: ${tomorrowBookings.length} موعد`,
+      `Tomorrow's schedule: ${tomorrowBookings.length} ${tomorrowBookings.length === 1 ? "booking" : "bookings"}`
+    ));
     tomorrowBookings.slice(0, 6).forEach(booking => {
       lines.push(`${booking.time} ${esc(booking.patient)} - ${esc(serviceLabel(booking))}`);
     });
@@ -14526,32 +12906,35 @@ function roleDigestText(account, template = "role_daily") {
 
   if (template === "inventory_alerts") {
     const items = lowStockItems();
-    lines.push(`تنبيهات المخزون: ${items.length}`);
+    lines.push(uiText(`تنبيهات المخزون: ${items.length}`, `Inventory alerts: ${items.length}`));
     items.slice(0, 6).forEach(item => lines.push(`${esc(item.name)}: ${item.quantity} ${item.unit}`));
     return lines.join("\n");
   }
 
   if (template === "financial_close") {
-    lines.push(`عمليات اليوم: ${ownEntries.length}`);
+    lines.push(uiText(`عمليات اليوم: ${ownEntries.length}`, `Today's operations: ${ownEntries.length}`));
     lines.push(account.role === "admin" || account.canViewSensitive
-      ? `المدفوع: ${money(totals.paid)}`
-      : "التفاصيل المالية غير متاحة لهذا الدور");
+      ? uiText(`المدفوع: ${money(totals.paid)}`, `Collected: ${money(totals.paid)}`)
+      : uiText("التفاصيل المالية غير متاحة لهذا الدور", "Financial details are not available to this role"));
     const reconciliation = activeReconciliation();
     const diffs = reconciliationDiffs(totals, reconciliation);
-    lines.push(diffs ? `فرق الإغلاق: ${money(diffs.totalDiff)}` : "الإغلاق غير محفوظ");
+    lines.push(diffs
+      ? uiText(`فرق الإغلاق: ${money(diffs.totalDiff)}`, `Closing variance: ${money(diffs.totalDiff)}`)
+      : uiText("الإغلاق غير محفوظ", "Closing not saved"));
     return lines.join("\n");
   }
 
-  lines.push(`المواعيد: ${dayBookings.length}`);
-  lines.push(`المؤكدة: ${dayBookings.filter(booking => booking.status === "confirmed").length}`);
-  lines.push(`وصل: ${dayBookings.filter(booking => booking.status === "arrived").length}`);
-  lines.push(`العمليات: ${ownEntries.length}`);
+  lines.push(uiText(`المواعيد: ${dayBookings.length}`, `Bookings: ${dayBookings.length}`));
+  lines.push(uiText(`المؤكدة: ${dayBookings.filter(booking => booking.status === "confirmed").length}`, `Confirmed: ${dayBookings.filter(booking => booking.status === "confirmed").length}`));
+  lines.push(uiText(`وصل: ${dayBookings.filter(booking => booking.status === "arrived").length}`, `Arrived: ${dayBookings.filter(booking => booking.status === "arrived").length}`));
+  lines.push(uiText(`العمليات: ${ownEntries.length}`, `Operations: ${ownEntries.length}`));
   if (account.role === "admin" || account.canViewSensitive) {
-    lines.push(`المدفوع: ${money(totals.paid)}`);
-    lines.push(`فواتير JoFotara المعلقة: ${(state.receipts || []).filter(receipt => ["draft", "ready"].includes(receipt.status)).length}`);
+    lines.push(uiText(`المدفوع: ${money(totals.paid)}`, `Collected: ${money(totals.paid)}`));
+    const pendingInvoices = (state.receipts || []).filter(receipt => ["draft", "ready"].includes(receipt.status)).length;
+    lines.push(uiText(`فواتير JoFotara المعلقة: ${pendingInvoices}`, `Pending JoFotara invoices: ${pendingInvoices}`));
   }
   if (account.role === "admin") {
-    lines.push(`مخزون منخفض: ${lowStockItems().length}`);
+    lines.push(uiText(`مخزون منخفض: ${lowStockItems().length}`, `Low-stock items: ${lowStockItems().length}`));
   }
   return lines.join("\n");
 }
@@ -14785,7 +13168,7 @@ function renderDigestRules() {
       <div class="automation-row">
         <div>
           <strong>${accountDisplayName(account)} | ${rule.channel === "whatsapp" ? "WhatsApp" : "SMS"}</strong>
-          <span>${digestTemplateLabel(rule.template)} عند ${rule.sendTime}</span>
+          <span>${uiText(`${digestTemplateLabel(rule.template)} عند ${rule.sendTime}`, `${digestTemplateLabel(rule.template)} at ${rule.sendTime}`)}</span>
         </div>
         <div class="row-actions">
           <span class="status-pill ${account?.mobile ? "good" : "warn"}">${account?.mobile ? "جاهز" : "رقم مطلوب"}</span>
@@ -14827,7 +13210,10 @@ function renderCampaignEstimate() {
     <div><span>المستلمون</span><strong>${recipients.length}</strong></div>
     <div><span>الأحرف</span><strong>${length}/320</strong></div>
     <div><span>مقاطع SMS</span><strong>${segments}</strong></div>
-    <div><span>الإجمالي المتوقع</span><strong>${recipients.length * segments} رسالة</strong></div>
+    <div><span>الإجمالي المتوقع</span><strong>${uiText(
+      `${recipients.length * segments} رسالة`,
+      `${recipients.length * segments} ${recipients.length * segments === 1 ? "message" : "messages"}`
+    )}</strong></div>
   `;
 }
 
@@ -14847,7 +13233,10 @@ function renderCampaignList() {
     <div class="campaign-row">
       <div>
         <strong>${campaign.message.slice(0, 70)}${campaign.message.length > 70 ? "..." : ""}</strong>
-        <span>${campaign.recipientCount} مستلم | ${campaign.segments} مقطع | ${campaign.scheduledAt ? new Date(campaign.scheduledAt).toLocaleString("ar-JO-u-nu-latn") : "الإرسال عند تفعيل المزود"}</span>
+        <span>${uiText(
+          `${campaign.recipientCount} مستلم | ${campaign.segments} مقطع | ${campaign.scheduledAt ? new Date(campaign.scheduledAt).toLocaleString("ar-JO-u-nu-latn") : "الإرسال عند تفعيل المزود"}`,
+          `${campaign.recipientCount} ${campaign.recipientCount === 1 ? "recipient" : "recipients"} | ${campaign.segments} ${campaign.segments === 1 ? "segment" : "segments"} | ${campaign.scheduledAt ? new Date(campaign.scheduledAt).toLocaleString("en-US") : "Sends when the provider is enabled"}`
+        )}</span>
       </div>
       <span class="status-pill ${campaign.status === "sent" ? "good" : campaign.status === "failed" ? "bad" : "warn"}">${campaignStatusLabel(campaign.status)}</span>
     </div>
@@ -15555,9 +13944,7 @@ els.viewButtons.forEach(button => {
 
 if (els.languageSelect) {
   els.languageSelect.addEventListener("change", event => {
-    state.settings.language = event.target.value;
     storageSet("riaayaLanguage", event.target.value);
-    saveState();
     render();
   });
 }

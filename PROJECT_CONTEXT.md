@@ -1,6 +1,6 @@
 # Riaaya Project Context
 
-Updated: July 12, 2026
+Updated: July 13, 2026
 
 ## Product
 
@@ -14,7 +14,8 @@ The public trial remains available at `app.html?trial=1`. Trial data stays in th
 
 - `index.html`: public product page and direct 14-day clinic registration.
 - `auth.html`, `auth.css`, `auth.js`: login and registration.
-- `app.html`, `app.css`, `app.js`: clinic workspace and public trial. The legacy client remains a large monolith; extracted pure behavior now lives in `modules/booking-domain.js`, `modules/visit-domain.js`, and `modules/daily-workflows.js`. Shared responsive workflow rules live in `styles/workflow-components.css`.
+- `app.html`, `app.css`, `app.js`: clinic workspace and public trial. The legacy client remains a large monolith; extracted pure behavior now lives in `modules/booking-domain.js`, `modules/visit-domain.js`, `modules/daily-workflows.js`, and `modules/language-domain.js`. Shared responsive workflow rules live in `styles/workflow-components.css`.
+- `modules/language-domain.js`: English catalog, locale/direction/title resolution, and Arabic-English literal translation behind compatibility wrappers in `app.js`. The user's browser preference overrides the clinic default without changing other users' language.
 - `owner.html`, `owner.css`, `owner.js`: platform-owner control panel.
 - Vanilla JavaScript rendering and event handling.
 
@@ -183,14 +184,14 @@ The initial production shape is a single Node instance with one persistent SQLit
 
 ## Most Recent Work
 
-The repository now has active Git history. The July product work added the money center, multi-service packages, session-level performer commissions, mobile navigation, searchable patient workflows, permission presets, and a redesigned landing page. The current architecture pass moves patients, bookings, operations, and payment events into encrypted relational rows; adds backup-first migration, record manifests, schema/readiness checks, owner observability, a free synthetic-data staging blueprint, booking and visit domain modules, and owner-screen visual regression coverage.
+The repository now has active Git history. The July product work added the money center, multi-service packages, session-level performer commissions, mobile navigation, searchable patient workflows, permission presets, and a redesigned landing page. The current architecture pass moves patients, bookings, operations, and payment events into encrypted relational rows; adds backup-first migration, record manifests, schema/readiness checks, owner observability, a free synthetic-data staging blueprint, booking and visit domain modules, owner-screen visual regression coverage, and a separately testable language domain with a complete native-English workspace pass.
 
 ### Modernization Status
 
 - Daily usability: the tested default booking and operation paths are two actions after opening their forms; secondary dashboard content starts collapsed; module changes reset stale scroll position.
 - Visual consistency: workflow components now have shared responsive rules and eight deterministic desktop/mobile reference screenshots checked with `pixelmatch`.
-- Maintainability: migration infrastructure, state validation, relational core-record persistence, and three frontend behavior modules are complete. Public booking, owner exports, key rotation, backups, and stale-save merging use the same persistence contract.
-- Still incomplete: most client event wiring and rendering remains in the 20,000-line `app.js`; services, expenses, inventory, packages, receipts, and communications still share the encrypted state shell; PostgreSQL, background workers, and a permanently provisioned staging service remain future phases.
+- Maintainability: migration infrastructure, state validation, relational core-record persistence, and four frontend behavior modules are complete. Public booking, owner exports, key rotation, backups, and stale-save merging use the same persistence contract.
+- Still incomplete: most client event wiring and rendering remains in the roughly 19,300-line `app.js`; services, expenses, inventory, packages, receipts, and communications still share the encrypted state shell; PostgreSQL, background workers, and a permanently provisioned staging service remain future phases.
 
 ## Setup
 

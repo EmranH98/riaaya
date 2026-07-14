@@ -2,6 +2,7 @@ const baseUrl = (process.env.SMOKE_BASE_URL || `http://localhost:${process.env.P
 
 const requiredAppMarkers = [
   ["workflow component styles", "styles/workflow-components.css"],
+  ["language domain module", "modules/language-domain.js"],
   ["booking domain module", "modules/booking-domain.js"],
   ["visit domain module", "modules/visit-domain.js"],
   ["daily workflow module", "modules/daily-workflows.js"],
@@ -81,7 +82,7 @@ async function main() {
   assert(workflowScriptMatch, "app.html missing daily-workflows.js script tag");
   const { text: workflowJs } = await fetchText(workflowScriptMatch[1].startsWith("/") ? workflowScriptMatch[1] : `/${workflowScriptMatch[1]}`);
   expectMarkers(workflowJs, [["reconciliation shortcut", "data-copy-all-expected"]], "daily-workflows.js");
-  for (const modulePath of ["/modules/booking-domain.js", "/modules/visit-domain.js"]) {
+  for (const modulePath of ["/modules/language-domain.js", "/modules/booking-domain.js", "/modules/visit-domain.js"]) {
     const { response } = await fetchText(modulePath);
     assert(response.status === 200, `${modulePath} must be served`);
   }

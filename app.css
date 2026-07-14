@@ -5450,6 +5450,10 @@ html[dir="ltr"] label {
     flex: 0 0 auto;
   }
 
+  .language-switcher > span {
+    display: none;
+  }
+
   .runtime-banner {
     gap: 10px;
     margin-bottom: 12px;
@@ -5733,6 +5737,11 @@ html[dir="ltr"] label {
 
 
 @media (max-width: 620px) {
+  .daily-command-center {
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
   .daily-command-tile strong {
     font-size: var(--text-xl);
   }
@@ -5755,8 +5764,8 @@ html[dir="ltr"] label {
   }
 
   .daily-command-tile {
-    min-height: 96px;
-    padding: 14px 12px;
+    min-height: 86px;
+    padding: 12px;
   }
 }
 
@@ -5776,9 +5785,21 @@ html[dir="ltr"] label {
   margin-bottom: 18px;
 }
 
-/* Hide rarely-needed clutter from topbar */
 .language-switcher {
-  display: none;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--ink-mid);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+.language-switcher select {
+  min-width: 94px;
+  padding: 7px 28px 7px 10px;
+  border-radius: var(--radius);
+  background-color: var(--white);
+  font-size: var(--text-sm);
 }
 
 /* Home link redundant inside app shell */
